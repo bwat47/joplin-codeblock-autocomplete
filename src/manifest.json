@@ -8,9 +8,20 @@
 	"author": "bwat47",
 	"homepage_url": "https://github.com/bwat47/joplin-codeblock-autocomplete",
 	"repository_url": "https://github.com/bwat47/joplin-codeblock-autocomplete",
-	"keywords": [],
-	"categories": [],
-	"screenshots": [],
-	"icons": {},
-	"promo_tile": {}
+	"keywords": ["autocomplete", "code", "code block", "fenced code block", "code fence", "fence", "code fence autocomplete"],
+	"categories": ["productivity", "developer tools", "editor"],
+	"screenshots": [
+		{ "src": "images/screenshot1.png", "label": "Codeblock Autocomplete Screenshot 1" }
+	],
+	"icons": {
+		"16": "images/16.png",
+		"32": "images/32.png",
+		"48": "images/48.png",
+		"64": "images/64.png",
+		"128": "images/128.png"
+	},
+	"promo_tile": {
+		"src": "images/promo.png",
+		"label": "Codeblock Autocomplete Promo Tile"
+	}
 }
