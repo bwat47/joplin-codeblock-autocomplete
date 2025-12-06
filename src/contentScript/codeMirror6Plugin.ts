@@ -89,10 +89,10 @@ function createApplyFunction(
         const currentPos = view.state.selection.main.head;
 
         // Insert: full language + newlines + closing fence
-        const insertText = `${desiredLang}${lineBreak}${lineBreak}${indent}${fence}`;
+        const insertText = `${desiredLang}${lineBreak}${indent}${lineBreak}${indent}${fence}`;
 
         // Position cursor on the empty line inside the block
-        const cursorOffset = from + desiredLang.length + lineBreak.length;
+        const cursorOffset = from + desiredLang.length + lineBreak.length + indent.length;
 
         view.dispatch(
             view.state.update({
