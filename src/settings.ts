@@ -7,7 +7,7 @@ import { SettingItem, SettingItemType } from 'api/types';
 const SECTION_ID = 'codeblockAutocomplete';
 
 const DEFAULT_LANGUAGES =
-    'javascript, typescript, python, bash, shell, html, css, sql, json, xml, yaml, markdown, c, cpp, csharp, java, go, rust, php, ruby, swift, kotlin';
+    'javascript, typescript, powershell, python, bash, shell, html, css, sql, json, xml, yaml, markdown, c, cpp, csharp, java, go, rust, php, ruby, swift, kotlin';
 
 const SETTINGS_CONFIG = {
     languages: {
