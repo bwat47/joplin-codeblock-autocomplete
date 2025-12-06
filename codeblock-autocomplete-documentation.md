@@ -37,9 +37,9 @@ src/
 **`codeMirror6Plugin.ts`**
 
 - `fetchLanguages()` - Gets languages from main process via `postMessage`
-- `parseOpeningFence()` - Parses current line to extract indent, backtick count (3+), and typed language
-- `createApplyFunction()` - Creates completion handler that inserts remaining language text and closing fence from cursor position
-- `codeBlockCompleter` - Async completion source that parses fence, filters languages, and adds custom language option if needed
+- `parseOpeningFence()` - Parses current line to extract indent, backtick count (3+), typed language, and language start position
+- `createApplyFunction()` - Creates completion handler that replaces typed language and inserts closing fence
+- `codeBlockCompleter` - Async completion source that parses fence, filters languages case-insensitively, returns matched languages before custom language option
 - `triggerCompletionOnBackticks` - Update listener that auto-triggers completion on ` ``` ` when preceded by whitespace only
 
 **`types.ts`**
@@ -58,8 +58,9 @@ Default languages: javascript, typescript, python, bash, shell, html, css, sql, 
 ## Completion Behavior
 
 - Triggers only when ` ``` ` is preceded by whitespace on the line
-- First option is always ` ``` ` (empty code block)
-- Configured language options follow, filtered by typed prefix (e.g., ` ```py ` shows python)
-- Custom languages not in settings are added with lower priority (e.g., ` ```bobo ` adds "bobo")
+- First option is always ` ``` ` (empty code block) when no language typed
+- Configured language options follow, filtered case-insensitively by typed prefix (e.g., ` ```py ` shows python)
+- Supports language names with hyphens and special characters (e.g., `objective-c`, `c++`)
+- Custom languages not in settings appear after all matched languages (e.g., typing ` ```bobo ` adds "bobo" below any matches)
 - Closing fence matches opening backtick count (e.g., 4 backticks close with 4) and indentation
-- Selection inserts remaining language text and closing fence from cursor position, cursor positioned inside block
+- Selection replaces typed language and inserts closing fence, cursor positioned inside block
