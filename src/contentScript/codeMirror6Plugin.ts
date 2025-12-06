@@ -124,7 +124,9 @@ export default function codeMirror6Plugin(context: PluginContext, CodeMirror: Jo
 
         // Find languages that match what the user has typed so far (case-insensitive)
         const typedLangLower = typedLang.toLowerCase();
-        const matchedLanguages = languages.filter((lang) => lang.toLowerCase().startsWith(typedLangLower));
+        const matchedLanguages = languages
+            .filter((lang) => lang.toLowerCase().startsWith(typedLangLower))
+            .sort((a, b) => a.localeCompare(b));
 
         // Build options in explicit order: matched languages first, then custom language
         const matchedOptions: Completion[] = [];
