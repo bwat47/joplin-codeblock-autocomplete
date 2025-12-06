@@ -10,21 +10,31 @@ import type { PluginContext, JoplinCodeMirror } from './types';
 import { logger } from '../logger';
 
 let cachedLanguages: string[] = [];
+let hasFetched = false;
 
-/** Fetches language list from plugin settings via postMessage */
-async function fetchLanguages(context: PluginContext): Promise<string[]> {
+async function updateLanguages(context: PluginContext): Promise<string[]> {
     try {
         const response = (await context.postMessage({ command: 'getLanguages' })) as {
             languages: string[];
         } | null;
         if (response?.languages) {
             cachedLanguages = response.languages;
-            return cachedLanguages;
+            hasFetched = true;
         }
     } catch (error) {
         logger.error('Failed to fetch languages:', error);
     }
     return cachedLanguages;
+}
+
+/** Fetches language list from plugin settings via postMessage */
+async function fetchLanguages(context: PluginContext): Promise<string[]> {
+    if (hasFetched) {
+        // Update in background to keep cache fresh without blocking
+        void updateLanguages(context);
+        return cachedLanguages;
+    }
+    return await updateLanguages(context);
 }
 
 /**
