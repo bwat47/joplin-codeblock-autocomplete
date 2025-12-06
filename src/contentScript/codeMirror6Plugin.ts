@@ -40,15 +40,12 @@ function parseOpeningFence(
     const lineStartPos = line.from;
 
     // Match: optional indent + backticks + optional language
-    const match = lineText.match(/^(\s*)(`{3,})(\w*)/);
+    const match = lineText.match(/^(\s*)(`{3,})([^\s`]*)/);
     if (!match) return undefined;
 
     const indent = match[1];
     const backticks = match[2];
     const typedLang = match[3];
-
-    // Only complete if there's only whitespace before the backticks
-    if (!/^\s*$/.test(indent)) return undefined;
 
     // Cursor must be after the backticks (either at end of line or after language)
     const fenceStart = lineStartPos + indent.length;
@@ -111,8 +108,9 @@ export default function codeMirror6Plugin(context: PluginContext, CodeMirror: Jo
         const { typedLang } = openingFence;
         const languages = await fetchLanguages(context);
 
-        // Find languages that match what the user has typed so far
-        const matchedLanguages = languages.filter((lang) => lang.startsWith(typedLang));
+        // Find languages that match what the user has typed so far (case-insensitive)
+        const typedLangLower = typedLang.toLowerCase();
+        const matchedLanguages = languages.filter((lang) => lang.toLowerCase().startsWith(typedLangLower));
 
         const options: Completion[] = [];
 
