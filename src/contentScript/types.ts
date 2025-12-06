@@ -1,3 +1,6 @@
+/**
+ * Type definitions for Joplin content script integration.
+ */
 import type { CompletionContext, CompletionResult } from '@codemirror/autocomplete';
 import type { Extension } from '@codemirror/state';
 

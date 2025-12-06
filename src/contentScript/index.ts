@@ -1,3 +1,6 @@
+/**
+ * Content script entry point for CodeMirror integration.
+ */
 import codeMirror6Plugin from './codeMirror6Plugin';
 import type { PluginContext, JoplinCodeMirror } from './types';
 

@@ -1,16 +1,11 @@
 /**
- * Joplin settings registration for Codeblock Autocomplete plugin.
- *
- * Integrates plugin configuration into Joplin's preferences UI, allowing
- * users to customize plugin behavior through Settings > Codeblock Autocomplete.
+ * Plugin settings registration and cache management.
  */
-
 import joplin from 'api';
 import { SettingItem, SettingItemType } from 'api/types';
 
 const SECTION_ID = 'codeblockAutocomplete';
 
-/** Default languages for code block autocompletion */
 const DEFAULT_LANGUAGES =
     'javascript, typescript, python, bash, shell, html, css, sql, json, xml, yaml, markdown, c, cpp, csharp, java, go, rust, php, ruby, swift, kotlin';
 
@@ -28,16 +23,12 @@ export type SettingsCache = {
     languages: string;
 };
 
-/**
- * Module-level settings cache for synchronous access
- */
+/** In-memory settings cache for synchronous access */
 export const settingsCache: SettingsCache = {
     languages: DEFAULT_LANGUAGES,
 };
 
-/**
- * Parses the languages setting into an array of language strings
- */
+/** Parses the languages setting into an array of trimmed strings */
 export function getLanguageList(): string[] {
     return settingsCache.languages
         .split(',')
@@ -45,17 +36,11 @@ export function getLanguageList(): string[] {
         .filter((lang) => lang.length > 0);
 }
 
-/**
- * Updates the settings cache by reading all values from Joplin settings
- */
 async function updateSettingsCache(): Promise<void> {
     settingsCache.languages = await joplin.settings.value(SETTINGS_CONFIG.languages.key);
 }
 
-/**
- * Initializes the settings cache and registers change listener.
- * Must be called once during plugin initialization, after registerSettings().
- */
+/** Initializes settings cache and registers change listener */
 export async function initializeSettingsCache(): Promise<void> {
     await updateSettingsCache();
 
@@ -66,6 +51,7 @@ export async function initializeSettingsCache(): Promise<void> {
     });
 }
 
+/** Registers plugin settings with Joplin */
 export async function registerSettings(): Promise<void> {
     await joplin.settings.registerSection(SECTION_ID, {
         label: 'Codeblock Autocomplete',
