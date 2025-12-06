@@ -1,17 +1,14 @@
-// src/contentScript/index.ts
 import codeMirror6Plugin from './codeMirror6Plugin';
+import type { PluginContext, JoplinCodeMirror } from './types';
 
 module.exports = {
-    default: function (context: any) {
+    default: function (context: PluginContext) {
         return {
-            plugin: (CodeMirror: any) => {
-                // We only initialize if it's the CM6 implementation
+            plugin: (CodeMirror: JoplinCodeMirror) => {
                 if (CodeMirror.cm6) {
                     codeMirror6Plugin(context, CodeMirror);
                 }
             },
-            // No assets or CSS needed for this minimal version
-            // as we use the default CM6 tooltip styles
         };
     },
 };

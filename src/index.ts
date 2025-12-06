@@ -1,4 +1,3 @@
-// src/index.ts
 import joplin from 'api';
 import { ContentScriptType } from 'api/types';
 

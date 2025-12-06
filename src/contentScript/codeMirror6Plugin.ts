@@ -1,10 +1,8 @@
-// src/contentScript/codeMirror6Plugin.ts
-
 import type { CompletionContext, CompletionResult, Completion } from '@codemirror/autocomplete';
-import type { EditorView } from '@codemirror/view';
-import type { Extension } from '@codemirror/state';
+import type { EditorView, ViewUpdate } from '@codemirror/view';
+import type { Extension, Transaction } from '@codemirror/state';
+import type { PluginContext, JoplinCodeMirror } from './types';
 
-// Common languages to suggest. You could expand this list or make it a setting later.
 const LANGUAGES = [
     { label: 'javascript', type: 'text' },
     { label: 'typescript', type: 'text' },
@@ -17,9 +15,12 @@ const LANGUAGES = [
     { label: 'text', type: 'text', info: 'Plain text' }, // Generic block
 ];
 
-export default function codeMirror6Plugin(_context: any, CodeMirror: any) {
+export default function codeMirror6Plugin(_context: PluginContext, CodeMirror: JoplinCodeMirror): void {
     // Dynamic imports to match Joplin's environment
+    // These must be require() calls because the modules are provided by Joplin at runtime
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { autocompletion, startCompletion } = require('@codemirror/autocomplete');
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { EditorView: CM6EditorView } = require('@codemirror/view');
 
     console.log('Codeblock autocomplete plugin loaded');
@@ -80,11 +81,11 @@ export default function codeMirror6Plugin(_context: any, CodeMirror: any) {
     };
 
     // Create an input handler that triggers completion when ``` is typed
-    const triggerCompletionOnBackticks = CM6EditorView.updateListener.of((update: any) => {
+    const triggerCompletionOnBackticks = CM6EditorView.updateListener.of((update: ViewUpdate) => {
         if (!update.docChanged) return;
 
         // Check if the change involves typing
-        update.transactions.forEach((tr: any) => {
+        update.transactions.forEach((tr: Transaction) => {
             if (tr.isUserEvent('input.type')) {
                 const state = update.state;
                 const pos = state.selection.main.head;
