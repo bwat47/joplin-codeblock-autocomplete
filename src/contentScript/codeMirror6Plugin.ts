@@ -27,17 +27,23 @@ async function fetchLanguages(context: PluginContext): Promise<string[]> {
     return cachedLanguages;
 }
 
-/** Creates a completion apply function for code blocks */
-function createApplyFunction(lang: string) {
+/**
+ * Creates a completion apply function for code blocks.
+ * @param lang - Language identifier (empty string for plain code block)
+ * @param prefixLength - Length of the matched prefix (e.g., 3 for ```, 9 for ```python)
+ * @param backtickCount - Number of backticks in the fence (minimum 3, supports 4+)
+ */
+function createApplyFunction(lang: string, prefixLength: number, backtickCount: number) {
     return (view: EditorView, _completion: Completion, from: number, to: number) => {
         const lineBreak = view.state.lineBreak || '\n';
-        const backtickStart = from - 3;
+        const backtickStart = from - prefixLength;
+        const fence = '`'.repeat(backtickCount);
         const insertText = lang
-            ? `\`\`\`${lang}${lineBreak}${lineBreak}\`\`\``
-            : `\`\`\`${lineBreak}${lineBreak}\`\`\``;
+            ? `${fence}${lang}${lineBreak}${lineBreak}${fence}`
+            : `${fence}${lineBreak}${lineBreak}${fence}`;
         const cursorOffset = lang
-            ? backtickStart + 3 + lang.length + lineBreak.length
-            : backtickStart + 3 + lineBreak.length;
+            ? backtickStart + backtickCount + lang.length + lineBreak.length
+            : backtickStart + backtickCount + lineBreak.length;
 
         view.dispatch(
             view.state.update({
@@ -52,19 +58,35 @@ function createApplyFunction(lang: string) {
 export default function codeMirror6Plugin(context: PluginContext, CodeMirror: JoplinCodeMirror): void {
     fetchLanguages(context);
 
+    /**
+     * Autocomplete source for code blocks.
+     * Matches 3 or more backticks followed by optional word characters.
+     * Supports nested code blocks with matching fence lengths.
+     */
     const codeBlockCompleter = async (completionContext: CompletionContext): Promise<CompletionResult | null> => {
-        const prefix = completionContext.matchBefore(/```\w*/);
+        const prefix = completionContext.matchBefore(/```+\w*/);
         if (!prefix) {
             return null;
         }
 
+        const prefixLength = prefix.text.length;
+
+        // Count the number of backticks (all leading backticks before any word characters)
+        // Supports 3+ backticks for nested code blocks
+        const backtickMatch = prefix.text.match(/^`+/);
+        const backtickCount = backtickMatch ? backtickMatch[0].length : 3;
+
         const languages = await fetchLanguages(context);
         const options: Completion[] = [
-            { label: '```', detail: 'empty code block', apply: createApplyFunction('') },
+            {
+                label: '```',
+                detail: 'empty code block',
+                apply: createApplyFunction('', prefixLength, backtickCount),
+            },
             ...languages.map((lang) => ({
                 label: lang,
                 detail: 'code block',
-                apply: createApplyFunction(lang),
+                apply: createApplyFunction(lang, prefixLength, backtickCount),
             })),
         ];
 
