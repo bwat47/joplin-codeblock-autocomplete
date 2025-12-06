@@ -5,72 +5,95 @@ import type { ViewUpdate } from '@codemirror/view';
 import type { Extension, Transaction } from '@codemirror/state';
 import type { PluginContext, JoplinCodeMirror } from './types';
 
-const LANGUAGES = [
-    { label: 'javascript', type: 'text' },
-    { label: 'typescript', type: 'text' },
-    { label: 'python', type: 'text' },
-    { label: 'bash', type: 'text' },
-    { label: 'html', type: 'text' },
-    { label: 'css', type: 'text' },
-    { label: 'sql', type: 'text' },
-    { label: 'json', type: 'text' },
-    { label: 'text', type: 'text', info: 'Plain text' }, // Generic block
-];
+/** Cached languages list from settings */
+let cachedLanguages: string[] = [];
 
-export default function codeMirror6Plugin(_context: PluginContext, CodeMirror: JoplinCodeMirror): void {
+/**
+ * Fetches the language list from plugin settings
+ */
+async function fetchLanguages(context: PluginContext): Promise<string[]> {
+    try {
+        const response = (await context.postMessage({ command: 'getLanguages' })) as {
+            languages: string[];
+        } | null;
+        if (response?.languages) {
+            cachedLanguages = response.languages;
+            return cachedLanguages;
+        }
+    } catch (error) {
+        console.error('Failed to fetch languages:', error);
+    }
+    return cachedLanguages;
+}
+
+export default function codeMirror6Plugin(context: PluginContext, CodeMirror: JoplinCodeMirror): void {
     console.log('Codeblock autocomplete plugin loaded');
 
+    // Fetch languages on startup
+    fetchLanguages(context);
+
     // The core logic function
-    const codeBlockCompleter = async (context: CompletionContext): Promise<CompletionResult | null> => {
+    const codeBlockCompleter = async (completionContext: CompletionContext): Promise<CompletionResult | null> => {
         // Match three backticks followed by optional word characters
-        // Using literal backticks in the pattern
-        const prefix = context.matchBefore(/```\w*/);
+        const prefix = completionContext.matchBefore(/```\w*/);
 
         console.log('codeBlockCompleter called, prefix:', prefix);
 
-        // If no match found, don't show completions
         if (!prefix) {
             return null;
         }
 
-        // Prepare the options
-        const options: Completion[] = LANGUAGES.map((lang) => ({
-            label: lang.label,
-            detail: 'code block', // Appears in gray next to the option
+        // Refresh languages from settings
+        const languages = await fetchLanguages(context);
 
-            // Custom Apply Function
-            // This handles replacing the trigger and positioning the cursor
+        // Build completion options
+        const options: Completion[] = [];
+
+        // First option: empty code block (just ```)
+        options.push({
+            label: '```',
+            detail: 'empty code block',
             apply: (view: EditorView, _completion: Completion, from: number, to: number) => {
                 const lineBreak = view.state.lineBreak || '\n';
-
-                // Since 'from' in the result is set to prefix.to (after the ```),
-                // we need to replace starting from before the backticks
-                const backtickStart = from - 3; // Go back 3 characters to include ```
-
-                // Construct the full block: ```lang \n \n ```
-                const insertText = `\`\`\`${lang.label}${lineBreak}${lineBreak}\`\`\``;
+                const backtickStart = from - 3;
+                const insertText = `\`\`\`${lineBreak}${lineBreak}\`\`\``;
 
                 const transaction = view.state.update({
                     changes: { from: backtickStart, to, insert: insertText },
-                    // Calculate cursor position:
-                    // Start + 3 (backticks) + lang length + 1 (first newline)
-                    selection: { anchor: backtickStart + 3 + lang.label.length + lineBreak.length },
+                    // Position cursor on the empty line inside the block
+                    selection: { anchor: backtickStart + 3 + lineBreak.length },
                 });
 
                 view.dispatch(transaction);
             },
-        }));
+        });
+
+        // Add language options from settings
+        for (const lang of languages) {
+            options.push({
+                label: lang,
+                detail: 'code block',
+                apply: (view: EditorView, _completion: Completion, from: number, to: number) => {
+                    const lineBreak = view.state.lineBreak || '\n';
+                    const backtickStart = from - 3;
+                    const insertText = `\`\`\`${lang}${lineBreak}${lineBreak}\`\`\``;
+
+                    const transaction = view.state.update({
+                        changes: { from: backtickStart, to, insert: insertText },
+                        selection: { anchor: backtickStart + 3 + lang.length + lineBreak.length },
+                    });
+
+                    view.dispatch(transaction);
+                },
+            });
+        }
 
         console.log('Returning completions:', options.length);
 
-        // Return the result to CodeMirror
-        // Set 'from' to after the backticks so the language name replaces nothing initially
-        // This allows the completion to show all options when just ``` is typed
         return {
-            from: prefix.to, // Start completion from cursor position (after ```)
+            from: prefix.to,
             options: options,
             filter: true,
-            // validFor ensures the completion stays active while typing language name
             validFor: /^\w*$/,
         };
     };
@@ -92,9 +115,7 @@ export default function codeMirror6Plugin(_context: PluginContext, CodeMirror: J
                         console.log('Detected ```, triggering completion');
                         // Small delay to let the document update settle
                         setTimeout(() => {
-                            console.log('Calling startCompletion on view:', update.view);
-                            const result = startCompletion(update.view);
-                            console.log('startCompletion result:', result);
+                            startCompletion(update.view);
                         }, 10);
                     }
                 }
