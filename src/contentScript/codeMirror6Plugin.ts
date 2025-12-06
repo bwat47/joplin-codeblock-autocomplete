@@ -28,33 +28,64 @@ async function fetchLanguages(context: PluginContext): Promise<string[]> {
 }
 
 /**
- * Creates a completion apply function for code blocks.
- * @param lang - Language identifier (empty string for plain code block)
- * @param prefixLength - Length of the matched prefix (e.g., 3 for ```, 9 for ```python)
- * @param backtickCount - Number of backticks in the fence (minimum 3, supports 4+)
+ * Parse the opening fence at the current cursor position.
+ * Returns fence details or undefined if not at a valid fence position.
  */
-function createApplyFunction(lang: string, prefixLength: number, backtickCount: number) {
-    return (view: EditorView, _completion: Completion, from: number, to: number) => {
+function parseOpeningFence(
+    state: CompletionContext['state'],
+    pos: number
+): { indent: string; backtickCount: number; typedLang: string } | undefined {
+    const line = state.doc.lineAt(pos);
+    const lineText = line.text;
+    const lineStartPos = line.from;
+
+    // Match: optional indent + backticks + optional language
+    const match = lineText.match(/^(\s*)(`{3,})(\w*)/);
+    if (!match) return undefined;
+
+    const indent = match[1];
+    const backticks = match[2];
+    const typedLang = match[3];
+
+    // Only complete if there's only whitespace before the backticks
+    if (!/^\s*$/.test(indent)) return undefined;
+
+    // Cursor must be after the backticks (either at end of line or after language)
+    const fenceStart = lineStartPos + indent.length;
+    if (pos < fenceStart + backticks.length) return undefined;
+
+    return {
+        indent,
+        backtickCount: backticks.length,
+        typedLang,
+    };
+}
+
+/**
+ * Creates a completion apply function that inserts remaining language text and closing fence.
+ * Insert from cursor, not replace from start.
+ */
+function createApplyFunction(
+    desiredLang: string,
+    openingFence: { indent: string; backtickCount: number; typedLang: string }
+) {
+    return (view: EditorView, _completion: Completion, from: number) => {
         const lineBreak = view.state.lineBreak || '\n';
-        const backtickStart = from - prefixLength;
+        const { indent, backtickCount, typedLang } = openingFence;
         const fence = '`'.repeat(backtickCount);
 
-        // Detect indentation from the line containing the opening backticks
-        // This ensures the closing fence has the same indentation
-        const line = view.state.doc.lineAt(backtickStart);
-        const lineStartPos = line.from;
-        const indent = view.state.doc.sliceString(lineStartPos, backtickStart);
+        // Calculate what's left to type for the language name
+        const remainingLang = desiredLang.slice(typedLang.length);
 
-        const insertText = lang
-            ? `${fence}${lang}${lineBreak}${lineBreak}${indent}${fence}`
-            : `${fence}${lineBreak}${lineBreak}${indent}${fence}`;
-        const cursorOffset = lang
-            ? backtickStart + backtickCount + lang.length + lineBreak.length
-            : backtickStart + backtickCount + lineBreak.length;
+        // Insert: remaining language + newlines + closing fence
+        const insertText = `${remainingLang}${lineBreak}${lineBreak}${indent}${fence}`;
+
+        // Position cursor on the empty line inside the block
+        const cursorOffset = from + remainingLang.length + lineBreak.length;
 
         view.dispatch(
             view.state.update({
-                changes: { from: backtickStart, to, insert: insertText },
+                changes: { from, insert: insertText },
                 selection: { anchor: cursorOffset },
             })
         );
@@ -67,91 +98,55 @@ export default function codeMirror6Plugin(context: PluginContext, CodeMirror: Jo
 
     /**
      * Autocomplete source for code blocks.
-     * Matches 3 or more backticks followed by optional word characters.
-     * Supports nested code blocks with matching fence lengths.
-     * Allows custom languages not in the configured list.
-     * Only activates if there's only whitespace before the backticks on the line.
+     * Parses current line, inserts only remaining text.
+     * Supports nested code blocks with matching fence lengths and custom languages.
      */
     const codeBlockCompleter = async (completionContext: CompletionContext): Promise<CompletionResult | null> => {
-        const prefix = completionContext.matchBefore(/```+\w*/);
-        if (!prefix) {
-            return null;
-        }
+        const { state, pos } = completionContext;
 
-        // Only complete if there's only whitespace (or nothing) before the backticks
-        // This prevents completion in the middle of text like "some text ```"
-        const line = completionContext.state.doc.lineAt(prefix.from);
-        const backtickPosInLine = prefix.from - line.from;
-        const textBeforeBackticks = line.text.slice(0, backtickPosInLine);
+        // Parse the opening fence at cursor position
+        const openingFence = parseOpeningFence(state, pos);
+        if (!openingFence) return null;
 
-        if (!/^\s*$/.test(textBeforeBackticks)) {
-            return null;
-        }
-
-        const prefixLength = prefix.text.length;
-
-        // Count the number of backticks (all leading backticks before any word characters)
-        // Supports 3+ backticks for nested code blocks
-        const backtickMatch = prefix.text.match(/^`+/);
-        const backtickCount = backtickMatch ? backtickMatch[0].length : 3;
-
+        const { typedLang } = openingFence;
         const languages = await fetchLanguages(context);
 
-        /**
-         * Builds completion options based on currently typed text.
-         * If the typed text is a custom language (not in configured list), shows only that option.
-         * Otherwise, shows empty block and all configured languages.
-         */
-        const buildOptions = (typedText: string): Completion[] => {
-            // If user typed a custom language not in the list, show ONLY that option
-            // This ensures pressing Enter immediately uses the custom language
-            if (typedText && !languages.includes(typedText)) {
-                return [
-                    {
-                        label: typedText,
-                        detail: 'custom language',
-                        apply: createApplyFunction(typedText, prefixLength, backtickCount),
-                    },
-                ];
-            }
+        // Find languages that match what the user has typed so far
+        const matchedLanguages = languages.filter((lang) => lang.startsWith(typedLang));
 
-            // Otherwise, show empty block and all configured languages
-            const options: Completion[] = [
-                {
-                    label: '```',
-                    detail: 'empty code block',
-                    apply: createApplyFunction('', prefixLength, backtickCount),
-                },
-            ];
+        const options: Completion[] = [];
 
-            options.push(
-                ...languages.map((lang) => ({
-                    label: lang,
-                    detail: 'code block',
-                    apply: createApplyFunction(lang, prefixLength, backtickCount),
-                }))
-            );
+        // Add matching language options
+        matchedLanguages.forEach((lang) => {
+            options.push({
+                label: lang,
+                detail: 'code block',
+                apply: createApplyFunction(lang, openingFence),
+            });
+        });
 
-            return options;
-        };
+        // If typed text doesn't exactly match a language, add it as a custom option
+        const isExactMatch = matchedLanguages.includes(typedLang);
+        if (typedLang && !isExactMatch) {
+            // Add custom language with lower priority
+            options.push({
+                label: typedLang,
+                detail: 'custom language',
+                apply: createApplyFunction(typedLang, openingFence),
+                boost: -1,
+            });
+        }
 
-        const initialTypedLanguage = prefix.text.slice(backtickCount);
+        // Always add empty code block option
+        options.unshift({
+            label: '```',
+            detail: 'empty code block',
+            apply: createApplyFunction('', openingFence),
+        });
 
         return {
-            from: prefix.to,
-            options: buildOptions(initialTypedLanguage),
-            filter: true,
-            validFor: /^\w*$/,
-            // Update options as user types to dynamically show custom language option
-            update(current, from, to, context) {
-                const currentTypedLanguage = context.state.sliceDoc(from, to);
-                return {
-                    from,
-                    options: buildOptions(currentTypedLanguage),
-                    filter: current.filter,
-                    validFor: current.validFor,
-                };
-            },
+            from: pos,
+            options,
         };
     };
 
