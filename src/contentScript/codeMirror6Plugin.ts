@@ -62,6 +62,7 @@ export default function codeMirror6Plugin(context: PluginContext, CodeMirror: Jo
      * Autocomplete source for code blocks.
      * Matches 3 or more backticks followed by optional word characters.
      * Supports nested code blocks with matching fence lengths.
+     * Allows custom languages not in the configured list.
      */
     const codeBlockCompleter = async (completionContext: CompletionContext): Promise<CompletionResult | null> => {
         const prefix = completionContext.matchBefore(/```+\w*/);
@@ -77,24 +78,62 @@ export default function codeMirror6Plugin(context: PluginContext, CodeMirror: Jo
         const backtickCount = backtickMatch ? backtickMatch[0].length : 3;
 
         const languages = await fetchLanguages(context);
-        const options: Completion[] = [
-            {
-                label: '```',
-                detail: 'empty code block',
-                apply: createApplyFunction('', prefixLength, backtickCount),
-            },
-            ...languages.map((lang) => ({
-                label: lang,
-                detail: 'code block',
-                apply: createApplyFunction(lang, prefixLength, backtickCount),
-            })),
-        ];
+
+        /**
+         * Builds completion options based on currently typed text.
+         * If the typed text is a custom language (not in configured list), shows only that option.
+         * Otherwise, shows empty block and all configured languages.
+         */
+        const buildOptions = (typedText: string): Completion[] => {
+            // If user typed a custom language not in the list, show ONLY that option
+            // This ensures pressing Enter immediately uses the custom language
+            if (typedText && !languages.includes(typedText)) {
+                return [
+                    {
+                        label: typedText,
+                        detail: 'custom language',
+                        apply: createApplyFunction(typedText, prefixLength, backtickCount),
+                    },
+                ];
+            }
+
+            // Otherwise, show empty block and all configured languages
+            const options: Completion[] = [
+                {
+                    label: '```',
+                    detail: 'empty code block',
+                    apply: createApplyFunction('', prefixLength, backtickCount),
+                },
+            ];
+
+            options.push(
+                ...languages.map((lang) => ({
+                    label: lang,
+                    detail: 'code block',
+                    apply: createApplyFunction(lang, prefixLength, backtickCount),
+                }))
+            );
+
+            return options;
+        };
+
+        const initialTypedLanguage = prefix.text.slice(backtickCount);
 
         return {
             from: prefix.to,
-            options,
+            options: buildOptions(initialTypedLanguage),
             filter: true,
             validFor: /^\w*$/,
+            // Update options as user types to dynamically show custom language option
+            update(current, from, to, context) {
+                const currentTypedLanguage = context.state.sliceDoc(from, to);
+                return {
+                    from,
+                    options: buildOptions(currentTypedLanguage),
+                    filter: current.filter,
+                    validFor: current.validFor,
+                };
+            },
         };
     };
 
