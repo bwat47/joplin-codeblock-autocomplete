@@ -155,8 +155,8 @@ export default function codeMirror6Plugin(context: PluginContext, CodeMirror: Jo
         // Add empty code block option at the beginning if no language has been typed
         if (!typedLang) {
             options.unshift({
-                label: '',
-                detail: 'empty code block',
+                label: 'empty code block',
+                detail: '',
                 apply: createApplyFunction('', openingFence),
             });
         }
