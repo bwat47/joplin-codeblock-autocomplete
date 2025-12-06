@@ -116,11 +116,13 @@ export default function codeMirror6Plugin(context: PluginContext, CodeMirror: Jo
         const typedLangLower = typedLang.toLowerCase();
         const matchedLanguages = languages.filter((lang) => lang.toLowerCase().startsWith(typedLangLower));
 
-        const options: Completion[] = [];
+        // Build options in explicit order: matched languages first, then custom language
+        const matchedOptions: Completion[] = [];
+        const customOptions: Completion[] = [];
 
         // Add matching language options
         matchedLanguages.forEach((lang) => {
-            options.push({
+            matchedOptions.push({
                 label: lang,
                 detail: '',
                 apply: createApplyFunction(lang, openingFence),
@@ -130,16 +132,17 @@ export default function codeMirror6Plugin(context: PluginContext, CodeMirror: Jo
         // If typed text doesn't exactly match a language, add it as a custom option
         const isExactMatch = matchedLanguages.includes(typedLang);
         if (typedLang && !isExactMatch) {
-            // Add custom language with lower priority
-            options.push({
+            customOptions.push({
                 label: typedLang,
                 detail: 'custom language',
                 apply: createApplyFunction(typedLang, openingFence),
-                boost: -1,
             });
         }
 
-        // Add empty code block option only if no language has been typed
+        // Combine in order: matched first, then custom
+        const options = [...matchedOptions, ...customOptions];
+
+        // Add empty code block option at the beginning if no language has been typed
         if (!typedLang) {
             options.unshift({
                 label: '',
@@ -151,6 +154,7 @@ export default function codeMirror6Plugin(context: PluginContext, CodeMirror: Jo
         return {
             from: openingFence.languageStartPos,
             options,
+            filter: false, // Disable automatic filtering/sorting to preserve our order
         };
     };
 
