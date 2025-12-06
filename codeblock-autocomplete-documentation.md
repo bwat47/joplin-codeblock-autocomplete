@@ -2,7 +2,7 @@
 
 ## Overview
 
-Joplin plugin that provides language autocompletion when typing ` ``` ` in the markdown editor. Shows a dropdown of configured languages and inserts a complete fenced code block.
+Joplin plugin that provides language autocompletion when typing ` ``` ` in the markdown editor. Shows a dropdown of configured languages and inserts a complete fenced code block. Supports 3+ backticks for nested code blocks, custom languages not in settings, and indentation matching.
 
 ## File Structure
 
@@ -37,9 +37,10 @@ src/
 **`codeMirror6Plugin.ts`**
 
 - `fetchLanguages()` - Gets languages from main process via `postMessage`
-- `createApplyFunction()` - Creates completion handler that inserts ` ```lang\n\n``` `
-- `codeBlockCompleter` - Async completion source, matches `/```\w*/` pattern
-- `triggerCompletionOnBackticks` - Update listener that auto-triggers completion
+- `parseOpeningFence()` - Parses current line to extract indent, backtick count (3+), and typed language
+- `createApplyFunction()` - Creates completion handler that inserts remaining language text and closing fence from cursor position
+- `codeBlockCompleter` - Async completion source that parses fence, filters languages, and adds custom language option if needed
+- `triggerCompletionOnBackticks` - Update listener that auto-triggers completion on ` ``` ` when preceded by whitespace only
 
 **`types.ts`**
 
@@ -56,7 +57,9 @@ Default languages: javascript, typescript, python, bash, shell, html, css, sql, 
 
 ## Completion Behavior
 
+- Triggers only when ` ``` ` is preceded by whitespace on the line
 - First option is always ` ``` ` (empty code block)
-- Language options from settings follow
-- Typing filters the list (e.g., ` ```py ` filters to python)
-- Selection replaces ` ``` ` with complete fenced block and positions cursor inside
+- Configured language options follow, filtered by typed prefix (e.g., ` ```py ` shows python)
+- Custom languages not in settings are added with lower priority (e.g., ` ```bobo ` adds "bobo")
+- Closing fence matches opening backtick count (e.g., 4 backticks close with 4) and indentation
+- Selection inserts remaining language text and closing fence from cursor position, cursor positioned inside block
