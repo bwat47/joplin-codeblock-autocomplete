@@ -38,9 +38,16 @@ function createApplyFunction(lang: string, prefixLength: number, backtickCount: 
         const lineBreak = view.state.lineBreak || '\n';
         const backtickStart = from - prefixLength;
         const fence = '`'.repeat(backtickCount);
+
+        // Detect indentation from the line containing the opening backticks
+        // This ensures the closing fence has the same indentation
+        const line = view.state.doc.lineAt(backtickStart);
+        const lineStartPos = line.from;
+        const indent = view.state.doc.sliceString(lineStartPos, backtickStart);
+
         const insertText = lang
-            ? `${fence}${lang}${lineBreak}${lineBreak}${fence}`
-            : `${fence}${lineBreak}${lineBreak}${fence}`;
+            ? `${fence}${lang}${lineBreak}${lineBreak}${indent}${fence}`
+            : `${fence}${lineBreak}${lineBreak}${indent}${fence}`;
         const cursorOffset = lang
             ? backtickStart + backtickCount + lang.length + lineBreak.length
             : backtickStart + backtickCount + lineBreak.length;
