@@ -1,4 +1,4 @@
-// Flat config (ESM). Adds ignores, Node + Jest globals, and TS-friendly rule tweaks.
+// Flat config (ESM). Adds ignores, Node globals, and TS-friendly rule tweaks.
 
 import js from '@eslint/js';
 import tsParser from '@typescript-eslint/parser';
@@ -36,25 +36,6 @@ export default [
             // report an error if any circular dependency is found
             'import/no-cycle': ['error', { maxDepth: Infinity }],
             'no-useless-escape': 'off',
-        },
-    },
-
-    // Test + test support (include helper using jest.*)
-    {
-        files: [
-            '**/*.test.{ts,tsx,js}',
-            '**/*.spec.{ts,tsx,js}',
-            '**/__tests__/**/*.{ts,tsx,js}',
-            'src/testHelpers.ts',
-        ],
-        languageOptions: {
-            globals: {
-                ...globals.node,
-                ...globals.jest,
-            },
-        },
-        rules: {
-            // You can add jest-specific overrides here later
         },
     },
 
