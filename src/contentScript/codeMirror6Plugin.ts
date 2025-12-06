@@ -120,7 +120,7 @@ export default function codeMirror6Plugin(context: PluginContext, CodeMirror: Jo
         matchedLanguages.forEach((lang) => {
             options.push({
                 label: lang,
-                detail: 'code block',
+                detail: '',
                 apply: createApplyFunction(lang, openingFence),
             });
         });
@@ -140,7 +140,7 @@ export default function codeMirror6Plugin(context: PluginContext, CodeMirror: Jo
         // Add empty code block option only if no language has been typed
         if (!typedLang) {
             options.unshift({
-                label: '```',
+                label: '',
                 detail: 'empty code block',
                 apply: createApplyFunction('', openingFence),
             });
