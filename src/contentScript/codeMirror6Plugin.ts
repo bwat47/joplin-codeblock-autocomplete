@@ -34,7 +34,7 @@ async function fetchLanguages(context: PluginContext): Promise<string[]> {
 function parseOpeningFence(
     state: CompletionContext['state'],
     pos: number
-): { indent: string; backtickCount: number; typedLang: string } | undefined {
+): { indent: string; backtickCount: number; typedLang: string; languageStartPos: number } | undefined {
     const line = state.doc.lineAt(pos);
     const lineText = line.text;
     const lineStartPos = line.from;
@@ -51,16 +51,20 @@ function parseOpeningFence(
     const fenceStart = lineStartPos + indent.length;
     if (pos < fenceStart + backticks.length) return undefined;
 
+    // Calculate where the language name starts (right after the backticks)
+    const languageStartPos = fenceStart + backticks.length;
+
     return {
         indent,
         backtickCount: backticks.length,
         typedLang,
+        languageStartPos,
     };
 }
 
 /**
- * Creates a completion apply function that inserts remaining language text and closing fence.
- * Insert from cursor, not replace from start.
+ * Creates a completion apply function that replaces typed language and inserts closing fence.
+ * Replaces from languageStartPos to current cursor position.
  */
 function createApplyFunction(
     desiredLang: string,
@@ -68,21 +72,21 @@ function createApplyFunction(
 ) {
     return (view: EditorView, _completion: Completion, from: number) => {
         const lineBreak = view.state.lineBreak || '\n';
-        const { indent, backtickCount, typedLang } = openingFence;
+        const { indent, backtickCount } = openingFence;
         const fence = '`'.repeat(backtickCount);
 
-        // Calculate what's left to type for the language name
-        const remainingLang = desiredLang.slice(typedLang.length);
+        // Get current cursor position to determine range to replace
+        const currentPos = view.state.selection.main.head;
 
-        // Insert: remaining language + newlines + closing fence
-        const insertText = `${remainingLang}${lineBreak}${lineBreak}${indent}${fence}`;
+        // Insert: full language + newlines + closing fence
+        const insertText = `${desiredLang}${lineBreak}${lineBreak}${indent}${fence}`;
 
         // Position cursor on the empty line inside the block
-        const cursorOffset = from + remainingLang.length + lineBreak.length;
+        const cursorOffset = from + desiredLang.length + lineBreak.length;
 
         view.dispatch(
             view.state.update({
-                changes: { from, insert: insertText },
+                changes: { from, to: currentPos, insert: insertText },
                 selection: { anchor: cursorOffset },
             })
         );
@@ -145,7 +149,7 @@ export default function codeMirror6Plugin(context: PluginContext, CodeMirror: Jo
         }
 
         return {
-            from: pos,
+            from: openingFence.languageStartPos,
             options,
         };
     };
