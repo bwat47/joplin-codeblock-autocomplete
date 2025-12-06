@@ -1,5 +1,7 @@
-import type { CompletionContext, CompletionResult, Completion } from '@codemirror/autocomplete';
-import type { EditorView, ViewUpdate } from '@codemirror/view';
+import type { CompletionContext, CompletionResult } from '@codemirror/autocomplete';
+import { Completion, autocompletion, startCompletion } from '@codemirror/autocomplete';
+import { EditorView } from '@codemirror/view';
+import type { ViewUpdate } from '@codemirror/view';
 import type { Extension, Transaction } from '@codemirror/state';
 import type { PluginContext, JoplinCodeMirror } from './types';
 
@@ -16,13 +18,6 @@ const LANGUAGES = [
 ];
 
 export default function codeMirror6Plugin(_context: PluginContext, CodeMirror: JoplinCodeMirror): void {
-    // Dynamic imports to match Joplin's environment
-    // These must be require() calls because the modules are provided by Joplin at runtime
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const { autocompletion, startCompletion } = require('@codemirror/autocomplete');
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const { EditorView: CM6EditorView } = require('@codemirror/view');
-
     console.log('Codeblock autocomplete plugin loaded');
 
     // The core logic function
@@ -81,7 +76,7 @@ export default function codeMirror6Plugin(_context: PluginContext, CodeMirror: J
     };
 
     // Create an input handler that triggers completion when ``` is typed
-    const triggerCompletionOnBackticks = CM6EditorView.updateListener.of((update: ViewUpdate) => {
+    const triggerCompletionOnBackticks = EditorView.updateListener.of((update: ViewUpdate) => {
         if (!update.docChanged) return;
 
         // Check if the change involves typing
