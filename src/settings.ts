@@ -15,7 +15,7 @@ const SETTINGS_CONFIG = {
         defaultValue: DEFAULT_LANGUAGES,
         label: 'Autocomplete languages',
         description:
-            'Comma-separated list of language identifiers to show in the autocomplete menu. The empty option (```) is always shown first.',
+            'Comma-separated list of language identifiers to show in the autocomplete menu. The "No language" option is always shown first.',
     },
 } as const;
 

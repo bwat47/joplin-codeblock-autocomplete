@@ -152,10 +152,10 @@ export default function codeMirror6Plugin(context: PluginContext, CodeMirror: Jo
         // Combine in order: matched first, then custom
         const options = [...matchedOptions, ...customOptions];
 
-        // Add empty code block option at the beginning if no language has been typed
+        // Add No language option at the beginning if no language has been typed
         if (!typedLang) {
             options.unshift({
-                label: 'empty code block',
+                label: 'No language',
                 detail: '',
                 apply: createApplyFunction('', openingFence),
             });

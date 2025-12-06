@@ -58,7 +58,7 @@ Default languages: javascript, typescript, python, bash, shell, html, css, sql, 
 ## Completion Behavior
 
 - Triggers only when ` ``` ` is preceded by whitespace on the line
-- First option is always ` ``` ` (empty code block) when no language typed
+- First option is always `No language` when no language typed
 - Configured language options follow, filtered case-insensitively by typed prefix (e.g., ` ```py ` shows python)
 - Supports language names with hyphens and special characters (e.g., `objective-c`, `c++`)
 - Custom languages not in settings appear after all matched languages (e.g., typing ` ```bobo ` adds "bobo" below any matches)
