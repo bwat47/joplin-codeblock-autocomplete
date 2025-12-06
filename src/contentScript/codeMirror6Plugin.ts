@@ -70,10 +70,21 @@ export default function codeMirror6Plugin(context: PluginContext, CodeMirror: Jo
      * Matches 3 or more backticks followed by optional word characters.
      * Supports nested code blocks with matching fence lengths.
      * Allows custom languages not in the configured list.
+     * Only activates if there's only whitespace before the backticks on the line.
      */
     const codeBlockCompleter = async (completionContext: CompletionContext): Promise<CompletionResult | null> => {
         const prefix = completionContext.matchBefore(/```+\w*/);
         if (!prefix) {
+            return null;
+        }
+
+        // Only complete if there's only whitespace (or nothing) before the backticks
+        // This prevents completion in the middle of text like "some text ```"
+        const line = completionContext.state.doc.lineAt(prefix.from);
+        const backtickPosInLine = prefix.from - line.from;
+        const textBeforeBackticks = line.text.slice(0, backtickPosInLine);
+
+        if (!/^\s*$/.test(textBeforeBackticks)) {
             return null;
         }
 
@@ -151,7 +162,15 @@ export default function codeMirror6Plugin(context: PluginContext, CodeMirror: Jo
             if (tr.isUserEvent('input.type')) {
                 const pos = update.state.selection.main.head;
                 if (pos >= 3 && update.state.doc.sliceString(pos - 3, pos) === '```') {
-                    setTimeout(() => startCompletion(update.view), 10);
+                    // Only trigger if there's only whitespace before the backticks on the line
+                    // This prevents triggering in the middle of text like "some text ```"
+                    const line = update.state.doc.lineAt(pos);
+                    const backtickPosInLine = pos - line.from;
+                    const textBeforeBackticks = line.text.slice(0, backtickPosInLine - 3);
+
+                    if (/^\s*$/.test(textBeforeBackticks)) {
+                        setTimeout(() => startCompletion(update.view), 10);
+                    }
                 }
             }
         });
