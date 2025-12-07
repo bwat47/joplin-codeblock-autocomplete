@@ -11,4 +11,4 @@ Codemirror 6 only, legacy editor is not supported.
 
 ## Settings
 
-Autocomplete languages - Comma-separated list of language identifiers to show in the autocomplete menu. The "No language" option is always shown first.
+Autocomplete languages - Comma-separated list of language identifiers to show in the autocomplete menu.
