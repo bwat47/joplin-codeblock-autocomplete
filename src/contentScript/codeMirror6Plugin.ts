@@ -3,9 +3,10 @@
  */
 import type { CompletionContext, CompletionResult } from '@codemirror/autocomplete';
 import { Completion, autocompletion, startCompletion } from '@codemirror/autocomplete';
+import { syntaxTree } from '@codemirror/language';
+import type { EditorState, Extension, Transaction } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
 import type { ViewUpdate } from '@codemirror/view';
-import type { Extension, Transaction } from '@codemirror/state';
 import type { PluginContext, JoplinCodeMirror } from './types';
 import { logger } from '../logger';
 
@@ -39,37 +40,114 @@ async function fetchLanguages(context: PluginContext): Promise<string[]> {
 
 /**
  * Parse the opening fence at the current cursor position.
+ * Supports both backtick (```) and tilde (~~~) style fences.
  * Returns fence details or undefined if not at a valid fence position.
  */
 function parseOpeningFence(
     state: CompletionContext['state'],
     pos: number
-): { indent: string; backtickCount: number; typedLang: string; languageStartPos: number } | undefined {
+): { indent: string; fenceChar: string; fenceCount: number; typedLang: string; languageStartPos: number } | undefined {
     const line = state.doc.lineAt(pos);
     const lineText = line.text;
     const lineStartPos = line.from;
 
-    // Match: optional indent + backticks + optional language
-    const match = lineText.match(/^(\s*)(`{3,})([^\s`]*)/);
+    // Match: optional indent + (3+ backticks OR 3+ tildes) + optional language
+    // Backticks: language cannot contain backticks
+    // Tildes: language cannot contain spaces (per CommonMark)
+    const match = lineText.match(/^(\s*)(`{3,}|~{3,})([^\s`]*)/);
     if (!match) return undefined;
 
     const indent = match[1];
-    const backticks = match[2];
+    const fence = match[2];
+    const fenceChar = fence[0]; // '`' or '~'
     const typedLang = match[3];
 
-    // Cursor must be after the backticks (either at end of line or after language)
+    // Cursor must be after the fence markers (either at end of line or after language)
     const fenceStart = lineStartPos + indent.length;
-    if (pos < fenceStart + backticks.length) return undefined;
+    if (pos < fenceStart + fence.length) return undefined;
 
-    // Calculate where the language name starts (right after the backticks)
-    const languageStartPos = fenceStart + backticks.length;
+    // Calculate where the language name starts (right after the fence markers)
+    const languageStartPos = fenceStart + fence.length;
 
     return {
         indent,
-        backtickCount: backticks.length,
+        fenceChar,
+        fenceCount: fence.length,
         typedLang,
         languageStartPos,
     };
+}
+
+/** Regex to match opening fence pattern: 0-3 spaces + 3+ backticks or tildes */
+const FENCE_PATTERN = /^\s{0,3}(?:`{3,}|~{3,})/;
+
+/**
+ * Check if the position is at an opening fence of a complete, valid code block.
+ * A "valid complete" block has both opening and closing fences with no fence patterns inside.
+ *
+ * This distinguishes between:
+ * - Editing an existing complete code block (returns true - suppress autocomplete)
+ * - Typing a new fence that absorbed an existing block (returns false - allow autocomplete)
+ *
+ * @param state - The editor state
+ * @param pos - The cursor position
+ * @returns true if we should suppress autocomplete (editing existing block)
+ */
+function isInCompleteCodeBlock(state: EditorState, pos: number): boolean {
+    const tree = syntaxTree(state);
+
+    // Find the node at the current position (looking left for context)
+    const node = tree.resolveInner(pos, -1);
+
+    // Walk up to find FencedCode parent
+    let fencedCode = node;
+    while (fencedCode && fencedCode.name !== 'FencedCode') {
+        fencedCode = fencedCode.parent;
+    }
+    if (!fencedCode) return false;
+
+    // Check if cursor is on the opening fence line (first line of FencedCode)
+    const openingLine = state.doc.lineAt(fencedCode.from);
+    const currentLine = state.doc.lineAt(pos);
+    if (openingLine.number !== currentLine.number) return false;
+
+    // Look for CodeMark children to determine if block is complete
+    // A complete block has 2 CodeMark nodes: opening and closing
+    let openingCodeMark: { from: number; to: number } | null = null;
+    let closingCodeMark: { from: number; to: number } | null = null;
+
+    const cursor = fencedCode.cursor();
+    if (cursor.firstChild()) {
+        do {
+            if (cursor.name === 'CodeMark') {
+                if (!openingCodeMark) {
+                    openingCodeMark = { from: cursor.from, to: cursor.to };
+                } else {
+                    closingCodeMark = { from: cursor.from, to: cursor.to };
+                }
+            }
+        } while (cursor.nextSibling());
+    }
+
+    // If no closing fence, it's an incomplete block - allow autocomplete
+    if (!closingCodeMark) return false;
+
+    // Check if closing fence is on a different line (should be for a valid block)
+    const closingLine = state.doc.lineAt(closingCodeMark.from);
+    if (openingLine.number >= closingLine.number) return false;
+
+    // Check for fence patterns inside the code block content
+    // This detects when a new fence "absorbs" an existing block
+    for (let lineNum = openingLine.number + 1; lineNum < closingLine.number; lineNum++) {
+        const line = state.doc.line(lineNum);
+        if (FENCE_PATTERN.test(line.text)) {
+            // There's a fence inside - likely a newly typed fence that absorbed an existing block
+            return false;
+        }
+    }
+
+    // It's a valid complete block - suppress autocomplete
+    return true;
 }
 
 /**
@@ -78,12 +156,12 @@ function parseOpeningFence(
  */
 function createApplyFunction(
     desiredLang: string,
-    openingFence: { indent: string; backtickCount: number; typedLang: string }
+    openingFence: { indent: string; fenceChar: string; fenceCount: number; typedLang: string }
 ) {
     return (view: EditorView, _completion: Completion, from: number) => {
         const lineBreak = view.state.lineBreak || '\n';
-        const { indent, backtickCount } = openingFence;
-        const fence = '`'.repeat(backtickCount);
+        const { indent, fenceChar, fenceCount } = openingFence;
+        const fence = fenceChar.repeat(fenceCount);
 
         // Get current cursor position to determine range to replace
         const currentPos = view.state.selection.main.head;
@@ -114,6 +192,9 @@ export default function codeMirror6Plugin(context: PluginContext, CodeMirror: Jo
      */
     const codeBlockCompleter = async (completionContext: CompletionContext): Promise<CompletionResult | null> => {
         const { state, pos } = completionContext;
+
+        // Don't show completions when editing an existing complete code block
+        if (isInCompleteCodeBlock(state, pos)) return null;
 
         // Parse the opening fence at cursor position
         const openingFence = parseOpeningFence(state, pos);
@@ -170,20 +251,27 @@ export default function codeMirror6Plugin(context: PluginContext, CodeMirror: Jo
         };
     };
 
-    const triggerCompletionOnBackticks = EditorView.updateListener.of((update: ViewUpdate) => {
+    const triggerCompletionOnFence = EditorView.updateListener.of((update: ViewUpdate) => {
         if (!update.docChanged) return;
 
         update.transactions.forEach((tr: Transaction) => {
             if (tr.isUserEvent('input.type')) {
                 const pos = update.state.selection.main.head;
-                if (pos >= 3 && update.state.doc.sliceString(pos - 3, pos) === '```') {
-                    // Only trigger if there's only whitespace before the backticks on the line
+                const lastThreeChars = pos >= 3 ? update.state.doc.sliceString(pos - 3, pos) : '';
+
+                // Check for both backtick (```) and tilde (~~~) fences
+                if (lastThreeChars === '```' || lastThreeChars === '~~~') {
+                    // Only trigger if there's only whitespace before the fence on the line
                     // This prevents triggering in the middle of text like "some text ```"
                     const line = update.state.doc.lineAt(pos);
-                    const backtickPosInLine = pos - line.from;
-                    const textBeforeBackticks = line.text.slice(0, backtickPosInLine - 3);
+                    const fencePosInLine = pos - line.from;
+                    const textBeforeFence = line.text.slice(0, fencePosInLine - 3);
 
-                    if (/^\s*$/.test(textBeforeBackticks)) {
+                    if (/^\s*$/.test(textBeforeFence)) {
+                        // Don't trigger if editing an existing complete code block
+                        if (isInCompleteCodeBlock(update.state, pos)) {
+                            return;
+                        }
                         setTimeout(() => startCompletion(update.view), 10);
                     }
                 }
@@ -198,5 +286,5 @@ export default function codeMirror6Plugin(context: PluginContext, CodeMirror: Jo
         completionExt = autocompletion({ override: [codeBlockCompleter] });
     }
 
-    CodeMirror.addExtension([completionExt, triggerCompletionOnBackticks]);
+    CodeMirror.addExtension([completionExt, triggerCompletionOnFence]);
 }

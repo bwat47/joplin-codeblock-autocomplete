@@ -2,7 +2,7 @@
 
 ## Overview
 
-Joplin plugin that provides language autocompletion when typing ` ``` ` in the markdown editor. Shows a dropdown of configured languages and inserts a complete fenced code block. Supports 3+ backticks for nested code blocks, custom languages not in settings, and indentation matching.
+Joplin plugin that provides language autocompletion when typing ` ``` ` or `~~~` in the markdown editor. Shows a dropdown of configured languages and inserts a complete fenced code block. Supports both backtick and tilde fences, 3+ fence characters for nested code blocks, custom languages not in settings, and indentation matching.
 
 ## File Structure
 
@@ -22,7 +22,7 @@ src/
 
 1. **Startup**: `index.ts` registers settings, initializes cache, registers content script
 2. **Content Script Load**: `contentScript/index.ts` initializes `codeMirror6Plugin` for CM6 editors
-3. **User Types ` ``` `**: `EditorView.updateListener` detects pattern, triggers `startCompletion()`
+3. **User Types ` ``` ` or `~~~`**: `EditorView.updateListener` detects pattern, triggers `startCompletion()`
 4. **Completion Request**: `codeBlockCompleter` fetches languages via `postMessage`, builds options
 5. **Selection**: User picks language, `apply` function inserts complete code block
 
@@ -37,10 +37,11 @@ src/
 **`codeMirror6Plugin.ts`**
 
 - `fetchLanguages()` - Gets languages from main process via `postMessage`
-- `parseOpeningFence()` - Parses current line to extract indent, backtick count (3+), typed language, and language start position
-- `createApplyFunction()` - Creates completion handler that replaces typed language and inserts closing fence
+- `parseOpeningFence()` - Parses current line to extract indent, fence character (`` ` `` or `~`), fence count (3+), typed language, and language start position
+- `isInCompleteCodeBlock()` - Uses syntax tree to detect if cursor is at an existing complete code block (has closing fence, no fence patterns inside content)
+- `createApplyFunction()` - Creates completion handler that replaces typed language and inserts closing fence with matching character
 - `codeBlockCompleter` - Async completion source that parses fence, filters languages case-insensitively, returns matched languages before custom language option
-- `triggerCompletionOnBackticks` - Update listener that auto-triggers completion on ` ``` ` when preceded by whitespace only
+- `triggerCompletionOnFence` - Update listener that auto-triggers completion on ` ``` ` or `~~~` when preceded by whitespace only
 
 **`types.ts`**
 
@@ -57,10 +58,11 @@ Default languages: javascript, typescript, python, bash, shell, html, css, sql, 
 
 ## Completion Behavior
 
-- Triggers only when ` ``` ` is preceded by whitespace on the line
+- Triggers on both backtick (` ``` `) and tilde (`~~~`) fences when preceded by whitespace on the line
+- Does NOT trigger when editing an existing complete code block (block with both opening and closing fence, no fence patterns inside)
 - First option is always `No language` when no language typed
 - Configured language options follow, filtered case-insensitively by typed prefix (e.g., ` ```py ` shows python)
 - Supports language names with hyphens and special characters (e.g., `objective-c`, `c++`)
 - Custom languages not in settings appear after all matched languages (e.g., typing ` ```bobo ` adds "bobo" below any matches)
-- Closing fence matches opening backtick count (e.g., 4 backticks close with 4) and indentation
+- Closing fence matches opening fence character and count (e.g., `~~~~` closes with `~~~~`, ``` ```` ``` closes with ``` ```` ```) and indentation
 - Selection replaces typed language and inserts closing fence, cursor positioned inside block
