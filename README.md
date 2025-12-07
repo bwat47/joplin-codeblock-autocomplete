@@ -1,5 +1,5 @@
-> ![note]
-> NOTE: This plugin was created entirely with AI tools
+> [!note]
+> This plugin was created entirely with AI tools
 
 # Codeblock Autocomplete
 
