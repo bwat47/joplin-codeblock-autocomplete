@@ -38,6 +38,7 @@ src/
 
 - `fetchLanguages()` - Gets languages from main process via `postMessage`
 - `parseOpeningFence()` - Parses current line to extract indent, backtick count (3+), typed language, and language start position
+- `isInCompleteCodeBlock()` - Uses syntax tree to detect if cursor is at an existing complete code block (has closing fence, no fence patterns inside content)
 - `createApplyFunction()` - Creates completion handler that replaces typed language and inserts closing fence
 - `codeBlockCompleter` - Async completion source that parses fence, filters languages case-insensitively, returns matched languages before custom language option
 - `triggerCompletionOnBackticks` - Update listener that auto-triggers completion on ` ``` ` when preceded by whitespace only
@@ -58,6 +59,7 @@ Default languages: javascript, typescript, python, bash, shell, html, css, sql, 
 ## Completion Behavior
 
 - Triggers only when ` ``` ` is preceded by whitespace on the line
+- Does NOT trigger when editing an existing complete code block (block with both opening and closing fence, no fence patterns inside)
 - First option is always `No language` when no language typed
 - Configured language options follow, filtered case-insensitively by typed prefix (e.g., ` ```py ` shows python)
 - Supports language names with hyphens and special characters (e.g., `objective-c`, `c++`)
