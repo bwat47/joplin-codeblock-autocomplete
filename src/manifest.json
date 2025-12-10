@@ -1,27 +1,34 @@
 {
-	"manifest_version": 1,
-	"id": "com.bwat47.codeblock-autocomplete",
-	"app_min_version": "3.3",
-	"version": "1.0.1",
-	"name": "Codeblock Autocomplete",
-	"description": "Enables CM6 code block autocomplete to assist with creating fenced code blocks",
-	"author": "bwat47",
-	"homepage_url": "https://github.com/bwat47/joplin-codeblock-autocomplete",
-	"repository_url": "https://github.com/bwat47/joplin-codeblock-autocomplete",
-	"keywords": ["autocomplete", "code", "code block", "fenced code block", "code fence", "fence", "code fence autocomplete"],
-	"categories": ["productivity", "developer tools", "editor"],
-	"screenshots": [
-		{ "src": "images/screenshot1.png", "label": "Codeblock Autocomplete Screenshot 1" }
-	],
-	"icons": {
-		"16": "images/16.png",
-		"32": "images/32.png",
-		"48": "images/48.png",
-		"64": "images/64.png",
-		"128": "images/128.png"
-	},
-	"promo_tile": {
-		"src": "images/promo.png",
-		"label": "Codeblock Autocomplete Promo Tile"
-	}
+    "manifest_version": 1,
+    "id": "com.bwat47.codeblock-autocomplete",
+    "app_min_version": "3.3",
+    "version": "1.0.2",
+    "platforms": ["desktop", "mobile"],
+    "name": "Codeblock Autocomplete",
+    "description": "Enables CM6 code block autocomplete to assist with creating fenced code blocks",
+    "author": "bwat47",
+    "homepage_url": "https://github.com/bwat47/joplin-codeblock-autocomplete",
+    "repository_url": "https://github.com/bwat47/joplin-codeblock-autocomplete",
+    "keywords": [
+        "autocomplete",
+        "code",
+        "code block",
+        "fenced code block",
+        "code fence",
+        "fence",
+        "code fence autocomplete"
+    ],
+    "categories": ["productivity", "developer tools", "editor"],
+    "screenshots": [{ "src": "images/screenshot1.png", "label": "Codeblock Autocomplete Screenshot 1" }],
+    "icons": {
+        "16": "images/16.png",
+        "32": "images/32.png",
+        "48": "images/48.png",
+        "64": "images/64.png",
+        "128": "images/128.png"
+    },
+    "promo_tile": {
+        "src": "images/promo.png",
+        "label": "Codeblock Autocomplete Promo Tile"
+    }
 }
