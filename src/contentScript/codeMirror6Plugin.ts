@@ -8,35 +8,7 @@ import type { EditorState, Extension, Transaction } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
 import type { ViewUpdate } from '@codemirror/view';
 import type { PluginContext, JoplinCodeMirror } from './types';
-import { logger } from '../logger';
-
-let cachedLanguages: string[] = [];
-let hasFetched = false;
-
-async function updateLanguages(context: PluginContext): Promise<string[]> {
-    try {
-        const response = (await context.postMessage({ command: 'getLanguages' })) as {
-            languages: string[];
-        } | null;
-        if (response?.languages) {
-            cachedLanguages = response.languages;
-            hasFetched = true;
-        }
-    } catch (error) {
-        logger.error('Failed to fetch languages:', error);
-    }
-    return cachedLanguages;
-}
-
-/** Fetches language list from plugin settings via postMessage */
-async function fetchLanguages(context: PluginContext): Promise<string[]> {
-    if (hasFetched) {
-        // Update in background to keep cache fresh without blocking
-        void updateLanguages(context);
-        return cachedLanguages;
-    }
-    return await updateLanguages(context);
-}
+import { LanguageCache } from './LanguageCache';
 
 /**
  * Parse the opening fence at the current cursor position.
@@ -183,7 +155,8 @@ function createApplyFunction(
 
 /** Registers CodeMirror extensions for code block autocompletion */
 export default function codeMirror6Plugin(context: PluginContext, CodeMirror: JoplinCodeMirror): void {
-    fetchLanguages(context);
+    const languageCache = LanguageCache.getInstance(context);
+    void languageCache.getLanguages();
 
     /**
      * Autocomplete source for code blocks.
@@ -201,7 +174,7 @@ export default function codeMirror6Plugin(context: PluginContext, CodeMirror: Jo
         if (!openingFence) return null;
 
         const { typedLang } = openingFence;
-        const languages = await fetchLanguages(context);
+        const languages = await languageCache.getLanguages();
 
         // Find languages that match what the user has typed so far (case-insensitive)
         const typedLangLower = typedLang.toLowerCase();
