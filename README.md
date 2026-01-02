@@ -17,8 +17,6 @@ Typing an opening fence (three+ backticks or three+ tildes) will trigger the aut
 
 - Supports nested code blocks (enter more than three fence characters will close the block with the same number of fence characters as the opening block).
 
-- Changing the language of the opening fence of an existing complete code block will not trigger the auto-complete, to prevent addition of an extra closing fence.
-
 ## Settings
 
 Autocomplete languages - Comma-separated list of language identifiers to show in the autocomplete menu.
