@@ -3,8 +3,7 @@
  */
 import type { CompletionContext, CompletionResult } from '@codemirror/autocomplete';
 import { Completion, autocompletion, startCompletion } from '@codemirror/autocomplete';
-import { syntaxTree } from '@codemirror/language';
-import type { EditorState, Extension, Transaction } from '@codemirror/state';
+import type { Extension, Transaction } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
 import type { ViewUpdate } from '@codemirror/view';
 import type { PluginContext, JoplinCodeMirror } from './types';
@@ -50,78 +49,6 @@ function parseOpeningFence(
     };
 }
 
-/** Regex to match opening fence pattern: 0-3 spaces + 3+ backticks or tildes */
-const FENCE_PATTERN = /^\s{0,3}(?:`{3,}|~{3,})/;
-
-/**
- * Check if the position is at an opening fence of a complete, valid code block.
- * A "valid complete" block has both opening and closing fences with no fence patterns inside.
- *
- * This distinguishes between:
- * - Editing an existing complete code block (returns true - suppress autocomplete)
- * - Typing a new fence that absorbed an existing block (returns false - allow autocomplete)
- *
- * @param state - The editor state
- * @param pos - The cursor position
- * @returns true if we should suppress autocomplete (editing existing block)
- */
-function isInCompleteCodeBlock(state: EditorState, pos: number): boolean {
-    const tree = syntaxTree(state);
-
-    // Find the node at the current position (looking left for context)
-    const node = tree.resolveInner(pos, -1);
-
-    // Walk up to find FencedCode parent
-    let fencedCode = node;
-    while (fencedCode && fencedCode.name !== 'FencedCode') {
-        fencedCode = fencedCode.parent;
-    }
-    if (!fencedCode) return false;
-
-    // Check if cursor is on the opening fence line (first line of FencedCode)
-    const openingLine = state.doc.lineAt(fencedCode.from);
-    const currentLine = state.doc.lineAt(pos);
-    if (openingLine.number !== currentLine.number) return false;
-
-    // Look for CodeMark children to determine if block is complete
-    // A complete block has 2 CodeMark nodes: opening and closing
-    let openingCodeMark: { from: number; to: number } | null = null;
-    let closingCodeMark: { from: number; to: number } | null = null;
-
-    const cursor = fencedCode.cursor();
-    if (cursor.firstChild()) {
-        do {
-            if (cursor.name === 'CodeMark') {
-                if (!openingCodeMark) {
-                    openingCodeMark = { from: cursor.from, to: cursor.to };
-                } else {
-                    closingCodeMark = { from: cursor.from, to: cursor.to };
-                }
-            }
-        } while (cursor.nextSibling());
-    }
-
-    // If no closing fence, it's an incomplete block - allow autocomplete
-    if (!closingCodeMark) return false;
-
-    // Check if closing fence is on a different line (should be for a valid block)
-    const closingLine = state.doc.lineAt(closingCodeMark.from);
-    if (openingLine.number >= closingLine.number) return false;
-
-    // Check for fence patterns inside the code block content
-    // This detects when a new fence "absorbs" an existing block
-    for (let lineNum = openingLine.number + 1; lineNum < closingLine.number; lineNum++) {
-        const line = state.doc.line(lineNum);
-        if (FENCE_PATTERN.test(line.text)) {
-            // There's a fence inside - likely a newly typed fence that absorbed an existing block
-            return false;
-        }
-    }
-
-    // It's a valid complete block - suppress autocomplete
-    return true;
-}
-
 /**
  * Creates a completion apply function that replaces typed language and inserts closing fence.
  * Replaces from languageStartPos to current cursor position.
@@ -165,9 +92,6 @@ export default function codeMirror6Plugin(context: PluginContext, CodeMirror: Jo
      */
     const codeBlockCompleter = async (completionContext: CompletionContext): Promise<CompletionResult | null> => {
         const { state, pos } = completionContext;
-
-        // Don't show completions when editing an existing complete code block
-        if (isInCompleteCodeBlock(state, pos)) return null;
 
         // Parse the opening fence at cursor position
         const openingFence = parseOpeningFence(state, pos);
@@ -241,10 +165,6 @@ export default function codeMirror6Plugin(context: PluginContext, CodeMirror: Jo
                     const textBeforeFence = line.text.slice(0, fencePosInLine - 3);
 
                     if (/^\s*$/.test(textBeforeFence)) {
-                        // Don't trigger if editing an existing complete code block
-                        if (isInCompleteCodeBlock(update.state, pos)) {
-                            return;
-                        }
                         setTimeout(() => startCompletion(update.view), 10);
                     }
                 }
