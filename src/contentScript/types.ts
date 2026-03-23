@@ -9,6 +9,11 @@ export interface PluginContext {
     postMessage(message: unknown): Promise<unknown>;
 }
 
+export interface PluginSettingsResponse {
+    enableLanguageAutocomplete: boolean;
+    languages: string[];
+}
+
 /** Joplin's CodeMirror wrapper interface */
 export interface JoplinCodeMirror {
     cm6: boolean;

@@ -1,12 +1,15 @@
-import { PluginContext } from './types';
+import { PluginContext, PluginSettingsResponse } from './types';
 import { logger } from '../logger';
 
 /**
- * Manages fetching and caching of language options for autocomplete.
+ * Manages fetching and caching of plugin settings used by the editor integration.
  */
 export class LanguageCache {
     private static instance: LanguageCache;
-    private languages: string[] = [];
+    private settings: PluginSettingsResponse = {
+        enableLanguageAutocomplete: true,
+        languages: [],
+    };
     private hasFetched = false;
     private context: PluginContext;
 
@@ -26,38 +29,47 @@ export class LanguageCache {
     }
 
     /**
-     * Returns the list of languages.
-     * Fetches from settings on first call, then returns cached version.
+     * Returns cached settings.
+     * Fetches from the main process on first call, then returns cached values.
      * Triggers a background refresh to keep sync with settings changes.
      */
-    public async getLanguages(): Promise<string[]> {
+    public async getSettings(): Promise<PluginSettingsResponse> {
         if (this.hasFetched) {
             // Return immediately, but trigger a background refresh to handle setting changes
-            // We use void to fire-and-forget the promise prevents blocking the UI
+            // We use void to fire-and-forget the promise to avoid blocking the UI
             void this.refresh();
-            return this.languages;
+            return this.settings;
         }
 
         return this.refresh();
     }
 
-    /**
-     * Forces a refresh of the language list from the main process.
-     */
-    private async refresh(): Promise<string[]> {
-        try {
-            const response = (await this.context.postMessage({ command: 'getLanguages' })) as {
-                languages: string[];
-            } | null;
+    public async getLanguages(): Promise<string[]> {
+        return (await this.getSettings()).languages;
+    }
 
-            if (response?.languages) {
-                this.languages = response.languages;
+    public isLanguageAutocompleteEnabled(): boolean {
+        void this.getSettings();
+        return this.settings.enableLanguageAutocomplete;
+    }
+
+    /**
+     * Forces a refresh of settings from the main process.
+     */
+    private async refresh(): Promise<PluginSettingsResponse> {
+        try {
+            const response = (await this.context.postMessage({
+                command: 'getSettings',
+            })) as PluginSettingsResponse | null;
+
+            if (response && Array.isArray(response.languages)) {
+                this.settings = response;
                 this.hasFetched = true;
             }
         } catch (error) {
-            logger.error('Failed to fetch languages:', error);
+            logger.error('Failed to fetch autocomplete settings:', error);
         }
 
-        return this.languages;
+        return this.settings;
     }
 }

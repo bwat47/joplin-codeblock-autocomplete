@@ -9,15 +9,20 @@ import type { ViewUpdate } from '@codemirror/view';
 import type { PluginContext, JoplinCodeMirror } from './types';
 import { LanguageCache } from './LanguageCache';
 
+type OpeningFence = {
+    indent: string;
+    fenceChar: string;
+    fenceCount: number;
+    typedLang: string;
+    languageStartPos: number;
+};
+
 /**
  * Parse the opening fence at the current cursor position.
  * Supports both backtick (```) and tilde (~~~) style fences.
  * Returns fence details or undefined if not at a valid fence position.
  */
-function parseOpeningFence(
-    state: CompletionContext['state'],
-    pos: number
-): { indent: string; fenceChar: string; fenceCount: number; typedLang: string; languageStartPos: number } | undefined {
+function parseOpeningFence(state: CompletionContext['state'], pos: number): OpeningFence | undefined {
     const line = state.doc.lineAt(pos);
     const lineText = line.text;
     const lineStartPos = line.from;
@@ -53,10 +58,7 @@ function parseOpeningFence(
  * Creates a completion apply function that replaces typed language and inserts closing fence.
  * Replaces from languageStartPos to current cursor position.
  */
-function createApplyFunction(
-    desiredLang: string,
-    openingFence: { indent: string; fenceChar: string; fenceCount: number; typedLang: string }
-) {
+function createApplyFunction(desiredLang: string, openingFence: OpeningFence) {
     return (view: EditorView, _completion: Completion, from: number) => {
         const lineBreak = view.state.lineBreak || '\n';
         const { indent, fenceChar, fenceCount } = openingFence;
@@ -80,6 +82,19 @@ function createApplyFunction(
     };
 }
 
+function autoInsertClosingFence(view: EditorView, openingFence: OpeningFence, cursorPos: number): void {
+    const lineBreak = view.state.lineBreak || '\n';
+    const closingFence = openingFence.fenceChar.repeat(3);
+    const insertText = `${lineBreak}${openingFence.indent}${closingFence}`;
+
+    view.dispatch(
+        view.state.update({
+            changes: { from: cursorPos, to: cursorPos, insert: insertText },
+            selection: { anchor: cursorPos },
+        })
+    );
+}
+
 /** Registers CodeMirror extensions for code block autocompletion */
 export default function codeMirror6Plugin(context: PluginContext, CodeMirror: JoplinCodeMirror): void {
     const languageCache = LanguageCache.getInstance(context);
@@ -92,13 +107,16 @@ export default function codeMirror6Plugin(context: PluginContext, CodeMirror: Jo
      */
     const codeBlockCompleter = async (completionContext: CompletionContext): Promise<CompletionResult | null> => {
         const { state, pos } = completionContext;
+        const settings = await languageCache.getSettings();
+
+        if (!settings.enableLanguageAutocomplete) return null;
 
         // Parse the opening fence at cursor position
         const openingFence = parseOpeningFence(state, pos);
         if (!openingFence) return null;
 
         const { typedLang } = openingFence;
-        const languages = await languageCache.getLanguages();
+        const { languages } = settings;
 
         // Find languages that match what the user has typed so far (case-insensitive)
         const typedLangLower = typedLang.toLowerCase();
@@ -165,7 +183,15 @@ export default function codeMirror6Plugin(context: PluginContext, CodeMirror: Jo
                     const textBeforeFence = line.text.slice(0, fencePosInLine - 3);
 
                     if (/^\s*$/.test(textBeforeFence)) {
-                        setTimeout(() => startCompletion(update.view), 10);
+                        if (languageCache.isLanguageAutocompleteEnabled()) {
+                            setTimeout(() => startCompletion(update.view), 10);
+                            return;
+                        }
+
+                        const openingFence = parseOpeningFence(update.state, pos);
+                        if (openingFence) {
+                            autoInsertClosingFence(update.view, openingFence, pos);
+                        }
                     }
                 }
             }
