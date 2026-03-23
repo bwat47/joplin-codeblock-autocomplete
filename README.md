@@ -15,7 +15,7 @@ Typing an opening fence (three+ backticks or three+ tildes) will trigger the aut
 
 - Specifying a lanauge that's not in the list (and has no matches) will show "Custom language" and will use the specified language as-is.
 
-- Supports nested code blocks (enter more than three fence characters will close the block with the same number of fence characters as the opening block).
+- Supports nested code blocks (when the language dropdown is enabled): enter more than three fence characters will close the block with the same number of fence characters as the opening block.
 
 - If language auto-complete is disabled, typing exactly three backticks or tildes immediately inserts the closing fence and leaves the cursor at the end of the opening fence so you can type a language or press Enter.
 
