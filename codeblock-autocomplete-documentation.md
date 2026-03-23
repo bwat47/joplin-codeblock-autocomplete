@@ -23,7 +23,7 @@ src/
 1. **Startup**: `index.ts` registers settings, initializes cache, registers content script
 2. **Content Script Load**: `contentScript/index.ts` initializes `codeMirror6Plugin` for CM6 editors
 3. **User Types ` ``` ` or `~~~`**: `EditorView.updateListener` detects pattern and either triggers `startCompletion()` or inserts an immediate closing fence depending on the setting
-4. **Completion Request**: `codeBlockCompleter` fetches settings via `postMessage`, builds options when language autocomplete is enabled
+4. **Completion Request**: `codeBlockCompleter` fetches current settings via `postMessage` from the main-process cache, then builds ordered options when language autocomplete is enabled
 5. **Selection**: User picks language, `apply` function inserts complete code block
 
 ### Key Components
@@ -35,13 +35,15 @@ src/
 - Maintains `settingsCache` for sync access
 - `getLanguageList()` parses setting into string array
 - `getContentScriptSettings()` returns the current language list and enable flag for the content script
+- Serves as the single source of truth for runtime settings; the content script reads from this cache on demand instead of keeping its own copy
 
 **`codeMirror6Plugin.ts`**
 
 - `parseOpeningFence()` - Parses current line to extract indent, fence character (`` ` `` or `~`), fence count (3+), typed language, and language start position
+- `getSettings()` - Fetches the latest settings snapshot from the main process using `postMessage`
+- `buildCompletionOptions()` - Filters configured languages case-insensitively, preserves explicit ordering, and suppresses redundant custom-language entries when casing differs
 - `createApplyFunction()` - Creates completion handler that replaces typed language and inserts closing fence with matching character
-- `codeBlockCompleter` - Async completion source that parses fence, filters languages case-insensitively, returns matched languages before custom language option, and returns `null` when language autocomplete is disabled
-- `triggerCompletionOnFence` - Update listener that either auto-triggers completion on ` ``` ` or `~~~` when preceded by whitespace only or immediately inserts a closing fence when the dropdown is disabled
+- `getFenceTriggerPosition()` / `handleFenceTrigger()` - Detect opening-fence typing and either auto-trigger completion or immediately insert a closing fence when the dropdown is disabled
 
 **`types.ts`**
 

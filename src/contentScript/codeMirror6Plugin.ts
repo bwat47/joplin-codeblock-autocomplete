@@ -1,13 +1,13 @@
 /**
  * CodeMirror 6 plugin for code block language autocompletion.
  */
-import type { CompletionContext, CompletionResult } from '@codemirror/autocomplete';
-import { Completion, autocompletion, startCompletion } from '@codemirror/autocomplete';
-import type { Extension, Transaction } from '@codemirror/state';
+import type { Completion, CompletionContext, CompletionResult } from '@codemirror/autocomplete';
+import { autocompletion, startCompletion } from '@codemirror/autocomplete';
+import type { Extension } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
 import type { ViewUpdate } from '@codemirror/view';
-import type { PluginContext, JoplinCodeMirror } from './types';
-import { LanguageCache } from './LanguageCache';
+import { logger } from '../logger';
+import type { PluginContext, JoplinCodeMirror, PluginSettingsResponse } from './types';
 
 type OpeningFence = {
     indent: string;
@@ -16,6 +16,14 @@ type OpeningFence = {
     typedLang: string;
     languageStartPos: number;
 };
+
+const DEFAULT_SETTINGS: PluginSettingsResponse = {
+    enableLanguageAutocomplete: true,
+    languages: [],
+};
+
+const COMPLETION_TRIGGER_DELAY_MS = 10;
+const IMMEDIATE_FENCE_LENGTH = 3;
 
 /**
  * Parse the opening fence at the current cursor position.
@@ -84,7 +92,7 @@ function createApplyFunction(desiredLang: string, openingFence: OpeningFence) {
 
 function autoInsertClosingFence(view: EditorView, openingFence: OpeningFence, cursorPos: number): void {
     const lineBreak = view.state.lineBreak || '\n';
-    const closingFence = openingFence.fenceChar.repeat(3);
+    const closingFence = openingFence.fenceChar.repeat(IMMEDIATE_FENCE_LENGTH);
     const insertText = `${lineBreak}${openingFence.indent}${closingFence}`;
 
     view.dispatch(
@@ -95,11 +103,96 @@ function autoInsertClosingFence(view: EditorView, openingFence: OpeningFence, cu
     );
 }
 
+async function getSettings(context: PluginContext): Promise<PluginSettingsResponse> {
+    try {
+        const response = (await context.postMessage({
+            command: 'getSettings',
+        })) as PluginSettingsResponse | null;
+
+        if (response && typeof response.enableLanguageAutocomplete === 'boolean' && Array.isArray(response.languages)) {
+            return response;
+        }
+    } catch (error) {
+        logger.error('Failed to fetch autocomplete settings:', error);
+    }
+
+    return DEFAULT_SETTINGS;
+}
+
+function buildCompletionOptions(languages: string[], openingFence: OpeningFence): Completion[] {
+    const { typedLang } = openingFence;
+    const typedLangLower = typedLang.toLowerCase();
+    const matchedLanguages = languages
+        .filter((lang) => lang.toLowerCase().startsWith(typedLangLower))
+        .sort((a, b) => a.localeCompare(b));
+
+    const options = matchedLanguages.map((lang) => ({
+        label: lang,
+        detail: '',
+        apply: createApplyFunction(lang, openingFence),
+    }));
+
+    if (!typedLang) {
+        options.unshift({
+            label: 'No language',
+            detail: '',
+            apply: createApplyFunction('', openingFence),
+        });
+        return options;
+    }
+
+    const hasExactMatch = matchedLanguages.some((lang) => lang.toLowerCase() === typedLangLower);
+    if (!hasExactMatch) {
+        options.push({
+            label: typedLang,
+            detail: 'custom language',
+            apply: createApplyFunction(typedLang, openingFence),
+        });
+    }
+
+    return options;
+}
+
+function getFenceTriggerPosition(update: ViewUpdate): number | null {
+    if (!update.docChanged) return null;
+    if (!update.transactions.some((tr) => tr.isUserEvent('input.type'))) return null;
+
+    const pos = update.state.selection.main.head;
+    const typedFence =
+        pos >= IMMEDIATE_FENCE_LENGTH ? update.state.doc.sliceString(pos - IMMEDIATE_FENCE_LENGTH, pos) : '';
+    if (typedFence !== '```' && typedFence !== '~~~') return null;
+
+    const line = update.state.doc.lineAt(pos);
+    const textBeforeFence = line.text.slice(0, pos - line.from - IMMEDIATE_FENCE_LENGTH);
+    return /^\s*$/.test(textBeforeFence) ? pos : null;
+}
+
+async function handleFenceTrigger(context: PluginContext, update: ViewUpdate): Promise<void> {
+    const triggerPos = getFenceTriggerPosition(update);
+    if (triggerPos === null) return;
+
+    const openingFence = parseOpeningFence(update.state, triggerPos);
+    if (!openingFence) return;
+
+    const settings = await getSettings(context);
+
+    // Skip if the document changed while we waited on the main-process settings response.
+    if (update.view.state !== update.state) return;
+
+    if (settings.enableLanguageAutocomplete) {
+        setTimeout(() => {
+            if (update.view.state === update.state) {
+                startCompletion(update.view);
+            }
+        }, COMPLETION_TRIGGER_DELAY_MS);
+        return;
+    }
+
+    autoInsertClosingFence(update.view, openingFence, triggerPos);
+}
+
 /** Registers CodeMirror extensions for code block autocompletion */
 export default function codeMirror6Plugin(context: PluginContext, CodeMirror: JoplinCodeMirror): void {
-    const languageCache = LanguageCache.getInstance(context);
-    void languageCache.getLanguages();
-
     /**
      * Autocomplete source for code blocks.
      * Parses current line, inserts only remaining text.
@@ -107,95 +200,22 @@ export default function codeMirror6Plugin(context: PluginContext, CodeMirror: Jo
      */
     const codeBlockCompleter = async (completionContext: CompletionContext): Promise<CompletionResult | null> => {
         const { state, pos } = completionContext;
-        const settings = await languageCache.getSettings();
+        const settings = await getSettings(context);
 
         if (!settings.enableLanguageAutocomplete) return null;
 
-        // Parse the opening fence at cursor position
         const openingFence = parseOpeningFence(state, pos);
         if (!openingFence) return null;
 
-        const { typedLang } = openingFence;
-        const { languages } = settings;
-
-        // Find languages that match what the user has typed so far (case-insensitive)
-        const typedLangLower = typedLang.toLowerCase();
-        const matchedLanguages = languages
-            .filter((lang) => lang.toLowerCase().startsWith(typedLangLower))
-            .sort((a, b) => a.localeCompare(b));
-
-        // Build options in explicit order: matched languages first, then custom language
-        const matchedOptions: Completion[] = [];
-        const customOptions: Completion[] = [];
-
-        // Add matching language options
-        matchedLanguages.forEach((lang) => {
-            matchedOptions.push({
-                label: lang,
-                detail: '',
-                apply: createApplyFunction(lang, openingFence),
-            });
-        });
-
-        // If typed text doesn't exactly match a language, add it as a custom option
-        const isExactMatch = matchedLanguages.includes(typedLang);
-        if (typedLang && !isExactMatch) {
-            customOptions.push({
-                label: typedLang,
-                detail: 'custom language',
-                apply: createApplyFunction(typedLang, openingFence),
-            });
-        }
-
-        // Combine in order: matched first, then custom
-        const options = [...matchedOptions, ...customOptions];
-
-        // Add No language option at the beginning if no language has been typed
-        if (!typedLang) {
-            options.unshift({
-                label: 'No language',
-                detail: '',
-                apply: createApplyFunction('', openingFence),
-            });
-        }
-
         return {
             from: openingFence.languageStartPos,
-            options,
+            options: buildCompletionOptions(settings.languages, openingFence),
             filter: false, // Disable automatic filtering/sorting to preserve our order
         };
     };
 
     const triggerCompletionOnFence = EditorView.updateListener.of((update: ViewUpdate) => {
-        if (!update.docChanged) return;
-
-        update.transactions.forEach((tr: Transaction) => {
-            if (tr.isUserEvent('input.type')) {
-                const pos = update.state.selection.main.head;
-                const lastThreeChars = pos >= 3 ? update.state.doc.sliceString(pos - 3, pos) : '';
-
-                // Check for both backtick (```) and tilde (~~~) fences
-                if (lastThreeChars === '```' || lastThreeChars === '~~~') {
-                    // Only trigger if there's only whitespace before the fence on the line
-                    // This prevents triggering in the middle of text like "some text ```"
-                    const line = update.state.doc.lineAt(pos);
-                    const fencePosInLine = pos - line.from;
-                    const textBeforeFence = line.text.slice(0, fencePosInLine - 3);
-
-                    if (/^\s*$/.test(textBeforeFence)) {
-                        if (languageCache.isLanguageAutocompleteEnabled()) {
-                            setTimeout(() => startCompletion(update.view), 10);
-                            return;
-                        }
-
-                        const openingFence = parseOpeningFence(update.state, pos);
-                        if (openingFence) {
-                            autoInsertClosingFence(update.view, openingFence, pos);
-                        }
-                    }
-                }
-            }
-        });
+        void handleFenceTrigger(context, update);
     });
 
     let completionExt: Extension;
