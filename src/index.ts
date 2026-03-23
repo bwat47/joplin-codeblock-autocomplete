@@ -4,7 +4,7 @@
  */
 import joplin from 'api';
 import { ContentScriptType } from 'api/types';
-import { registerSettings, initializeSettingsCache, getLanguageList } from './settings';
+import { registerSettings, initializeSettingsCache, getContentScriptSettings } from './settings';
 
 const CONTENT_SCRIPT_ID = 'codeBlockCompleter';
 
@@ -20,8 +20,8 @@ joplin.plugins.register({
         );
 
         await joplin.contentScripts.onMessage(CONTENT_SCRIPT_ID, (message: { command: string }) => {
-            if (message.command === 'getLanguages') {
-                return { languages: getLanguageList() };
+            if (message.command === 'getSettings') {
+                return getContentScriptSettings();
             }
             return null;
         });

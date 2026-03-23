@@ -10,6 +10,12 @@ const DEFAULT_LANGUAGES =
     'bash, c, clojure, cpp, csharp, css, dart, diff, dockerfile, elixir, elm, erlang, go, groovy, haskell, html, java, javascript, json, julia, kotlin, latex, lua, makefile, markdown, objective-c, ocaml, perl, php, powershell, python, r, ruby, rust, scala, shell, sql, swift, toml, txt, typescript, xml, yaml';
 
 const SETTINGS_CONFIG = {
+    enableLanguageAutocomplete: {
+        key: `${SECTION_ID}.enableLanguageAutocomplete`,
+        defaultValue: true,
+        label: 'Enable language auto-complete',
+        description: 'Enable auto-complete dropdown for code block languages.',
+    },
     languages: {
         key: `${SECTION_ID}.languages`,
         defaultValue: DEFAULT_LANGUAGES,
@@ -20,12 +26,19 @@ const SETTINGS_CONFIG = {
 } as const;
 
 export type SettingsCache = {
+    enableLanguageAutocomplete: boolean;
     languages: string;
 };
 
 /** In-memory settings cache for synchronous access */
 export const settingsCache: SettingsCache = {
+    enableLanguageAutocomplete: SETTINGS_CONFIG.enableLanguageAutocomplete.defaultValue,
     languages: DEFAULT_LANGUAGES,
+};
+
+export type ContentScriptSettings = {
+    enableLanguageAutocomplete: boolean;
+    languages: string[];
 };
 
 /** Parses the languages setting into an array of trimmed strings */
@@ -37,7 +50,20 @@ export function getLanguageList(): string[] {
 }
 
 async function updateSettingsCache(): Promise<void> {
-    settingsCache.languages = await joplin.settings.value(SETTINGS_CONFIG.languages.key);
+    const [enableLanguageAutocomplete, languages] = await Promise.all([
+        joplin.settings.value(SETTINGS_CONFIG.enableLanguageAutocomplete.key),
+        joplin.settings.value(SETTINGS_CONFIG.languages.key),
+    ]);
+
+    settingsCache.enableLanguageAutocomplete = enableLanguageAutocomplete;
+    settingsCache.languages = languages;
+}
+
+export function getContentScriptSettings(): ContentScriptSettings {
+    return {
+        enableLanguageAutocomplete: settingsCache.enableLanguageAutocomplete,
+        languages: getLanguageList(),
+    };
 }
 
 /** Initializes settings cache and registers change listener */
@@ -45,7 +71,10 @@ export async function initializeSettingsCache(): Promise<void> {
     await updateSettingsCache();
 
     joplin.settings.onChange(async (event) => {
-        if (event.keys.includes(SETTINGS_CONFIG.languages.key)) {
+        if (
+            event.keys.includes(SETTINGS_CONFIG.enableLanguageAutocomplete.key) ||
+            event.keys.includes(SETTINGS_CONFIG.languages.key)
+        ) {
             await updateSettingsCache();
         }
     });
@@ -59,6 +88,14 @@ export async function registerSettings(): Promise<void> {
     });
 
     const settingsSpec: Record<string, SettingItem> = {
+        [SETTINGS_CONFIG.enableLanguageAutocomplete.key]: {
+            value: SETTINGS_CONFIG.enableLanguageAutocomplete.defaultValue,
+            type: SettingItemType.Bool,
+            section: SECTION_ID,
+            public: true,
+            label: SETTINGS_CONFIG.enableLanguageAutocomplete.label,
+            description: SETTINGS_CONFIG.enableLanguageAutocomplete.description,
+        },
         [SETTINGS_CONFIG.languages.key]: {
             value: SETTINGS_CONFIG.languages.defaultValue,
             type: SettingItemType.String,
