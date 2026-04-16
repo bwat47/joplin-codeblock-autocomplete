@@ -11,6 +11,7 @@ export interface PluginContext {
 
 export interface PluginSettingsResponse {
     enableLanguageAutocomplete: boolean;
+    enableCopyWidget: boolean;
     languages: string[];
 }
 

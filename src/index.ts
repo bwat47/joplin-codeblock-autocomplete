@@ -8,6 +8,11 @@ import { registerSettings, initializeSettingsCache, getContentScriptSettings } f
 
 const CONTENT_SCRIPT_ID = 'codeBlockCompleter';
 
+type ContentScriptMessage =
+    | { command: 'getSettings' }
+    | { command: 'copyCodeBlock'; text: string }
+    | { command: string; text?: unknown };
+
 joplin.plugins.register({
     onStart: async function () {
         await registerSettings();
@@ -19,9 +24,12 @@ joplin.plugins.register({
             './contentScript/index.js'
         );
 
-        await joplin.contentScripts.onMessage(CONTENT_SCRIPT_ID, (message: { command: string }) => {
+        await joplin.contentScripts.onMessage(CONTENT_SCRIPT_ID, (message: ContentScriptMessage) => {
             if (message.command === 'getSettings') {
                 return getContentScriptSettings();
+            }
+            if (message.command === 'copyCodeBlock' && typeof message.text === 'string') {
+                return joplin.clipboard.writeText(message.text);
             }
             return null;
         });

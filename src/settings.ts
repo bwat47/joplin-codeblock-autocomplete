@@ -16,6 +16,13 @@ const SETTINGS_CONFIG = {
         label: 'Enable language auto-complete',
         description: 'Enable auto-complete dropdown for code block languages.',
     },
+    enableCopyWidget: {
+        key: `${SECTION_ID}.enableCopyWidget`,
+        defaultValue: false,
+        label: 'Enable code block copy widget',
+        description:
+            'Show a copy button on fenced code blocks in the Markdown editor and hide the opening-fence language text when the cursor is not on that line.',
+    },
     languages: {
         key: `${SECTION_ID}.languages`,
         defaultValue: DEFAULT_LANGUAGES,
@@ -27,17 +34,20 @@ const SETTINGS_CONFIG = {
 
 export type SettingsCache = {
     enableLanguageAutocomplete: boolean;
+    enableCopyWidget: boolean;
     languages: string;
 };
 
 /** In-memory settings cache for synchronous access */
 export const settingsCache: SettingsCache = {
     enableLanguageAutocomplete: SETTINGS_CONFIG.enableLanguageAutocomplete.defaultValue,
+    enableCopyWidget: SETTINGS_CONFIG.enableCopyWidget.defaultValue,
     languages: DEFAULT_LANGUAGES,
 };
 
 export type ContentScriptSettings = {
     enableLanguageAutocomplete: boolean;
+    enableCopyWidget: boolean;
     languages: string[];
 };
 
@@ -50,18 +60,21 @@ export function getLanguageList(): string[] {
 }
 
 async function updateSettingsCache(): Promise<void> {
-    const [enableLanguageAutocomplete, languages] = await Promise.all([
+    const [enableLanguageAutocomplete, enableCopyWidget, languages] = await Promise.all([
         joplin.settings.value(SETTINGS_CONFIG.enableLanguageAutocomplete.key),
+        joplin.settings.value(SETTINGS_CONFIG.enableCopyWidget.key),
         joplin.settings.value(SETTINGS_CONFIG.languages.key),
     ]);
 
     settingsCache.enableLanguageAutocomplete = enableLanguageAutocomplete;
+    settingsCache.enableCopyWidget = enableCopyWidget;
     settingsCache.languages = languages;
 }
 
 export function getContentScriptSettings(): ContentScriptSettings {
     return {
         enableLanguageAutocomplete: settingsCache.enableLanguageAutocomplete,
+        enableCopyWidget: settingsCache.enableCopyWidget,
         languages: getLanguageList(),
     };
 }
@@ -73,6 +86,7 @@ export async function initializeSettingsCache(): Promise<void> {
     joplin.settings.onChange(async (event) => {
         if (
             event.keys.includes(SETTINGS_CONFIG.enableLanguageAutocomplete.key) ||
+            event.keys.includes(SETTINGS_CONFIG.enableCopyWidget.key) ||
             event.keys.includes(SETTINGS_CONFIG.languages.key)
         ) {
             await updateSettingsCache();
@@ -95,6 +109,14 @@ export async function registerSettings(): Promise<void> {
             public: true,
             label: SETTINGS_CONFIG.enableLanguageAutocomplete.label,
             description: SETTINGS_CONFIG.enableLanguageAutocomplete.description,
+        },
+        [SETTINGS_CONFIG.enableCopyWidget.key]: {
+            value: SETTINGS_CONFIG.enableCopyWidget.defaultValue,
+            type: SettingItemType.Bool,
+            section: SECTION_ID,
+            public: true,
+            label: SETTINGS_CONFIG.enableCopyWidget.label,
+            description: SETTINGS_CONFIG.enableCopyWidget.description,
         },
         [SETTINGS_CONFIG.languages.key]: {
             value: SETTINGS_CONFIG.languages.defaultValue,
