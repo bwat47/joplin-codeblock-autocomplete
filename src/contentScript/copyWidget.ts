@@ -7,12 +7,12 @@ import { areSettingsEqual, getPluginSettings } from './pluginSettings';
 import type { PluginContext } from './types';
 
 type FencedCodeBlockInfo = {
-    copyText: string;
+    contentFrom: number;
+    contentTo: number;
     hiddenInfoFrom: number | null;
     hiddenInfoTo: number | null;
     language: string | null;
     openingLineFrom: number;
-    openingLineNumber: number;
     openingLineTo: number;
 };
 
@@ -23,9 +23,6 @@ const COPY_ICON_LABEL = 'Copy';
 export const copyWidgetTheme = EditorView.baseTheme({
     '.cm-line.cm-codeblock-copy-line': {
         position: 'relative',
-    },
-    '.cm-codeblock-copy-hidden': {
-        display: 'none',
     },
     '.cm-codeblock-copy-widget': {
         position: 'absolute',
@@ -83,17 +80,66 @@ function getFencedCodeBlockInfo(
     const contentFrom = Math.min(openingLine.to + lineBreak.length, state.doc.length);
     const closingLineStart = closingFenceMark ? state.doc.lineAt(closingFenceMark.from).from : fencedCodeNode.to;
     const contentTo = closingFenceMark ? Math.max(contentFrom, closingLineStart - lineBreak.length) : closingLineStart;
-    const copyText = contentFrom <= contentTo ? state.doc.sliceString(contentFrom, contentTo) : '';
 
     return {
-        copyText,
+        contentFrom,
+        contentTo,
         hiddenInfoFrom: openingFenceMark && codeInfo ? openingFenceMark.to : null,
         hiddenInfoTo: codeInfo ? codeInfo.to : null,
         language: codeInfo ? state.doc.sliceString(codeInfo.from, codeInfo.to) : null,
         openingLineFrom: openingLine.from,
-        openingLineNumber: openingLine.number,
         openingLineTo: openingLine.to,
     };
+}
+
+function getVisibleFencedCodeBlocks(view: EditorView): FencedCodeBlockInfo[] {
+    const seenBlocks = new Set<number>();
+    const blocks: FencedCodeBlockInfo[] = [];
+    const tree = ensureSyntaxTree(view.state, view.viewport.to, SYNTAX_TREE_PARSE_TIMEOUT_MS) ?? syntaxTree(view.state);
+
+    for (const { from, to } of view.visibleRanges) {
+        tree.iterate({
+            from,
+            to,
+            enter: (node) => {
+                if (node.name !== 'FencedCode') {
+                    return undefined;
+                }
+
+                if (seenBlocks.has(node.from)) {
+                    return false;
+                }
+                seenBlocks.add(node.from);
+
+                const blockInfo = getFencedCodeBlockInfo(view.state, node.node);
+                if (blockInfo) {
+                    blocks.push(blockInfo);
+                }
+
+                return false;
+            },
+        });
+    }
+
+    return blocks;
+}
+
+function getActiveOpeningLineFrom(state: EditorView['state'], blocks: readonly FencedCodeBlockInfo[]): number | null {
+    const selectedLineFrom = state.doc.lineAt(state.selection.main.head).from;
+
+    for (const block of blocks) {
+        if (block.openingLineFrom === selectedLineFrom) {
+            return block.openingLineFrom;
+        }
+    }
+
+    return null;
+}
+
+function getCopyText(state: EditorView['state'], contentFrom: number, contentTo: number): string {
+    const from = Math.max(0, Math.min(contentFrom, state.doc.length));
+    const to = Math.max(from, Math.min(contentTo, state.doc.length));
+    return state.doc.sliceString(from, to);
 }
 
 function createCopyIcon(ownerDocument: Document): SVGSVGElement {
@@ -122,14 +168,18 @@ class CopyCodeBlockWidget extends WidgetType {
     public constructor(
         private readonly context: PluginContext,
         private readonly language: string | null,
-        private readonly copyText: string
+        private readonly contentFrom: number,
+        private readonly contentTo: number
     ) {
         super();
     }
 
     public eq(other: WidgetType): boolean {
         return (
-            other instanceof CopyCodeBlockWidget && other.language === this.language && other.copyText === this.copyText
+            other instanceof CopyCodeBlockWidget &&
+            other.language === this.language &&
+            other.contentFrom === this.contentFrom &&
+            other.contentTo === this.contentTo
         );
     }
 
@@ -151,7 +201,7 @@ class CopyCodeBlockWidget extends WidgetType {
         button.addEventListener('click', (event) => {
             event.preventDefault();
             event.stopPropagation();
-            void this.copyCodeBlock();
+            void this.copyCodeBlock(view);
         });
 
         return button;
@@ -161,11 +211,11 @@ class CopyCodeBlockWidget extends WidgetType {
         return true;
     }
 
-    private async copyCodeBlock(): Promise<void> {
+    private async copyCodeBlock(view: EditorView): Promise<void> {
         try {
             await this.context.postMessage({
                 command: 'copyCodeBlock',
-                text: this.copyText,
+                text: getCopyText(view.state, this.contentFrom, this.contentTo),
             });
         } catch (error) {
             logger.error('Failed to copy code block:', error);
@@ -173,60 +223,34 @@ class CopyCodeBlockWidget extends WidgetType {
     }
 }
 
-function buildCopyWidgetDecorations(view: EditorView, context: PluginContext): DecorationSet {
-    const settings = getPluginSettings(view.state);
-    if (!settings.enableCopyWidget) {
+function buildCopyWidgetDecorations(
+    context: PluginContext,
+    blocks: readonly FencedCodeBlockInfo[],
+    activeOpeningLineFrom: number | null
+): DecorationSet {
+    if (blocks.length === 0) {
         return Decoration.none;
     }
 
-    const cursorLineNumber = view.state.doc.lineAt(view.state.selection.main.head).number;
     const decorationRanges: Range<Decoration>[] = [];
-    const seenBlocks = new Set<string>();
-    const tree = ensureSyntaxTree(view.state, view.viewport.to, SYNTAX_TREE_PARSE_TIMEOUT_MS) ?? syntaxTree(view.state);
 
-    for (const { from, to } of view.visibleRanges) {
-        tree.iterate({
-            from,
-            to,
-            enter: (node) => {
-                if (node.name !== 'FencedCode') {
-                    return undefined;
-                }
+    for (const block of blocks) {
+        if (block.openingLineFrom === activeOpeningLineFrom) {
+            continue;
+        }
 
-                const key = `${node.from}:${node.to}`;
-                if (seenBlocks.has(key)) {
-                    return false;
-                }
-                seenBlocks.add(key);
+        decorationRanges.push(Decoration.line({ class: 'cm-codeblock-copy-line' }).range(block.openingLineFrom));
 
-                const blockInfo = getFencedCodeBlockInfo(view.state, node.node);
-                if (!blockInfo || blockInfo.openingLineNumber === cursorLineNumber) {
-                    return false;
-                }
+        if (block.hiddenInfoFrom !== null && block.hiddenInfoTo !== null) {
+            decorationRanges.push(Decoration.replace({}).range(block.hiddenInfoFrom, block.hiddenInfoTo));
+        }
 
-                decorationRanges.push(
-                    Decoration.line({ class: 'cm-codeblock-copy-line' }).range(blockInfo.openingLineFrom)
-                );
-
-                if (blockInfo.hiddenInfoFrom !== null && blockInfo.hiddenInfoTo !== null) {
-                    decorationRanges.push(
-                        Decoration.mark({ class: 'cm-codeblock-copy-hidden' }).range(
-                            blockInfo.hiddenInfoFrom,
-                            blockInfo.hiddenInfoTo
-                        )
-                    );
-                }
-
-                decorationRanges.push(
-                    Decoration.widget({
-                        widget: new CopyCodeBlockWidget(context, blockInfo.language, blockInfo.copyText),
-                        side: 1,
-                    }).range(blockInfo.openingLineTo)
-                );
-
-                return false;
-            },
-        });
+        decorationRanges.push(
+            Decoration.widget({
+                widget: new CopyCodeBlockWidget(context, block.language, block.contentFrom, block.contentTo),
+                side: 1,
+            }).range(block.openingLineTo)
+        );
     }
 
     return Decoration.set(decorationRanges, true);
@@ -235,21 +259,54 @@ function buildCopyWidgetDecorations(view: EditorView, context: PluginContext): D
 export function createCopyWidgetPlugin(context: PluginContext) {
     return ViewPlugin.fromClass(
         class {
-            decorations: DecorationSet;
+            blocks: readonly FencedCodeBlockInfo[] = [];
+            decorations: DecorationSet = Decoration.none;
+            activeOpeningLineFrom: number | null = null;
 
             constructor(view: EditorView) {
-                this.decorations = buildCopyWidgetDecorations(view, context);
+                this.rebuildStructure(view);
             }
 
             update(update: ViewUpdate): void {
-                const settingsChanged = !areSettingsEqual(
-                    getPluginSettings(update.startState),
-                    getPluginSettings(update.state)
-                );
+                const previousSettings = getPluginSettings(update.startState);
+                const nextSettings = getPluginSettings(update.state);
+                const settingsChanged = !areSettingsEqual(previousSettings, nextSettings);
 
-                if (update.docChanged || update.viewportChanged || update.selectionSet || settingsChanged) {
-                    this.decorations = buildCopyWidgetDecorations(update.view, context);
+                if (!nextSettings.enableCopyWidget) {
+                    if (this.blocks.length > 0 || this.activeOpeningLineFrom !== null || settingsChanged) {
+                        this.blocks = [];
+                        this.activeOpeningLineFrom = null;
+                        this.decorations = Decoration.none;
+                    }
+                    return;
                 }
+
+                if (update.docChanged || update.viewportChanged || settingsChanged) {
+                    this.rebuildStructure(update.view);
+                    return;
+                }
+
+                if (update.selectionSet) {
+                    const nextActiveOpeningLineFrom = getActiveOpeningLineFrom(update.state, this.blocks);
+                    if (nextActiveOpeningLineFrom !== this.activeOpeningLineFrom) {
+                        this.activeOpeningLineFrom = nextActiveOpeningLineFrom;
+                        this.decorations = buildCopyWidgetDecorations(context, this.blocks, this.activeOpeningLineFrom);
+                    }
+                }
+            }
+
+            private rebuildStructure(view: EditorView): void {
+                const settings = getPluginSettings(view.state);
+                if (!settings.enableCopyWidget) {
+                    this.blocks = [];
+                    this.activeOpeningLineFrom = null;
+                    this.decorations = Decoration.none;
+                    return;
+                }
+
+                this.blocks = getVisibleFencedCodeBlocks(view);
+                this.activeOpeningLineFrom = getActiveOpeningLineFrom(view.state, this.blocks);
+                this.decorations = buildCopyWidgetDecorations(context, this.blocks, this.activeOpeningLineFrom);
             }
         },
         {
