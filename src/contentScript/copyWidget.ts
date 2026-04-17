@@ -140,12 +140,8 @@ class CopyCodeBlockWidget extends WidgetType {
         button.title = COPY_WIDGET_TITLE;
         button.setAttribute('aria-label', this.language ? `Copy ${this.language} code block` : COPY_WIDGET_TITLE);
 
-        if (this.language) {
-            button.textContent = this.language;
-        } else {
-            button.append(createCopyIcon(view.dom.ownerDocument));
-            button.append(view.dom.ownerDocument.createTextNode(COPY_ICON_LABEL));
-        }
+        button.append(createCopyIcon(view.dom.ownerDocument));
+        button.append(view.dom.ownerDocument.createTextNode(this.language ?? COPY_ICON_LABEL));
 
         button.addEventListener('mousedown', (event) => {
             event.preventDefault();
