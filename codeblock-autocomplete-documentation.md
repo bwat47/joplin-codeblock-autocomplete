@@ -2,7 +2,7 @@
 
 ## Overview
 
-Joplin plugin that provides language autocompletion when typing ` ``` ` or `~~~` in the markdown editor. By default it shows a dropdown of configured languages and inserts a complete fenced code block. It also supports a setting that disables the dropdown and immediately inserts a closing fence after typing exactly three backticks or tildes. An optional copy-widget setting adds a syntax-tree-driven decoration layer that hides the opening-fence language text when the cursor is not on that line and renders a copy control on the top-right of the opening fence. Supports both backtick and tilde fences, 3+ fence characters for nested code blocks in dropdown mode, custom languages not in settings, and indentation matching.
+Joplin plugin that provides language autocompletion when typing ` ``` ` or `~~~` in the markdown editor. By default it shows a dropdown of configured languages and inserts a complete fenced code block. It also exposes a formatting-toolbar button that inserts a fenced code block at the cursor via a custom CM6 editor command. It supports a setting that disables the dropdown and immediately inserts a closing fence after typing exactly three backticks or tildes. An optional copy-widget setting adds a syntax-tree-driven decoration layer that hides the opening-fence language text when the cursor is not on that line and renders a copy control on the top-right of the opening fence. Supports both backtick and tilde fences, 3+ fence characters for nested code blocks in dropdown mode, custom languages not in settings, and indentation matching.
 
 ## File Structure
 
@@ -13,6 +13,7 @@ src/
 └── contentScript/
     ├── index.ts          # Content script entry, loads CM6 plugin
     ├── codeMirror6Plugin.ts  # Composition root that assembles CM6 extensions
+    ├── insertCodeBlock.ts    # Toolbar-triggered code block insertion command
     ├── pluginSettings.ts # Shared CM6 settings facet, normalization, and hydration helpers
     ├── fenceAutocomplete.ts # Opening-fence parsing and autocomplete trigger/completion logic
     ├── copyWidget.ts     # Syntax-tree-based copy widget theme, decorations, and widget DOM
@@ -24,13 +25,15 @@ src/
 ### Data Flow
 
 1. **Startup**: `index.ts` registers settings, registers the content script, and listens for setting changes to push updated settings into the active editor
-2. **Content Script Load**: `contentScript/index.ts` initializes `codeMirror6Plugin` for CM6 editors
-3. **Initial Settings Hydration**: `pluginSettings.ts` fetches the current settings once via `postMessage`, then reconfigures a CM6 compartment-backed settings facet
-4. **User Types ` ``` ` or `~~~`**: `fenceAutocomplete.ts` listens for opening-fence typing and either triggers `startCompletion()` or inserts an immediate closing fence depending on the facet-backed setting
-5. **Completion Request**: the autocomplete source in `fenceAutocomplete.ts` reads the latest settings from the CM6 facet and builds ordered options when language autocomplete is enabled
-6. **Copy Widget Sync**: the `ViewPlugin` in `copyWidget.ts` recomputes decorations directly from `update.view`, using `ensureSyntaxTree()` for the current viewport and the facet-backed settings snapshot
-7. **Selection**: User picks language, `apply` function inserts complete code block
-8. **Copy Action**: the content-script widget sends a `copyCodeBlock` message to the main process, which writes the code body to Joplin's clipboard API
+2. **Toolbar Command Registration**: `index.ts` registers a plugin command with the `fas fa-code` icon and adds it to the editor toolbar; executing it forwards to `editor.execCommand`
+3. **Content Script Load**: `contentScript/index.ts` initializes `codeMirror6Plugin` for CM6 editors
+4. **Initial Settings Hydration**: `pluginSettings.ts` fetches the current settings once via `postMessage`, then reconfigures a CM6 compartment-backed settings facet
+5. **Toolbar Insert Action**: `insertCodeBlock.ts` runs inside the content script when the custom editor command is executed and inserts the opening/closing fences with the cursor between them
+6. **User Types ` ``` ` or `~~~`**: `fenceAutocomplete.ts` listens for opening-fence typing and either triggers `startCompletion()` or inserts an immediate closing fence depending on the facet-backed setting
+7. **Completion Request**: the autocomplete source in `fenceAutocomplete.ts` reads the latest settings from the CM6 facet and builds ordered options when language autocomplete is enabled
+8. **Copy Widget Sync**: the `ViewPlugin` in `copyWidget.ts` recomputes decorations directly from `update.view`, using `ensureSyntaxTree()` for the current viewport and the facet-backed settings snapshot
+9. **Selection**: User picks language, `apply` function inserts complete code block
+10. **Copy Action**: the content-script widget sends a `copyCodeBlock` message to the main process, which writes the code body to Joplin's clipboard API
 
 ### Key Components
 
@@ -45,8 +48,13 @@ src/
 
 **`codeMirror6Plugin.ts`**
 
-- Composes the shared settings extension, autocomplete extension, fence-trigger listener, and copy-widget extensions into one CM6 registration point
+- Composes the shared settings extension, autocomplete extension, fence-trigger listener, insert-code-block command, and copy-widget extensions into one CM6 registration point
 - Registers `UPDATE_SETTINGS_COMMAND` and applies pushed settings into the active editor
+- Registers `INSERT_CODE_BLOCK_COMMAND` so the main plugin can create fenced code blocks through `editor.execCommand`
+
+**`insertCodeBlock.ts`**
+
+- `insertCodeBlockAtCursor()` - Inserts a standalone fenced code block at the current selection, preserves nearby line boundaries, and positions the cursor on the blank line inside the block
 
 **`pluginSettings.ts`**
 
@@ -73,6 +81,7 @@ src/
 - `PluginContext` - Joplin content script context with `postMessage`
 - `PluginSettingsResponse` - Content-script settings snapshot including autocomplete and copy-widget flags
 - `UPDATE_SETTINGS_COMMAND` - Shared editor command name used by the main plugin to push updated settings into active editors
+- `INSERT_CODE_BLOCK_COMMAND` - Shared editor command name used by the toolbar action to insert a fenced code block from the main plugin
 
 ## Settings
 
@@ -95,6 +104,14 @@ Default languages: javascript, typescript, python, bash, shell, html, css, sql, 
 - Closing fence matches opening fence character and count (e.g., `~~~~` closes with `~~~~`, ``` ```` ``` closes with ``` ```` ```) and indentation
 - Selection replaces typed language and inserts closing fence, cursor positioned inside block
 - When `enableLanguageAutocomplete` is disabled, typing exactly three backticks or tildes inserts a matching three-character closing fence immediately, preserves indentation, and keeps the cursor at the end of the opening fence line
+
+## Toolbar Insert Behavior
+
+- Adds an editor-toolbar button that uses the `fas fa-code` icon
+- The main plugin registers a normal Joplin command for the button, then forwards execution to the content script with `editor.execCommand`
+- The content script inserts a three-backtick opening fence and matching closing fence as a standalone block, ensuring a blank line above and below it when surrounding content exists
+- If text is selected, the selected text is moved inside the new fenced block
+- The cursor is placed on the first content line inside the block
 
 ## Copy Widget Behavior
 

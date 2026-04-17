@@ -10,3 +10,4 @@ export interface PluginSettingsResponse {
 }
 
 export const UPDATE_SETTINGS_COMMAND = 'updateCodeblockAutocompleteSettings';
+export const INSERT_CODE_BLOCK_COMMAND = 'insertCodeblockAutocompleteBlock';

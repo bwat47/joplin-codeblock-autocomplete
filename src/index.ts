@@ -3,17 +3,30 @@
  * Provides language autocompletion when typing ``` in the markdown editor.
  */
 import joplin from 'api';
-import { ContentScriptType, ToastType } from 'api/types';
+import { ContentScriptType, ToastType, ToolbarButtonLocation } from 'api/types';
 import { logger } from './logger';
-import { UPDATE_SETTINGS_COMMAND } from './contentScript/types';
+import { INSERT_CODE_BLOCK_COMMAND, UPDATE_SETTINGS_COMMAND } from './contentScript/types';
 import { registerSettings, getContentScriptSettings, arePluginSettingsChanged } from './settings';
 
 const CONTENT_SCRIPT_ID = 'codeBlockCompleter';
+const INSERT_CODE_BLOCK_TOOLBAR_COMMAND = 'insertCodeblockAutocompleteToolbarBlock';
+const INSERT_CODE_BLOCK_TOOLBAR_BUTTON_ID = 'insertCodeblockAutocompleteToolbarButton';
 
 type ContentScriptMessage =
     | { command: 'getSettings' }
     | { command: 'copyCodeBlock'; text: string }
     | { command: string; text?: unknown };
+
+async function insertCodeBlockInEditor(): Promise<void> {
+    try {
+        await joplin.commands.execute('editor.execCommand', {
+            name: INSERT_CODE_BLOCK_COMMAND,
+            args: [],
+        });
+    } catch (error) {
+        logger.warn('Failed to insert a fenced code block in the active editor.', error);
+    }
+}
 
 joplin.plugins.register({
     onStart: async function () {
@@ -36,6 +49,21 @@ joplin.plugins.register({
             }
             return null;
         });
+
+        await joplin.commands.register({
+            name: INSERT_CODE_BLOCK_TOOLBAR_COMMAND,
+            label: 'Insert code block',
+            iconName: 'fas fa-code',
+            execute: async () => {
+                await insertCodeBlockInEditor();
+            },
+        });
+
+        await joplin.views.toolbarButtons.create(
+            INSERT_CODE_BLOCK_TOOLBAR_BUTTON_ID,
+            INSERT_CODE_BLOCK_TOOLBAR_COMMAND,
+            ToolbarButtonLocation.EditorToolbar
+        );
 
         joplin.settings.onChange(async (event) => {
             if (!arePluginSettingsChanged(event.keys)) {

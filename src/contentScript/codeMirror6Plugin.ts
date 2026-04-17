@@ -7,9 +7,10 @@ import { EditorView } from '@codemirror/view';
 import type { CodeMirrorControl } from 'api/types';
 import { copyWidgetTheme, createCopyWidgetPlugin } from './copyWidget';
 import { createCodeBlockCompleter, createFenceTriggerExtension } from './fenceAutocomplete';
+import { insertCodeBlockAtCursor } from './insertCodeBlock';
 import { applyPluginSettings, createSettingsExtension, syncInitialSettings } from './pluginSettings';
 import type { PluginContext } from './types';
-import { UPDATE_SETTINGS_COMMAND } from './types';
+import { INSERT_CODE_BLOCK_COMMAND, UPDATE_SETTINGS_COMMAND } from './types';
 
 export default function codeMirror6Plugin(context: PluginContext, CodeMirror: CodeMirrorControl): void {
     const codeBlockCompleter = createCodeBlockCompleter();
@@ -17,6 +18,9 @@ export default function codeMirror6Plugin(context: PluginContext, CodeMirror: Co
 
     CodeMirror.registerCommand(UPDATE_SETTINGS_COMMAND, (settings: unknown) => {
         applyPluginSettings(CodeMirror.editor as EditorView, settings);
+    });
+    CodeMirror.registerCommand(INSERT_CODE_BLOCK_COMMAND, () => {
+        insertCodeBlockAtCursor(CodeMirror.editor as EditorView);
     });
 
     let completionExt: Extension;
