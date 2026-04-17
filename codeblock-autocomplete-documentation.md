@@ -12,7 +12,10 @@ src/
 ├── settings.ts           # Settings registration and main-process access helpers
 └── contentScript/
     ├── index.ts          # Content script entry, loads CM6 plugin
-    ├── codeMirror6Plugin.ts  # Core autocomplete logic
+    ├── codeMirror6Plugin.ts  # Composition root that assembles CM6 extensions
+    ├── pluginSettings.ts # Shared CM6 settings facet, normalization, and hydration helpers
+    ├── fenceAutocomplete.ts # Opening-fence parsing and autocomplete trigger/completion logic
+    ├── copyWidget.ts     # Syntax-tree-based copy widget theme, decorations, and widget DOM
     └── types.ts          # Shared content-script settings types and command constants
 ```
 
@@ -22,10 +25,10 @@ src/
 
 1. **Startup**: `index.ts` registers settings, registers the content script, and listens for setting changes to push updated settings into the active editor
 2. **Content Script Load**: `contentScript/index.ts` initializes `codeMirror6Plugin` for CM6 editors
-3. **Initial Settings Hydration**: the content script fetches the current settings once via `postMessage`, then reconfigures a CM6 compartment-backed settings facet
-4. **User Types ` ``` ` or `~~~`**: `EditorView.updateListener` detects pattern and either triggers `startCompletion()` or inserts an immediate closing fence depending on the facet-backed setting
-5. **Completion Request**: `codeBlockCompleter` reads the latest settings from the CM6 facet and builds ordered options when language autocomplete is enabled
-6. **Copy Widget Sync**: a CM6 `ViewPlugin` recomputes decorations directly from `update.view`, using `ensureSyntaxTree()` for the current viewport and the facet-backed settings snapshot
+3. **Initial Settings Hydration**: `pluginSettings.ts` fetches the current settings once via `postMessage`, then reconfigures a CM6 compartment-backed settings facet
+4. **User Types ` ``` ` or `~~~`**: `fenceAutocomplete.ts` listens for opening-fence typing and either triggers `startCompletion()` or inserts an immediate closing fence depending on the facet-backed setting
+5. **Completion Request**: the autocomplete source in `fenceAutocomplete.ts` reads the latest settings from the CM6 facet and builds ordered options when language autocomplete is enabled
+6. **Copy Widget Sync**: the `ViewPlugin` in `copyWidget.ts` recomputes decorations directly from `update.view`, using `ensureSyntaxTree()` for the current viewport and the facet-backed settings snapshot
 7. **Selection**: User picks language, `apply` function inserts complete code block
 8. **Copy Action**: the content-script widget sends a `copyCodeBlock` message to the main process, which writes the code body to Joplin's clipboard API
 
@@ -42,14 +45,26 @@ src/
 
 **`codeMirror6Plugin.ts`**
 
-- `parseOpeningFence()` - Parses current line to extract indent, fence character (`` ` `` or `~`), fence count (3+), typed language, and language start position
+- Composes the shared settings extension, autocomplete extension, fence-trigger listener, and copy-widget extensions into one CM6 registration point
+- Registers `UPDATE_SETTINGS_COMMAND` and applies pushed settings into the active editor
+
+**`pluginSettings.ts`**
+
 - `pluginSettingsFacet` / `pluginSettingsCompartment` - Stores the shared content-script settings in CM6 state and allows runtime reconfiguration from a custom editor command
+- `normalizeSettings()` - Validates and sanitizes settings messages crossing from the main process into the content script
+- `syncInitialSettings()` - Fetches initial settings from the main process and seeds the facet-backed configuration
+
+**`fenceAutocomplete.ts`**
+
+- `parseOpeningFence()` - Parses current line to extract indent, fence character (`` ` `` or `~`), fence count (3+), typed language, and language start position
 - `buildCompletionOptions()` - Filters configured languages case-insensitively, preserves explicit ordering, and suppresses redundant custom-language entries when casing differs
 - `createApplyFunction()` - Creates completion handler that replaces typed language and inserts closing fence with matching character
 - `getFenceTriggerPosition()` / `handleFenceTrigger()` - Detect opening-fence typing and either auto-trigger completion or immediately insert a closing fence when the dropdown is disabled
+
+**`copyWidget.ts`**
+
 - `buildCopyWidgetDecorations()` - Walks the markdown syntax tree for the visible viewport, finds `FencedCode` nodes, hides the opening-fence language text, and adds a copy widget decoration when the cursor is not on the opening fence line
 - `getFencedCodeBlockInfo()` - Derives the opening line, `CodeInfo`, closing fence, and copyable code body from a `FencedCode` syntax node
-- `syncInitialSettings()` - Fetches initial settings from the main process and seeds the facet-backed configuration
 - `CopyWidgetViewPlugin` - Stores decorations directly on the `ViewPlugin` instance and recomputes them when the document, selection, viewport, or facet-backed settings change
 - `CopyCodeBlockWidget` - Renders the language label or generic copy icon and posts `copyCodeBlock` messages back to the main process
 
