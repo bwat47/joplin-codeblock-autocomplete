@@ -3,7 +3,7 @@
  * Provides language autocompletion when typing ``` in the markdown editor.
  */
 import joplin from 'api';
-import { ContentScriptType } from 'api/types';
+import { ContentScriptType, ToastType } from 'api/types';
 import { logger } from './logger';
 import { UPDATE_SETTINGS_COMMAND } from './contentScript/types';
 import { registerSettings, getContentScriptSettings, arePluginSettingsChanged } from './settings';
@@ -30,7 +30,9 @@ joplin.plugins.register({
                 return getContentScriptSettings();
             }
             if (message.command === 'copyCodeBlock' && typeof message.text === 'string') {
-                return joplin.clipboard.writeText(message.text);
+                await joplin.clipboard.writeText(message.text);
+                await joplin.views.dialogs.showToast({ message: 'Code copied to clipboard.', type: ToastType.Success });
+                return;
             }
             return null;
         });
