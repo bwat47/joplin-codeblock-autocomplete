@@ -10,7 +10,7 @@ Provides auto-complete when creating fenced code blocks, plus a few other utilit
 
 Codemirror 6 only, legacy editor is not supported.
 
-![example](https://github.com/user-attachments/assets/2681aa4e-e3e4-44e4-84ae-b68df16c8b1a)
+<img width="2234" height="1714" alt="ex" src="https://github.com/user-attachments/assets/cb806e10-b4bb-4079-a933-1366c6d15a3d" />
 
 ## Usage
 
