@@ -59,7 +59,9 @@ src/
 - `src/contentScript/insertCodeBlock.ts`
     - inserts a fenced code block from the toolbar command
 - `src/contentScript/copyWidget.ts`
-    - renders the optional copy button for fenced code blocks
+    - tracks visible fenced code blocks for the optional copy button
+    - separates structural block discovery from selection-driven presentation updates
+    - resolves copied text from the current editor state when the button is clicked
 - `src/contentScript/types.ts`
     - shared content-script message and command types
 
