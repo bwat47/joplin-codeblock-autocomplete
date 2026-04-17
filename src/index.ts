@@ -4,7 +4,9 @@
  */
 import joplin from 'api';
 import { ContentScriptType } from 'api/types';
-import { registerSettings, initializeSettingsCache, getContentScriptSettings } from './settings';
+import { logger } from './logger';
+import { UPDATE_SETTINGS_COMMAND } from './contentScript/types';
+import { registerSettings, getContentScriptSettings, arePluginSettingsChanged } from './settings';
 
 const CONTENT_SCRIPT_ID = 'codeBlockCompleter';
 
@@ -16,7 +18,6 @@ type ContentScriptMessage =
 joplin.plugins.register({
     onStart: async function () {
         await registerSettings();
-        await initializeSettingsCache();
 
         await joplin.contentScripts.register(
             ContentScriptType.CodeMirrorPlugin,
@@ -24,7 +25,7 @@ joplin.plugins.register({
             './contentScript/index.js'
         );
 
-        await joplin.contentScripts.onMessage(CONTENT_SCRIPT_ID, (message: ContentScriptMessage) => {
+        await joplin.contentScripts.onMessage(CONTENT_SCRIPT_ID, async (message: ContentScriptMessage) => {
             if (message.command === 'getSettings') {
                 return getContentScriptSettings();
             }
@@ -32,6 +33,23 @@ joplin.plugins.register({
                 return joplin.clipboard.writeText(message.text);
             }
             return null;
+        });
+
+        joplin.settings.onChange(async (event) => {
+            if (!arePluginSettingsChanged(event.keys)) {
+                return;
+            }
+
+            const settings = await getContentScriptSettings();
+
+            try {
+                await joplin.commands.execute('editor.execCommand', {
+                    name: UPDATE_SETTINGS_COMMAND,
+                    args: [settings],
+                });
+            } catch (error) {
+                logger.warn('Failed to push updated settings to the active editor.', error);
+            }
         });
     },
 });

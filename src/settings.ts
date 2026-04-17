@@ -1,5 +1,5 @@
 /**
- * Plugin settings registration and cache management.
+ * Plugin settings registration and access helpers.
  */
 import joplin from 'api';
 import { SettingItem, SettingItemType } from 'api/types';
@@ -32,66 +32,38 @@ const SETTINGS_CONFIG = {
     },
 } as const;
 
-export type SettingsCache = {
-    enableLanguageAutocomplete: boolean;
-    enableCopyWidget: boolean;
-    languages: string;
-};
-
-/** In-memory settings cache for synchronous access */
-export const settingsCache: SettingsCache = {
-    enableLanguageAutocomplete: SETTINGS_CONFIG.enableLanguageAutocomplete.defaultValue,
-    enableCopyWidget: SETTINGS_CONFIG.enableCopyWidget.defaultValue,
-    languages: DEFAULT_LANGUAGES,
-};
-
 export type ContentScriptSettings = {
     enableLanguageAutocomplete: boolean;
     enableCopyWidget: boolean;
     languages: string[];
 };
 
-/** Parses the languages setting into an array of trimmed strings */
-export function getLanguageList(): string[] {
-    return settingsCache.languages
+const SETTINGS_KEYS = new Set<string>(Object.values(SETTINGS_CONFIG).map((setting) => setting.key));
+
+function parseLanguageList(languages: string): string[] {
+    return languages
         .split(',')
         .map((lang) => lang.trim())
         .filter((lang) => lang.length > 0);
 }
 
-async function updateSettingsCache(): Promise<void> {
+/** Returns the current content-script settings directly from Joplin's settings store. */
+export async function getContentScriptSettings(): Promise<ContentScriptSettings> {
     const [enableLanguageAutocomplete, enableCopyWidget, languages] = await Promise.all([
         joplin.settings.value(SETTINGS_CONFIG.enableLanguageAutocomplete.key),
         joplin.settings.value(SETTINGS_CONFIG.enableCopyWidget.key),
         joplin.settings.value(SETTINGS_CONFIG.languages.key),
     ]);
 
-    settingsCache.enableLanguageAutocomplete = enableLanguageAutocomplete;
-    settingsCache.enableCopyWidget = enableCopyWidget;
-    settingsCache.languages = languages;
-}
-
-export function getContentScriptSettings(): ContentScriptSettings {
     return {
-        enableLanguageAutocomplete: settingsCache.enableLanguageAutocomplete,
-        enableCopyWidget: settingsCache.enableCopyWidget,
-        languages: getLanguageList(),
+        enableLanguageAutocomplete,
+        enableCopyWidget,
+        languages: parseLanguageList(languages),
     };
 }
 
-/** Initializes settings cache and registers change listener */
-export async function initializeSettingsCache(): Promise<void> {
-    await updateSettingsCache();
-
-    joplin.settings.onChange(async (event) => {
-        if (
-            event.keys.includes(SETTINGS_CONFIG.enableLanguageAutocomplete.key) ||
-            event.keys.includes(SETTINGS_CONFIG.enableCopyWidget.key) ||
-            event.keys.includes(SETTINGS_CONFIG.languages.key)
-        ) {
-            await updateSettingsCache();
-        }
-    });
+export function arePluginSettingsChanged(keys: string[]): boolean {
+    return keys.some((key) => SETTINGS_KEYS.has(key));
 }
 
 /** Registers plugin settings with Joplin */
