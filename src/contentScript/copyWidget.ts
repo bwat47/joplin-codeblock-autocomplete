@@ -143,7 +143,7 @@ class CopyCodeBlockWidget extends WidgetType {
         button.append(createCopyIcon(view.dom.ownerDocument));
         button.append(view.dom.ownerDocument.createTextNode(this.language ?? COPY_ICON_LABEL));
 
-        button.addEventListener('mousedown', (event) => {
+        button.addEventListener('pointerdown', (event) => {
             event.preventDefault();
             event.stopPropagation();
         });
