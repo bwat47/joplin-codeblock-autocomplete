@@ -224,21 +224,14 @@ class CopyCodeBlockWidget extends WidgetType {
             handleCopy(event);
         });
 
-        if (ownerDocument.defaultView?.PointerEvent) {
-            button.addEventListener('pointerup', (event) => {
-                if (event.pointerType !== 'touch') {
-                    return;
-                }
+        button.addEventListener('pointerup', (event) => {
+            if (event.pointerType !== 'touch') {
+                return;
+            }
 
-                suppressNextClick = true;
-                handleCopy(event);
-            });
-        } else {
-            button.addEventListener('touchend', (event) => {
-                suppressNextClick = true;
-                handleCopy(event);
-            });
-        }
+            suppressNextClick = true;
+            handleCopy(event);
+        });
 
         return button;
     }
