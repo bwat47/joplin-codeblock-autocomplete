@@ -184,25 +184,61 @@ class CopyCodeBlockWidget extends WidgetType {
     }
 
     public toDOM(view: EditorView): HTMLElement {
-        const button = view.dom.ownerDocument.createElement('button');
+        const ownerDocument = view.dom.ownerDocument;
+        const button = ownerDocument.createElement('button');
         button.type = 'button';
         button.className = 'cm-codeblock-copy-widget';
         button.title = COPY_WIDGET_TITLE;
         button.setAttribute('aria-label', this.language ? `Copy ${this.language} code block` : COPY_WIDGET_TITLE);
 
-        button.append(createCopyIcon(view.dom.ownerDocument));
-        button.append(view.dom.ownerDocument.createTextNode(this.language ?? COPY_ICON_LABEL));
+        button.append(createCopyIcon(ownerDocument));
+        button.append(ownerDocument.createTextNode(this.language ?? COPY_ICON_LABEL));
 
-        button.addEventListener('pointerdown', (event) => {
+        const preventFocusScroll = (event: Event) => {
             event.preventDefault();
             event.stopPropagation();
-        });
+        };
+        button.addEventListener('pointerdown', preventFocusScroll);
+        button.addEventListener('mousedown', preventFocusScroll);
+        button.addEventListener('touchstart', preventFocusScroll, { passive: false });
 
-        button.addEventListener('click', (event) => {
+        // On Joplin mobile, tapping this widget can cause the editor to restore focus to the
+        // current caret position and scroll the viewport there. We suppress the initial touch
+        // activation and handle touch release ourselves, then ignore the synthetic click that
+        // mobile browsers dispatch afterward.
+        let suppressNextClick = false;
+        const handleCopy = (event: Event) => {
             event.preventDefault();
             event.stopPropagation();
             void this.copyCodeBlock(view);
+        };
+
+        button.addEventListener('click', (event) => {
+            if (suppressNextClick) {
+                suppressNextClick = false;
+                event.preventDefault();
+                event.stopPropagation();
+                return;
+            }
+
+            handleCopy(event);
         });
+
+        if (ownerDocument.defaultView?.PointerEvent) {
+            button.addEventListener('pointerup', (event) => {
+                if (event.pointerType !== 'touch') {
+                    return;
+                }
+
+                suppressNextClick = true;
+                handleCopy(event);
+            });
+        } else {
+            button.addEventListener('touchend', (event) => {
+                suppressNextClick = true;
+                handleCopy(event);
+            });
+        }
 
         return button;
     }
