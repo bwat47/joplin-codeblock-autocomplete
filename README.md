@@ -10,7 +10,7 @@ Provides auto-complete when creating fenced code blocks, plus a few other utilit
 
 Codemirror 6 only, legacy editor is not supported.
 
-<img width="2234" height="1714" alt="ex" src="https://github.com/user-attachments/assets/cb806e10-b4bb-4079-a933-1366c6d15a3d" />
+![ex](https://github.com/bwat47/joplin-codeblock-autocomplete/blob/main/images/example.gif)
 
 ## Usage
 
