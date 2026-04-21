@@ -7,8 +7,7 @@ import { areSettingsEqual, getPluginSettings } from './pluginSettings';
 import type { PluginContext } from './types';
 
 type FencedCodeBlockInfo = {
-    contentFrom: number;
-    contentTo: number;
+    copyText: string;
     hiddenInfoFrom: number | null;
     hiddenInfoTo: number | null;
     language: string | null;
@@ -82,8 +81,7 @@ function getFencedCodeBlockInfo(
     const contentTo = closingFenceMark ? Math.max(contentFrom, closingLineStart - lineBreak.length) : closingLineStart;
 
     return {
-        contentFrom,
-        contentTo,
+        copyText: getFencedCodeBlockCopyText(state, fencedCodeNode, contentFrom, contentTo),
         hiddenInfoFrom: openingFenceMark && codeInfo ? openingFenceMark.to : null,
         hiddenInfoTo: codeInfo ? codeInfo.to : null,
         language: codeInfo ? state.doc.sliceString(codeInfo.from, codeInfo.to) : null,
@@ -142,6 +140,27 @@ function getCopyText(state: EditorView['state'], contentFrom: number, contentTo:
     return state.doc.sliceString(from, to);
 }
 
+function getFencedCodeBlockCopyText(
+    state: EditorView['state'],
+    fencedCodeNode: SyntaxNode,
+    contentFrom: number,
+    contentTo: number
+): string {
+    const codeTextParts: string[] = [];
+
+    for (let child = fencedCodeNode.firstChild; child; child = child.nextSibling) {
+        if (child.name === 'CodeText') {
+            codeTextParts.push(state.doc.sliceString(child.from, child.to));
+        }
+    }
+
+    if (codeTextParts.length > 0) {
+        return codeTextParts.join('');
+    }
+
+    return getCopyText(state, contentFrom, contentTo);
+}
+
 function createCopyIcon(ownerDocument: Document): SVGSVGElement {
     const namespace = 'http://www.w3.org/2000/svg';
     const svg = ownerDocument.createElementNS(namespace, 'svg');
@@ -168,18 +187,14 @@ class CopyCodeBlockWidget extends WidgetType {
     public constructor(
         private readonly context: PluginContext,
         private readonly language: string | null,
-        private readonly contentFrom: number,
-        private readonly contentTo: number
+        private readonly copyText: string
     ) {
         super();
     }
 
     public eq(other: WidgetType): boolean {
         return (
-            other instanceof CopyCodeBlockWidget &&
-            other.language === this.language &&
-            other.contentFrom === this.contentFrom &&
-            other.contentTo === this.contentTo
+            other instanceof CopyCodeBlockWidget && other.language === this.language && other.copyText === this.copyText
         );
     }
 
@@ -210,7 +225,7 @@ class CopyCodeBlockWidget extends WidgetType {
         const handleCopy = (event: Event) => {
             event.preventDefault();
             event.stopPropagation();
-            void this.copyCodeBlock(view);
+            void this.copyCodeBlock();
         };
 
         button.addEventListener('click', (event) => {
@@ -240,11 +255,11 @@ class CopyCodeBlockWidget extends WidgetType {
         return true;
     }
 
-    private async copyCodeBlock(view: EditorView): Promise<void> {
+    private async copyCodeBlock(): Promise<void> {
         try {
             await this.context.postMessage({
                 command: 'copyCodeBlock',
-                text: getCopyText(view.state, this.contentFrom, this.contentTo),
+                text: this.copyText,
             });
         } catch (error) {
             logger.error('Failed to copy code block:', error);
@@ -276,7 +291,7 @@ function buildCopyWidgetDecorations(
 
         decorationRanges.push(
             Decoration.widget({
-                widget: new CopyCodeBlockWidget(context, block.language, block.contentFrom, block.contentTo),
+                widget: new CopyCodeBlockWidget(context, block.language, block.copyText),
                 side: 1,
             }).range(block.openingLineTo)
         );
