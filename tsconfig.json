@@ -6,7 +6,7 @@
         "jsx": "react",
         "allowJs": true,
         "esModuleInterop": true,
-        "types": ["node"],
+        "types": ["node", "jest"],
         "paths": {
             "api": ["./api/index.ts"],
             "api/*": ["./api/*"]
