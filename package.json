@@ -1,6 +1,6 @@
 {
     "name": "joplin-plugin-codeblock-autocomplete",
-    "version": "1.2.1",
+    "version": "1.2.2",
     "scripts": {
         "dist": "webpack --env joplin-plugin-config=buildMain && webpack --env joplin-plugin-config=buildExtraScripts && webpack --env joplin-plugin-config=createArchive",
         "prepare": "npm run dist",
@@ -20,10 +20,10 @@
         "publish"
     ],
     "devDependencies": {
-        "@codemirror/autocomplete": "^6.0.0",
-        "@codemirror/state": "^6.0.0",
-        "@codemirror/view": "^6.0.0",
-        "@codemirror/lang-markdown": "^6.0.0",
+        "@codemirror/autocomplete": "^6.20.0",
+        "@codemirror/state": "^6.5.4",
+        "@codemirror/view": "^6.35.0",
+        "@codemirror/lang-markdown": "^6.5.0",
         "@eslint/eslintrc": "^3.3.5",
         "@eslint/js": "^10.0.1",
         "@types/jest": "^30.0.0",
