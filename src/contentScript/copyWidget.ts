@@ -10,6 +10,7 @@ type FencedCodeBlockInfo = {
     copyText: string;
     hiddenInfoFrom: number | null;
     hiddenInfoTo: number | null;
+    interactionSelectionAnchor: number;
     language: string | null;
     openingLineFrom: number;
     openingLineTo: number;
@@ -18,6 +19,20 @@ type FencedCodeBlockInfo = {
 const SYNTAX_TREE_PARSE_TIMEOUT_MS = 100;
 const COPY_WIDGET_TITLE = 'Copy code block';
 const COPY_ICON_LABEL = 'Copy';
+
+function getInteractionSelectionAnchor(state: EditorView['state'], openingLineFrom: number): number {
+    const openingLine = state.doc.lineAt(openingLineFrom);
+
+    if (openingLine.number < state.doc.lines) {
+        return state.doc.line(openingLine.number + 1).from;
+    }
+
+    if (openingLine.number > 1) {
+        return state.doc.line(openingLine.number - 1).from;
+    }
+
+    return openingLine.from;
+}
 
 export const copyWidgetTheme = EditorView.baseTheme({
     '.cm-line.cm-codeblock-copy-line': {
@@ -40,8 +55,10 @@ export const copyWidgetTheme = EditorView.baseTheme({
         lineHeight: '1.4',
         cursor: 'pointer',
     },
-    '.cm-codeblock-copy-widget:hover': {
-        backgroundColor: 'rgba(127, 127, 127, 0.16)',
+    '@media (any-hover: hover)': {
+        '.cm-codeblock-copy-widget:hover': {
+            backgroundColor: 'rgba(127, 127, 127, 0.16)',
+        },
     },
     '.cm-codeblock-copy-widget:focus': {
         outline: 'none',
@@ -84,6 +101,7 @@ function getFencedCodeBlockInfo(
         copyText: getFencedCodeBlockCopyText(state, fencedCodeNode, contentFrom, contentTo),
         hiddenInfoFrom: openingFenceMark && codeInfo ? openingFenceMark.to : null,
         hiddenInfoTo: codeInfo ? codeInfo.to : null,
+        interactionSelectionAnchor: getInteractionSelectionAnchor(state, openingLine.from),
         language: codeInfo ? state.doc.sliceString(codeInfo.from, codeInfo.to) : null,
         openingLineFrom: openingLine.from,
         openingLineTo: openingLine.to,
@@ -186,6 +204,7 @@ function createCopyIcon(ownerDocument: Document): SVGSVGElement {
 class CopyCodeBlockWidget extends WidgetType {
     public constructor(
         private readonly context: PluginContext,
+        private readonly interactionSelectionAnchor: number,
         private readonly language: string | null,
         private readonly copyText: string
     ) {
@@ -194,13 +213,18 @@ class CopyCodeBlockWidget extends WidgetType {
 
     public eq(other: WidgetType): boolean {
         return (
-            other instanceof CopyCodeBlockWidget && other.language === this.language && other.copyText === this.copyText
+            other instanceof CopyCodeBlockWidget &&
+            other.interactionSelectionAnchor === this.interactionSelectionAnchor &&
+            other.language === this.language &&
+            other.copyText === this.copyText
         );
     }
 
     public toDOM(view: EditorView): HTMLElement {
         const ownerDocument = view.dom.ownerDocument;
         const button = ownerDocument.createElement('button');
+        let selectionMoveRequestedByTouch = false;
+
         button.type = 'button';
         button.className = 'cm-codeblock-copy-widget';
         button.title = COPY_WIDGET_TITLE;
@@ -209,43 +233,31 @@ class CopyCodeBlockWidget extends WidgetType {
         button.append(createCopyIcon(ownerDocument));
         button.append(ownerDocument.createTextNode(this.language ?? COPY_ICON_LABEL));
 
-        const preventFocusScroll = (event: Event) => {
-            event.preventDefault();
-            event.stopPropagation();
-        };
-        button.addEventListener('pointerdown', preventFocusScroll);
-        button.addEventListener('mousedown', preventFocusScroll);
-        button.addEventListener('touchstart', preventFocusScroll, { passive: false });
-
-        // On Joplin mobile, tapping this widget can cause the editor to restore focus to the
-        // current caret position and scroll the viewport there. We suppress the initial touch
-        // activation and handle touch release ourselves, then ignore the synthetic click that
-        // mobile browsers dispatch afterward.
-        let suppressNextClick = false;
-        const handleCopy = (event: Event) => {
-            event.preventDefault();
-            event.stopPropagation();
-            void this.copyCodeBlock();
-        };
-
-        button.addEventListener('click', (event) => {
-            if (suppressNextClick) {
-                suppressNextClick = false;
-                event.preventDefault();
-                event.stopPropagation();
-                return;
-            }
-
-            handleCopy(event);
+        button.addEventListener('pointerdown', (event) => {
+            selectionMoveRequestedByTouch = event.pointerType === 'touch';
         });
 
-        button.addEventListener('pointerup', (event) => {
-            if (event.pointerType !== 'touch') {
-                return;
+        // Do not clear this on pointerup: touch browsers dispatch the click after pointerup,
+        // and that click still needs to move the selection to avoid the mobile scroll jump.
+        button.addEventListener('pointercancel', () => {
+            selectionMoveRequestedByTouch = false;
+        });
+
+        button.addEventListener('mousedown', (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+        });
+
+        button.addEventListener('click', (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+
+            if (selectionMoveRequestedByTouch) {
+                this.moveSelectionForCopy(view);
             }
 
-            suppressNextClick = true;
-            handleCopy(event);
+            selectionMoveRequestedByTouch = false;
+            void this.copyCodeBlock();
         });
 
         return button;
@@ -253,6 +265,13 @@ class CopyCodeBlockWidget extends WidgetType {
 
     public ignoreEvent(): boolean {
         return true;
+    }
+
+    private moveSelectionForCopy(view: EditorView): void {
+        view.dispatch({
+            selection: { anchor: this.interactionSelectionAnchor },
+        });
+        view.focus();
     }
 
     private async copyCodeBlock(): Promise<void> {
@@ -291,7 +310,12 @@ function buildCopyWidgetDecorations(
 
         decorationRanges.push(
             Decoration.widget({
-                widget: new CopyCodeBlockWidget(context, block.language, block.copyText),
+                widget: new CopyCodeBlockWidget(
+                    context,
+                    block.interactionSelectionAnchor,
+                    block.language,
+                    block.copyText
+                ),
                 side: 1,
             }).range(block.openingLineTo)
         );
