@@ -63,6 +63,9 @@ describe('createCopyWidgetPlugin', () => {
                 command: 'copyCodeBlock',
                 text: 'plain text',
             });
+
+            expect(harness.getCursor()).toBe(harness.view.state.doc.line(2).from);
+            expect(document.querySelector('.cm-codeblock-copy-widget')).not.toBeNull();
         } finally {
             harness.destroy();
         }
