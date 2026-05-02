@@ -55,8 +55,10 @@ export const copyWidgetTheme = EditorView.baseTheme({
         lineHeight: '1.4',
         cursor: 'pointer',
     },
-    '.cm-codeblock-copy-widget:hover': {
-        backgroundColor: 'rgba(127, 127, 127, 0.16)',
+    '@media (hover: hover)': {
+        '.cm-codeblock-copy-widget:hover': {
+            backgroundColor: 'rgba(127, 127, 127, 0.16)',
+        },
     },
     '.cm-codeblock-copy-widget:focus': {
         outline: 'none',
