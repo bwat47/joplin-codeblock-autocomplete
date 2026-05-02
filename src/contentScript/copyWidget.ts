@@ -55,7 +55,7 @@ export const copyWidgetTheme = EditorView.baseTheme({
         lineHeight: '1.4',
         cursor: 'pointer',
     },
-    '@media (hover: hover)': {
+    '@media (any-hover: hover)': {
         '.cm-codeblock-copy-widget:hover': {
             backgroundColor: 'rgba(127, 127, 127, 0.16)',
         },
@@ -237,6 +237,8 @@ class CopyCodeBlockWidget extends WidgetType {
             selectionMoveRequestedByTouch = event.pointerType === 'touch';
         });
 
+        // Do not clear this on pointerup: touch browsers dispatch the click after pointerup,
+        // and that click still needs to move the selection to avoid the mobile scroll jump.
         button.addEventListener('pointercancel', () => {
             selectionMoveRequestedByTouch = false;
         });
