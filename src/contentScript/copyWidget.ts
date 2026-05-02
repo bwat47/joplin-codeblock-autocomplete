@@ -223,6 +223,8 @@ class CopyCodeBlockWidget extends WidgetType {
     public toDOM(view: EditorView): HTMLElement {
         const ownerDocument = view.dom.ownerDocument;
         const button = ownerDocument.createElement('button');
+        let selectionMoveRequestedByTouch = false;
+
         button.type = 'button';
         button.className = 'cm-codeblock-copy-widget';
         button.title = COPY_WIDGET_TITLE;
@@ -230,6 +232,14 @@ class CopyCodeBlockWidget extends WidgetType {
 
         button.append(createCopyIcon(ownerDocument));
         button.append(ownerDocument.createTextNode(this.language ?? COPY_ICON_LABEL));
+
+        button.addEventListener('pointerdown', (event) => {
+            selectionMoveRequestedByTouch = event.pointerType === 'touch';
+        });
+
+        button.addEventListener('pointercancel', () => {
+            selectionMoveRequestedByTouch = false;
+        });
 
         button.addEventListener('mousedown', (event) => {
             event.preventDefault();
@@ -239,7 +249,12 @@ class CopyCodeBlockWidget extends WidgetType {
         button.addEventListener('click', (event) => {
             event.preventDefault();
             event.stopPropagation();
-            this.moveSelectionForCopy(view);
+
+            if (selectionMoveRequestedByTouch) {
+                this.moveSelectionForCopy(view);
+            }
+
+            selectionMoveRequestedByTouch = false;
             void this.copyCodeBlock();
         });
 

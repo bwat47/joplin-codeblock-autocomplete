@@ -19,6 +19,14 @@ function getCopyWidgetButton(): HTMLButtonElement {
     return button;
 }
 
+function dispatchPointerDown(button: HTMLButtonElement, pointerType: string): void {
+    const event = new Event('pointerdown', { bubbles: true });
+    Object.defineProperty(event, 'pointerType', {
+        value: pointerType,
+    });
+    button.dispatchEvent(event);
+}
+
 describe('createCopyWidgetPlugin', () => {
     it('copies quoted fenced code without block quote markers', () => {
         const context = createPluginContext();
@@ -57,7 +65,41 @@ describe('createCopyWidgetPlugin', () => {
                 languages: [],
             });
 
-            getCopyWidgetButton().click();
+            const initialCursor = harness.getCursor();
+            const button = getCopyWidgetButton();
+
+            dispatchPointerDown(button, 'mouse');
+            button.click();
+
+            expect(context.postMessage).toHaveBeenCalledWith({
+                command: 'copyCodeBlock',
+                text: 'plain text',
+            });
+
+            expect(harness.getCursor()).toBe(initialCursor);
+            expect(document.querySelector('.cm-codeblock-copy-widget')).not.toBeNull();
+        } finally {
+            harness.destroy();
+        }
+    });
+
+    it('moves the cursor before copying for touch activations', () => {
+        const context = createPluginContext();
+        const harness = createEditorHarness('```txt\nplain text\n```\n|', {
+            extensions: [markdown(), createSettingsExtension(), copyWidgetTheme, createCopyWidgetPlugin(context)],
+        });
+
+        try {
+            applyPluginSettings(harness.view, {
+                enableLanguageAutocomplete: true,
+                enableCopyWidget: true,
+                languages: [],
+            });
+
+            const button = getCopyWidgetButton();
+
+            dispatchPointerDown(button, 'touch');
+            button.click();
 
             expect(context.postMessage).toHaveBeenCalledWith({
                 command: 'copyCodeBlock',
@@ -65,7 +107,6 @@ describe('createCopyWidgetPlugin', () => {
             });
 
             expect(harness.getCursor()).toBe(harness.view.state.doc.line(2).from);
-            expect(document.querySelector('.cm-codeblock-copy-widget')).not.toBeNull();
         } finally {
             harness.destroy();
         }
