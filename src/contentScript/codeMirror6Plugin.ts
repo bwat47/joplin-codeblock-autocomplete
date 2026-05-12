@@ -6,7 +6,7 @@ import type { Extension } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
 import type { CodeMirrorControl } from 'api/types';
 import { copyWidgetTheme, createCopyWidgetPlugin } from './copyWidget';
-import { createCodeBlockCompleter, createFenceTriggerExtension } from './fenceAutocomplete';
+import { createCodeBlockCompleter, createFenceTriggerExtension, fenceAutocompleteTheme } from './fenceAutocomplete';
 import { insertCodeBlockAtCursor } from './insertCodeBlock';
 import { applyPluginSettings, createSettingsExtension, syncInitialSettings } from './pluginSettings';
 import type { PluginContext } from './types';
@@ -35,6 +35,7 @@ export default function codeMirror6Plugin(context: PluginContext, CodeMirror: Co
         completionExt,
         createFenceTriggerExtension(),
         copyWidgetTheme,
+        fenceAutocompleteTheme,
         createCopyWidgetPlugin(context),
     ]);
 

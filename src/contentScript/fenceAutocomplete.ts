@@ -90,16 +90,16 @@ function buildCompletionOptions(languages: string[], openingFence: OpeningFence)
         .filter((lang) => lang.toLowerCase().startsWith(typedLangLower))
         .sort((a, b) => a.localeCompare(b));
 
-    const options = matchedLanguages.map((lang) => ({
+    const options: Completion[] = matchedLanguages.map((lang) => ({
         label: lang,
-        detail: '',
+        type: 'codeblock',
         apply: createApplyFunction(lang, openingFence),
     }));
 
     if (!typedLang) {
         options.unshift({
             label: 'No language',
-            detail: '',
+            type: 'codeblock',
             apply: createApplyFunction('', openingFence),
         });
         return options;
@@ -109,6 +109,7 @@ function buildCompletionOptions(languages: string[], openingFence: OpeningFence)
     if (!hasExactMatch) {
         options.push({
             label: typedLang,
+            type: 'codeblock',
             detail: 'custom language',
             apply: createApplyFunction(typedLang, openingFence),
         });
@@ -168,6 +169,14 @@ export function createCodeBlockCompleter() {
         };
     };
 }
+
+export const fenceAutocompleteTheme = EditorView.baseTheme({
+    '.cm-completionIcon-codeblock::after': {
+        content: "'λ'",
+        fontFamily: 'monospace',
+        opacity: '0.7',
+    },
+});
 
 export function createFenceTriggerExtension(): Extension {
     return EditorView.updateListener.of((update: ViewUpdate) => {
