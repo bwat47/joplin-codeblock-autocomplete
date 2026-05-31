@@ -1,8 +1,43 @@
-import type { Completion, CompletionContext, CompletionResult } from '@codemirror/autocomplete';
+import {
+    autocompletion,
+    completionStatus,
+    currentCompletions,
+    type Completion,
+    type CompletionContext,
+    type CompletionResult,
+} from '@codemirror/autocomplete';
 import { Transaction } from '@codemirror/state';
 import { applyPluginSettings, createSettingsExtension } from './pluginSettings';
 import { createCodeBlockCompleter, createFenceTriggerExtension } from './fenceAutocomplete';
 import { createEditorHarness } from '../testUtils/editorHarness';
+
+const EMPTY_CLIENT_RECTS = {
+    length: 0,
+    item: () => null,
+} as unknown as DOMRectList;
+
+const ZERO_RECT = {
+    x: 0,
+    y: 0,
+    width: 0,
+    height: 0,
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
+    toJSON: () => ({}),
+} as DOMRect;
+
+beforeAll(() => {
+    if (typeof Range === 'undefined') return;
+
+    if (!Range.prototype.getClientRects) {
+        Range.prototype.getClientRects = () => EMPTY_CLIENT_RECTS;
+    }
+    if (!Range.prototype.getBoundingClientRect) {
+        Range.prototype.getBoundingClientRect = () => ZERO_RECT;
+    }
+});
 
 function createCompletionContext(view: ReturnType<typeof createEditorHarness>['view']): CompletionContext {
     return {
@@ -13,6 +48,13 @@ function createCompletionContext(view: ReturnType<typeof createEditorHarness>['v
 
 function getResultLabels(result: CompletionResult | null): string[] {
     return result?.options.map((option) => option.label) ?? [];
+}
+
+async function waitForActiveCompletion(view: ReturnType<typeof createEditorHarness>['view']): Promise<void> {
+    for (let attempt = 0; attempt < 10; attempt++) {
+        if (completionStatus(view.state) === 'active') return;
+        await new Promise((resolve) => setTimeout(resolve, 10));
+    }
 }
 
 function applyCompletion(
@@ -126,6 +168,43 @@ describe('createCodeBlockCompleter', () => {
 });
 
 describe('createFenceTriggerExtension', () => {
+    it('lets CodeMirror open language completions through normal typed-input activation', async () => {
+        const codeBlockCompleter = createCodeBlockCompleter();
+        const harness = createEditorHarness('', {
+            rawInput: true,
+            extensions: [
+                createSettingsExtension(),
+                autocompletion({ override: [codeBlockCompleter], activateOnTypingDelay: 0 }),
+                createFenceTriggerExtension(),
+            ],
+        });
+
+        try {
+            applyPluginSettings(harness.view, {
+                enableLanguageAutocomplete: true,
+                enableCopyWidget: false,
+                languages: ['python', 'javascript'],
+            });
+
+            harness.view.dispatch({
+                changes: { from: 0, insert: '```' },
+                selection: { anchor: 3 },
+                annotations: Transaction.userEvent.of('input.type'),
+            });
+            await waitForActiveCompletion(harness.view);
+
+            expect(harness.getText()).toBe('```');
+            expect(completionStatus(harness.view.state)).toBe('active');
+            expect(currentCompletions(harness.view.state).map((completion) => completion.label)).toEqual([
+                'No language',
+                'javascript',
+                'python',
+            ]);
+        } finally {
+            harness.destroy();
+        }
+    });
+
     it('auto-inserts a closing fence when autocomplete is disabled', () => {
         const harness = createEditorHarness('', {
             rawInput: true,
