@@ -1,5 +1,4 @@
 import type { Completion, CompletionContext, CompletionResult } from '@codemirror/autocomplete';
-import { startCompletion } from '@codemirror/autocomplete';
 import type { Extension } from '@codemirror/state';
 import { EditorView, type ViewUpdate } from '@codemirror/view';
 import { getPluginSettings } from './pluginSettings';
@@ -12,7 +11,6 @@ type OpeningFence = {
     languageStartPos: number;
 };
 
-const COMPLETION_TRIGGER_DELAY_MS = 10;
 const IMMEDIATE_FENCE_LENGTH = 3;
 
 /**
@@ -137,19 +135,12 @@ function handleFenceTrigger(update: ViewUpdate): void {
     if (triggerPos === null) return;
 
     const settings = getPluginSettings(update.state);
-    if (!settings.enableLanguageAutocomplete) {
-        const openingFence = parseOpeningFence(update.state, triggerPos);
-        if (openingFence) {
-            autoInsertClosingFence(update.view, openingFence, triggerPos);
-        }
-        return;
-    }
+    if (settings.enableLanguageAutocomplete) return;
 
-    setTimeout(() => {
-        if (update.view.state === update.state) {
-            startCompletion(update.view);
-        }
-    }, COMPLETION_TRIGGER_DELAY_MS);
+    const openingFence = parseOpeningFence(update.state, triggerPos);
+    if (openingFence) {
+        autoInsertClosingFence(update.view, openingFence, triggerPos);
+    }
 }
 
 export function createCodeBlockCompleter() {
