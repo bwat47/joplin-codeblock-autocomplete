@@ -63,7 +63,7 @@ describe('insertCodeBlockAtCursor', () => {
         try {
             insertCodeBlockAtCursor(harness.view);
 
-            expect(harness.getText()).toBe('one\n\n```\nalpha\nbeta\n```\n\ngamma\n\ntwo');
+            expect(harness.getText()).toBe('one\n\n```\nalpha\nbeta\n```\ngamma\n\ntwo');
             // Head clamps to the end of the wrapped content (gamma is excluded).
             expect(harness.getSelection()).toEqual({ anchor: 11, head: 19 });
         } finally {
@@ -101,8 +101,8 @@ describe('insertCodeBlockAtCursor', () => {
 
             insertCodeBlockAtCursor(harness.view);
 
-            expect(harness.getText()).toBe('```\naaa\n```\n\nbbb\n\n```\nccc\n```');
-            expect(harness.view.state.selection.ranges.map((range) => range.head)).toEqual([5, 23]);
+            expect(harness.getText()).toBe('```\naaa\n```\nbbb\n```\nccc\n```');
+            expect(harness.view.state.selection.ranges.map((range) => range.head)).toEqual([5, 21]);
         } finally {
             harness.destroy();
         }

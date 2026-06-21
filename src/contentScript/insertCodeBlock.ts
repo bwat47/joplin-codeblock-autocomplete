@@ -3,36 +3,6 @@ import { EditorView } from '@codemirror/view';
 
 const CODE_FENCE = '```';
 
-function countLineBreaksBefore(view: EditorView, from: number, lineBreak: string): number {
-    let count = 0;
-    let cursor = from;
-
-    while (cursor >= lineBreak.length) {
-        if (view.state.doc.sliceString(cursor - lineBreak.length, cursor) !== lineBreak) {
-            break;
-        }
-        count += 1;
-        cursor -= lineBreak.length;
-    }
-
-    return count;
-}
-
-function countLineBreaksAfter(view: EditorView, to: number, lineBreak: string): number {
-    let count = 0;
-    let cursor = to;
-
-    while (cursor + lineBreak.length <= view.state.doc.length) {
-        if (view.state.doc.sliceString(cursor, cursor + lineBreak.length) !== lineBreak) {
-            break;
-        }
-        count += 1;
-        cursor += lineBreak.length;
-    }
-
-    return count;
-}
-
 /**
  * Expands a selection range to cover the whole lines it touches. A bare cursor or a
  * partial selection therefore wraps entire lines rather than a fragment. A non-empty
@@ -76,19 +46,18 @@ export function insertCodeBlockAtCursor(view: EditorView): void {
     }
 
     // Build one change per block and remember where its wrapped content begins.
+    //
+    // CommonMark does not require blank lines around fenced code blocks, only that the fences sit
+    // on their own line. Because each span is already expanded to whole lines, the opening/closing
+    // fences always land on their own line, so no surrounding padding needs to be added.
     const changes: { from: number; to: number; insert: string }[] = [];
-    const contentOffsets: number[] = [];
+    const contentOffset = CODE_FENCE.length + lineBreak.length;
     for (const { from, to } of blocks) {
         const wrappedText = doc.sliceString(from, to);
-        const leadingBreaks = from === 0 ? 0 : countLineBreaksBefore(view, from, lineBreak);
-        const trailingBreaks = to === doc.length ? 0 : countLineBreaksAfter(view, to, lineBreak);
-        const prefix = from === 0 ? '' : lineBreak.repeat(Math.max(0, 2 - leadingBreaks));
-        const suffix = to === doc.length ? '' : lineBreak.repeat(Math.max(0, 2 - trailingBreaks));
         const content =
             wrappedText.length > 0 ? `${wrappedText}${wrappedText.endsWith(lineBreak) ? '' : lineBreak}` : lineBreak;
 
-        changes.push({ from, to, insert: `${prefix}${CODE_FENCE}${lineBreak}${content}${CODE_FENCE}${suffix}` });
-        contentOffsets.push(prefix.length + CODE_FENCE.length + lineBreak.length);
+        changes.push({ from, to, insert: `${CODE_FENCE}${lineBreak}${content}${CODE_FENCE}` });
     }
 
     if (changes.length === 0) return;
@@ -100,9 +69,8 @@ export function insertCodeBlockAtCursor(view: EditorView): void {
     // case a trailing-line was trimmed off the block.
     const selection = EditorSelection.create(
         state.selection.ranges.map((range) => {
-            const index = blocks.findIndex((block) => range.from >= block.from && range.from <= block.to);
-            const block = blocks[index];
-            const base = changeSet.mapPos(block.from, -1) + contentOffsets[index];
+            const block = blocks.find((b) => range.from >= b.from && range.from <= b.to)!;
+            const base = changeSet.mapPos(block.from, -1) + contentOffset;
             const clamp = (pos: number) => base + (Math.min(Math.max(pos, block.from), block.to) - block.from);
             return EditorSelection.range(clamp(range.anchor), clamp(range.head));
         })
