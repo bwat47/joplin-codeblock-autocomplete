@@ -1,4 +1,5 @@
 import { markdown } from '@codemirror/lang-markdown';
+import { EditorSelection, EditorState } from '@codemirror/state';
 import { createEditorHarness } from '../testUtils/editorHarness';
 import { copyWidgetTheme, createCopyWidgetPlugin } from './copyWidget';
 import { applyPluginSettings, createSettingsExtension } from './pluginSettings';
@@ -201,6 +202,49 @@ describe('createCopyWidgetPlugin', () => {
                 text: 'second',
             });
             expect(harness.getCursor()).toBe(harness.view.state.doc.line(6).from);
+        } finally {
+            harness.destroy();
+        }
+    });
+
+    it('suppresses the widget for an opening fence line held by a non-primary cursor', () => {
+        const context = createPluginContext();
+        const harness = createEditorHarness('```txt\nfirst\n```\n\n```js\nsecond\n```\n|', {
+            extensions: [
+                markdown(),
+                createSettingsExtension(),
+                copyWidgetTheme,
+                createCopyWidgetPlugin(context),
+                EditorState.allowMultipleSelections.of(true),
+            ],
+        });
+
+        try {
+            applyPluginSettings(harness.view, {
+                enableLanguageAutocomplete: true,
+                enableCopyWidget: true,
+                languages: [],
+            });
+
+            // Both blocks show a copy widget when no cursor is on an opening fence line.
+            expect(getCopyWidgetButtons()).toHaveLength(2);
+
+            const firstOpeningLineFrom = harness.view.state.doc.line(1).from;
+            const docEnd = harness.view.state.doc.length;
+
+            // Primary cursor at the end of the doc; a secondary cursor on the first block's
+            // opening fence. The first block's widget should be suppressed even though the
+            // primary cursor is elsewhere.
+            harness.view.dispatch({
+                selection: EditorSelection.create(
+                    [EditorSelection.cursor(firstOpeningLineFrom), EditorSelection.cursor(docEnd)],
+                    1
+                ),
+            });
+
+            const buttons = getCopyWidgetButtons();
+            expect(buttons).toHaveLength(1);
+            expect(buttons[0].textContent).toBe('js');
         } finally {
             harness.destroy();
         }

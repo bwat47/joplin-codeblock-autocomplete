@@ -6,7 +6,7 @@ import {
     type CompletionContext,
     type CompletionResult,
 } from '@codemirror/autocomplete';
-import { Transaction } from '@codemirror/state';
+import { EditorSelection, EditorState, Transaction } from '@codemirror/state';
 import { applyPluginSettings, createSettingsExtension } from './pluginSettings';
 import { createCodeBlockCompleter, createFenceTriggerExtension } from './fenceAutocomplete';
 import { createEditorHarness } from '../testUtils/editorHarness';
@@ -145,6 +145,39 @@ describe('createCodeBlockCompleter', () => {
         }
     });
 
+    it('applies the selected language at every cursor in a multi-cursor selection', () => {
+        const harness = createEditorHarness('```\n~~~py', {
+            rawInput: true,
+            extensions: [createSettingsExtension(), EditorState.allowMultipleSelections.of(true)],
+        });
+
+        try {
+            applyPluginSettings(harness.view, {
+                enableLanguageAutocomplete: true,
+                enableCopyWidget: false,
+                languages: ['json'],
+            });
+
+            // Cursor after the bare ``` fence and after the ~~~py fence.
+            harness.view.dispatch({
+                selection: EditorSelection.create([EditorSelection.cursor(3), EditorSelection.cursor(9)]),
+            });
+
+            const completer = createCodeBlockCompleter();
+            const result = completer(createCompletionContext(harness.view));
+            if (!result) {
+                throw new Error('Expected completions for an opening fence.');
+            }
+
+            applyCompletion(harness.view, result, 'json');
+
+            expect(harness.getText()).toBe('```json\n\n```\n~~~json\n\n~~~');
+            expect(harness.view.state.selection.ranges.map((range) => range.head)).toEqual([8, 21]);
+        } finally {
+            harness.destroy();
+        }
+    });
+
     it('returns null when language autocomplete is disabled', () => {
         const harness = createEditorHarness('```py|', {
             extensions: [createSettingsExtension()],
@@ -226,6 +259,40 @@ describe('createFenceTriggerExtension', () => {
 
             expect(harness.getText()).toBe('```\n```');
             expect(harness.getCursor()).toBe(3);
+        } finally {
+            harness.destroy();
+        }
+    });
+
+    it('auto-inserts a closing fence at every cursor in a multi-cursor selection', () => {
+        const harness = createEditorHarness('\n', {
+            rawInput: true,
+            extensions: [
+                createSettingsExtension(),
+                createFenceTriggerExtension(),
+                EditorState.allowMultipleSelections.of(true),
+            ],
+        });
+
+        try {
+            applyPluginSettings(harness.view, {
+                enableLanguageAutocomplete: false,
+                enableCopyWidget: false,
+                languages: ['python'],
+            });
+
+            // Type ``` on both empty lines at once.
+            harness.view.dispatch({
+                changes: [
+                    { from: 0, insert: '```' },
+                    { from: 1, insert: '```' },
+                ],
+                selection: EditorSelection.create([EditorSelection.cursor(3), EditorSelection.cursor(7)]),
+                annotations: Transaction.userEvent.of('input.type'),
+            });
+
+            expect(harness.getText()).toBe('```\n```\n```\n```');
+            expect(harness.view.state.selection.ranges.map((range) => range.head)).toEqual([3, 11]);
         } finally {
             harness.destroy();
         }

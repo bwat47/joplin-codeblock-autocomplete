@@ -1,5 +1,5 @@
 import type { Completion, CompletionContext, CompletionResult } from '@codemirror/autocomplete';
-import type { Extension } from '@codemirror/state';
+import { EditorSelection, type Extension } from '@codemirror/state';
 import { EditorView, type ViewUpdate } from '@codemirror/view';
 import { getPluginSettings } from './pluginSettings';
 
@@ -48,37 +48,69 @@ function parseOpeningFence(state: CompletionContext['state'], pos: number): Open
 
 /**
  * Creates a completion apply function that replaces typed language and inserts closing fence.
- * Replaces from languageStartPos to current cursor position.
+ *
+ * Works across every cursor in a multi-cursor selection: each cursor that sits on a
+ * valid opening fence is re-parsed independently so it gets the correct indent, fence
+ * style, and replacement range. The chosen language is applied at all of them.
  */
-function createApplyFunction(desiredLang: string, openingFence: OpeningFence) {
-    return (view: EditorView, _completion: Completion, from: number) => {
+function createApplyFunction(desiredLang: string) {
+    return (view: EditorView) => {
         const lineBreak = view.state.lineBreak || '\n';
-        const { indent, fenceChar, fenceCount } = openingFence;
-        const fence = fenceChar.repeat(fenceCount);
-        const currentPos = view.state.selection.main.head;
-        const insertText = `${desiredLang}${lineBreak}${indent}${lineBreak}${indent}${fence}`;
-        const cursorOffset = from + desiredLang.length + lineBreak.length + indent.length;
 
-        view.dispatch(
-            view.state.update({
-                changes: { from, to: currentPos, insert: insertText },
-                selection: { anchor: cursorOffset },
-            })
+        const changes: { from: number; to: number; insert: string }[] = [];
+        // Offset (relative to the start of each insertion) where the cursor should land,
+        // i.e. on the blank line between the opening and closing fences.
+        const cursorOffsets: number[] = [];
+
+        for (const range of view.state.selection.ranges) {
+            const openingFence = parseOpeningFence(view.state, range.head);
+            if (!openingFence) continue;
+
+            const { indent, fenceChar, fenceCount } = openingFence;
+            const fence = fenceChar.repeat(fenceCount);
+            changes.push({
+                from: openingFence.languageStartPos,
+                to: range.head,
+                insert: `${desiredLang}${lineBreak}${indent}${lineBreak}${indent}${fence}`,
+            });
+            cursorOffsets.push(desiredLang.length + lineBreak.length + indent.length);
+        }
+
+        if (changes.length === 0) return;
+
+        const changeSet = view.state.changes(changes);
+        const selection = EditorSelection.create(
+            changes.map((change, i) => EditorSelection.cursor(changeSet.mapPos(change.from, -1) + cursorOffsets[i]))
         );
+
+        view.dispatch(view.state.update({ changes: changeSet, selection }));
     };
 }
 
-function autoInsertClosingFence(view: EditorView, openingFence: OpeningFence, cursorPos: number): void {
+function autoInsertClosingFences(view: EditorView, cursorPositions: number[]): void {
     const lineBreak = view.state.lineBreak || '\n';
-    const closingFence = openingFence.fenceChar.repeat(IMMEDIATE_FENCE_LENGTH);
-    const insertText = `${lineBreak}${openingFence.indent}${closingFence}`;
 
-    view.dispatch(
-        view.state.update({
-            changes: { from: cursorPos, to: cursorPos, insert: insertText },
-            selection: { anchor: cursorPos },
-        })
+    const changes: { from: number; to: number; insert: string }[] = [];
+    for (const cursorPos of cursorPositions) {
+        const openingFence = parseOpeningFence(view.state, cursorPos);
+        if (!openingFence) continue;
+        const closingFence = openingFence.fenceChar.repeat(IMMEDIATE_FENCE_LENGTH);
+        changes.push({
+            from: cursorPos,
+            to: cursorPos,
+            insert: `${lineBreak}${openingFence.indent}${closingFence}`,
+        });
+    }
+
+    if (changes.length === 0) return;
+
+    const changeSet = view.state.changes(changes);
+    // Keep each cursor right after its opening fence, before the inserted closing fence.
+    const selection = EditorSelection.create(
+        changes.map((change) => EditorSelection.cursor(changeSet.mapPos(change.from, -1)))
     );
+
+    view.dispatch(view.state.update({ changes: changeSet, selection }));
 }
 
 function buildCompletionOptions(languages: string[], openingFence: OpeningFence): Completion[] {
@@ -91,14 +123,14 @@ function buildCompletionOptions(languages: string[], openingFence: OpeningFence)
     const options: Completion[] = matchedLanguages.map((lang) => ({
         label: lang,
         type: 'codeblock',
-        apply: createApplyFunction(lang, openingFence),
+        apply: createApplyFunction(lang),
     }));
 
     if (!typedLang) {
         options.unshift({
             label: 'No language',
             type: 'codeblock',
-            apply: createApplyFunction('', openingFence),
+            apply: createApplyFunction(''),
         });
         return options;
     }
@@ -109,38 +141,41 @@ function buildCompletionOptions(languages: string[], openingFence: OpeningFence)
             label: typedLang,
             type: 'codeblock',
             detail: 'custom language',
-            apply: createApplyFunction(typedLang, openingFence),
+            apply: createApplyFunction(typedLang),
         });
     }
 
     return options;
 }
 
-function getFenceTriggerPosition(update: ViewUpdate): number | null {
-    if (!update.docChanged) return null;
-    if (!update.transactions.some((tr) => tr.isUserEvent('input.type'))) return null;
+function getFenceTriggerPositions(update: ViewUpdate): number[] {
+    if (!update.docChanged) return [];
+    if (!update.transactions.some((tr) => tr.isUserEvent('input.type'))) return [];
 
-    const pos = update.state.selection.main.head;
-    const typedFence =
-        pos >= IMMEDIATE_FENCE_LENGTH ? update.state.doc.sliceString(pos - IMMEDIATE_FENCE_LENGTH, pos) : '';
-    if (typedFence !== '```' && typedFence !== '~~~') return null;
+    const positions: number[] = [];
+    for (const range of update.state.selection.ranges) {
+        if (!range.empty) continue;
 
-    const line = update.state.doc.lineAt(pos);
-    const textBeforeFence = line.text.slice(0, pos - line.from - IMMEDIATE_FENCE_LENGTH);
-    return /^\s*$/.test(textBeforeFence) ? pos : null;
+        const pos = range.head;
+        const typedFence =
+            pos >= IMMEDIATE_FENCE_LENGTH ? update.state.doc.sliceString(pos - IMMEDIATE_FENCE_LENGTH, pos) : '';
+        if (typedFence !== '```' && typedFence !== '~~~') continue;
+
+        const line = update.state.doc.lineAt(pos);
+        const textBeforeFence = line.text.slice(0, pos - line.from - IMMEDIATE_FENCE_LENGTH);
+        if (/^\s*$/.test(textBeforeFence)) positions.push(pos);
+    }
+    return positions;
 }
 
 function handleFenceTrigger(update: ViewUpdate): void {
-    const triggerPos = getFenceTriggerPosition(update);
-    if (triggerPos === null) return;
+    const triggerPositions = getFenceTriggerPositions(update);
+    if (triggerPositions.length === 0) return;
 
     const settings = getPluginSettings(update.state);
     if (settings.enableLanguageAutocomplete) return;
 
-    const openingFence = parseOpeningFence(update.state, triggerPos);
-    if (openingFence) {
-        autoInsertClosingFence(update.view, openingFence, triggerPos);
-    }
+    autoInsertClosingFences(update.view, triggerPositions);
 }
 
 export function createCodeBlockCompleter() {

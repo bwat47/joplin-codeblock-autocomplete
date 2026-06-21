@@ -140,16 +140,43 @@ function getVisibleFencedCodeBlocks(view: EditorView): FencedCodeBlockInfo[] {
     return blocks;
 }
 
-function getActiveOpeningLineFrom(state: EditorView['state'], blocks: readonly FencedCodeBlockInfo[]): number | null {
-    const selectedLineFrom = state.doc.lineAt(state.selection.main.head).from;
+/**
+ * Returns the set of block opening-line offsets that currently have a cursor on them.
+ * Every cursor in a multi-cursor selection is considered, so a block's widget is
+ * suppressed whenever any cursor sits on its opening fence line.
+ */
+function getActiveOpeningLineFroms(state: EditorView['state'], blocks: readonly FencedCodeBlockInfo[]): Set<number> {
+    const activeOpeningLineFroms = new Set<number>();
+    if (blocks.length === 0) {
+        return activeOpeningLineFroms;
+    }
+
+    const selectedLineFroms = new Set<number>();
+    for (const range of state.selection.ranges) {
+        selectedLineFroms.add(state.doc.lineAt(range.head).from);
+    }
 
     for (const block of blocks) {
-        if (block.openingLineFrom === selectedLineFrom) {
-            return block.openingLineFrom;
+        if (selectedLineFroms.has(block.openingLineFrom)) {
+            activeOpeningLineFroms.add(block.openingLineFrom);
         }
     }
 
-    return null;
+    return activeOpeningLineFroms;
+}
+
+function areLineFromSetsEqual(a: ReadonlySet<number>, b: ReadonlySet<number>): boolean {
+    if (a.size !== b.size) {
+        return false;
+    }
+
+    for (const value of a) {
+        if (!b.has(value)) {
+            return false;
+        }
+    }
+
+    return true;
 }
 
 function getCopyText(state: EditorView['state'], contentFrom: number, contentTo: number): string {
@@ -289,7 +316,7 @@ class CopyCodeBlockWidget extends WidgetType {
 function buildCopyWidgetDecorations(
     context: PluginContext,
     blocks: readonly FencedCodeBlockInfo[],
-    activeOpeningLineFrom: number | null
+    activeOpeningLineFroms: ReadonlySet<number>
 ): DecorationSet {
     if (blocks.length === 0) {
         return Decoration.none;
@@ -298,7 +325,7 @@ function buildCopyWidgetDecorations(
     const decorationRanges: Range<Decoration>[] = [];
 
     for (const block of blocks) {
-        if (block.openingLineFrom === activeOpeningLineFrom) {
+        if (activeOpeningLineFroms.has(block.openingLineFrom)) {
             continue;
         }
 
@@ -329,7 +356,7 @@ export function createCopyWidgetPlugin(context: PluginContext) {
         class {
             blocks: readonly FencedCodeBlockInfo[] = [];
             decorations: DecorationSet = Decoration.none;
-            activeOpeningLineFrom: number | null = null;
+            activeOpeningLineFroms: ReadonlySet<number> = new Set();
 
             constructor(view: EditorView) {
                 this.rebuildStructure(view);
@@ -341,9 +368,9 @@ export function createCopyWidgetPlugin(context: PluginContext) {
                 const settingsChanged = !areSettingsEqual(previousSettings, nextSettings);
 
                 if (!nextSettings.enableCopyWidget) {
-                    if (this.blocks.length > 0 || this.activeOpeningLineFrom !== null || settingsChanged) {
+                    if (this.blocks.length > 0 || this.activeOpeningLineFroms.size > 0 || settingsChanged) {
                         this.blocks = [];
-                        this.activeOpeningLineFrom = null;
+                        this.activeOpeningLineFroms = new Set();
                         this.decorations = Decoration.none;
                     }
                     return;
@@ -355,10 +382,14 @@ export function createCopyWidgetPlugin(context: PluginContext) {
                 }
 
                 if (update.selectionSet) {
-                    const nextActiveOpeningLineFrom = getActiveOpeningLineFrom(update.state, this.blocks);
-                    if (nextActiveOpeningLineFrom !== this.activeOpeningLineFrom) {
-                        this.activeOpeningLineFrom = nextActiveOpeningLineFrom;
-                        this.decorations = buildCopyWidgetDecorations(context, this.blocks, this.activeOpeningLineFrom);
+                    const nextActiveOpeningLineFroms = getActiveOpeningLineFroms(update.state, this.blocks);
+                    if (!areLineFromSetsEqual(nextActiveOpeningLineFroms, this.activeOpeningLineFroms)) {
+                        this.activeOpeningLineFroms = nextActiveOpeningLineFroms;
+                        this.decorations = buildCopyWidgetDecorations(
+                            context,
+                            this.blocks,
+                            this.activeOpeningLineFroms
+                        );
                     }
                 }
             }
@@ -367,14 +398,14 @@ export function createCopyWidgetPlugin(context: PluginContext) {
                 const settings = getPluginSettings(view.state);
                 if (!settings.enableCopyWidget) {
                     this.blocks = [];
-                    this.activeOpeningLineFrom = null;
+                    this.activeOpeningLineFroms = new Set();
                     this.decorations = Decoration.none;
                     return;
                 }
 
                 this.blocks = getVisibleFencedCodeBlocks(view);
-                this.activeOpeningLineFrom = getActiveOpeningLineFrom(view.state, this.blocks);
-                this.decorations = buildCopyWidgetDecorations(context, this.blocks, this.activeOpeningLineFrom);
+                this.activeOpeningLineFroms = getActiveOpeningLineFroms(view.state, this.blocks);
+                this.decorations = buildCopyWidgetDecorations(context, this.blocks, this.activeOpeningLineFroms);
             }
         },
         {

@@ -9,7 +9,7 @@ This plugin adds CodeMirror 6 editor enhancements for fenced code blocks in Jopl
 - Main plugin process:
     - registers plugin settings
     - registers the CodeMirror content script
-    - registers the editor toolbar command
+    - registers the insert-code-block command with Edit menu and editor toolbar entry points
     - responds to content-script messages for settings hydration and clipboard copy
     - pushes updated settings into the active editor when Joplin settings change
 - CodeMirror content script:
@@ -58,6 +58,8 @@ src/
     - handles fence detection and language autocomplete
 - `src/contentScript/insertCodeBlock.ts`
     - inserts a fenced code block from the toolbar command
+    - line-aware: each cursor/selection is expanded to the whole lines it touches, so a bare cursor on a line of text wraps that line and a partial selection wraps the full line(s) it spans (a bare cursor on an empty line still inserts an empty block)
+    - supports multiple cursors and selections in a single transaction: expanded spans that share lines are merged into one block, and the original cursors/selections are re-anchored inside their block, preserving column and direction
 - `src/contentScript/copyWidget.ts`
     - tracks visible fenced code blocks for the optional copy button
     - separates structural block discovery from selection-driven presentation updates
@@ -68,7 +70,7 @@ src/
 ## Main Flow
 
 1. Joplin starts the plugin through `src/index.ts`.
-2. The plugin registers settings, the content script, and the toolbar button.
+2. The plugin registers settings, the content script, the Edit menu item, and the toolbar button.
 3. The content script loads `src/contentScript/codeMirror6Plugin.ts` for CodeMirror 6 editors.
 4. The content script requests current settings from the main process and stores them in editor state.
 5. Editor features read from that shared state for autocomplete, code block insertion, and the optional copy widget.
