@@ -3,13 +3,14 @@
  * Provides language autocompletion when typing ``` in the markdown editor.
  */
 import joplin from 'api';
-import { ContentScriptType, ToastType, ToolbarButtonLocation } from 'api/types';
+import { ContentScriptType, MenuItemLocation, ToastType, ToolbarButtonLocation } from 'api/types';
 import { logger } from './logger';
 import { INSERT_CODE_BLOCK_COMMAND, UPDATE_SETTINGS_COMMAND } from './contentScript/types';
 import { registerSettings, getContentScriptSettings, arePluginSettingsChanged } from './settings';
 
 const CONTENT_SCRIPT_ID = 'codeBlockCompleter';
 const INSERT_CODE_BLOCK_TOOLBAR_COMMAND = 'insertCodeblockAutocompleteToolbarBlock';
+const INSERT_CODE_BLOCK_MENU_ITEM_ID = 'insertCodeblockAutocompleteEditMenuItem';
 const INSERT_CODE_BLOCK_TOOLBAR_BUTTON_ID = 'insertCodeblockAutocompleteToolbarButton';
 
 type ContentScriptMessage =
@@ -58,6 +59,13 @@ joplin.plugins.register({
                 await insertCodeBlockInEditor();
             },
         });
+
+        await joplin.views.menuItems.create(
+            INSERT_CODE_BLOCK_MENU_ITEM_ID,
+            INSERT_CODE_BLOCK_TOOLBAR_COMMAND,
+            MenuItemLocation.Edit,
+            { accelerator: 'CmdOrCtrl+Alt+`' }
+        );
 
         await joplin.views.toolbarButtons.create(
             INSERT_CODE_BLOCK_TOOLBAR_BUTTON_ID,
