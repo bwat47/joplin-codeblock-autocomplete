@@ -1,3 +1,4 @@
+import { EditorSelection, EditorState } from '@codemirror/state';
 import { insertCodeBlockAtCursor } from './insertCodeBlock';
 import { createEditorHarness } from '../testUtils/editorHarness';
 
@@ -36,6 +37,68 @@ describe('insertCodeBlockAtCursor', () => {
 
             expect(harness.getText()).toBe('alpha\n\n```\n\n```\n\nbeta');
             expect(harness.getCursor()).toBe(11);
+        } finally {
+            harness.destroy();
+        }
+    });
+
+    it('inserts an empty code block at every cursor in a multi-cursor selection', () => {
+        const harness = createEditorHarness('abcd', {
+            rawInput: true,
+            extensions: [EditorState.allowMultipleSelections.of(true)],
+        });
+
+        try {
+            harness.view.dispatch({
+                selection: EditorSelection.create([EditorSelection.cursor(1), EditorSelection.cursor(3)]),
+            });
+
+            insertCodeBlockAtCursor(harness.view);
+
+            expect(harness.getText()).toBe('a\n\n```\n\n```\n\nbc\n\n```\n\n```\n\nd');
+            expect(harness.view.state.selection.ranges.map((range) => range.head)).toEqual([7, 21]);
+        } finally {
+            harness.destroy();
+        }
+    });
+
+    it('wraps each selection in its own code block for a multi-cursor selection', () => {
+        const harness = createEditorHarness('abcde', {
+            rawInput: true,
+            extensions: [EditorState.allowMultipleSelections.of(true)],
+        });
+
+        try {
+            // Select "b" and "d".
+            harness.view.dispatch({
+                selection: EditorSelection.create([EditorSelection.range(1, 2), EditorSelection.range(3, 4)]),
+            });
+
+            insertCodeBlockAtCursor(harness.view);
+
+            expect(harness.getText()).toBe('a\n\n```\nb\n```\n\nc\n\n```\nd\n```\n\ne');
+            expect(harness.view.state.selection.ranges.map((range) => range.head)).toEqual([7, 21]);
+        } finally {
+            harness.destroy();
+        }
+    });
+
+    it('handles a mix of an empty cursor and a selection', () => {
+        const harness = createEditorHarness('abcde', {
+            rawInput: true,
+            extensions: [EditorState.allowMultipleSelections.of(true)],
+        });
+
+        try {
+            // Empty cursor before "b" and a selection wrapping "d".
+            harness.view.dispatch({
+                selection: EditorSelection.create([EditorSelection.cursor(1), EditorSelection.range(3, 4)]),
+            });
+
+            insertCodeBlockAtCursor(harness.view);
+
+            expect(harness.getText()).toBe('a\n\n```\n\n```\n\nbc\n\n```\nd\n```\n\ne');
+            expect(harness.view.state.selection.ranges.map((range) => range.head)).toEqual([7, 21]);
         } finally {
             harness.destroy();
         }
