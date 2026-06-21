@@ -34,52 +34,81 @@ function countLineBreaksAfter(view: EditorView, to: number, lineBreak: string): 
 }
 
 /**
- * Inserts a fenced code block at every cursor and wraps every non-empty selection in its
- * own fenced code block, all in a single transaction.
+ * Expands a selection range to cover the whole lines it touches. A bare cursor or a
+ * partial selection therefore wraps entire lines rather than a fragment. A non-empty
+ * selection ending exactly at a line start does not pull in that trailing line.
+ */
+function expandToLines(view: EditorView, from: number, to: number): { from: number; to: number } {
+    const { doc } = view.state;
+    const startLine = doc.lineAt(from);
+    const endLine = to > from && to === doc.lineAt(to).from ? doc.lineAt(to - 1) : doc.lineAt(to);
+    return { from: startLine.from, to: endLine.to };
+}
+
+/**
+ * Inserts a fenced code block at every cursor and wraps every selection in a code block,
+ * all in a single transaction.
  *
- * Each range is computed independently against the original document (the line-break
- * counting reads pre-change positions), then the changes are batched together so a
- * multi-cursor selection produces one block per cursor/selection.
+ * The command is line-aware: each cursor/selection is first expanded to the whole lines it
+ * touches, so a bare cursor on a line of text wraps that line and a partial selection wraps
+ * the full line(s) it spans. Expanded spans that share lines are merged into one block so a
+ * multi-cursor selection never produces overlapping changes; the original cursors are then
+ * re-anchored inside their block, preserving column and direction. A bare cursor on an empty
+ * line still inserts an empty code block.
  */
 export function insertCodeBlockAtCursor(view: EditorView): void {
-    const lineBreak = view.state.lineBreak || '\n';
+    const { state } = view;
+    const { doc } = state;
+    const lineBreak = state.lineBreak || '\n';
 
+    // Expand each range to whole lines, then merge spans that share lines so changes never overlap.
+    const spans = state.selection.ranges
+        .map((range) => expandToLines(view, range.from, range.to))
+        .sort((a, b) => a.from - b.from);
+    const blocks: { from: number; to: number }[] = [];
+    for (const span of spans) {
+        const last = blocks[blocks.length - 1];
+        if (last && span.from <= last.to) {
+            last.to = Math.max(last.to, span.to);
+        } else {
+            blocks.push({ from: span.from, to: span.to });
+        }
+    }
+
+    // Build one change per block and remember where its wrapped content begins.
     const changes: { from: number; to: number; insert: string }[] = [];
-    // Per change, the anchor/head offsets relative to the start of the insertion. These
-    // re-create the original selection inside the new block, preserving its direction
-    // (for an empty cursor both collapse to the content line).
-    const anchorOffsets: number[] = [];
-    const headOffsets: number[] = [];
-
-    for (const range of view.state.selection.ranges) {
-        const { from, to, anchor, head } = range;
-        const selectedText = view.state.sliceDoc(from, to);
+    const contentOffsets: number[] = [];
+    for (const { from, to } of blocks) {
+        const wrappedText = doc.sliceString(from, to);
         const leadingBreaks = from === 0 ? 0 : countLineBreaksBefore(view, from, lineBreak);
-        const trailingBreaks = to === view.state.doc.length ? 0 : countLineBreaksAfter(view, to, lineBreak);
+        const trailingBreaks = to === doc.length ? 0 : countLineBreaksAfter(view, to, lineBreak);
         const prefix = from === 0 ? '' : lineBreak.repeat(Math.max(0, 2 - leadingBreaks));
-        const suffix = to === view.state.doc.length ? '' : lineBreak.repeat(Math.max(0, 2 - trailingBreaks));
+        const suffix = to === doc.length ? '' : lineBreak.repeat(Math.max(0, 2 - trailingBreaks));
         const content =
-            selectedText.length > 0 ? `${selectedText}${selectedText.endsWith(lineBreak) ? '' : lineBreak}` : lineBreak;
-        const insertText = `${prefix}${CODE_FENCE}${lineBreak}${content}${CODE_FENCE}${suffix}`;
+            wrappedText.length > 0 ? `${wrappedText}${wrappedText.endsWith(lineBreak) ? '' : lineBreak}` : lineBreak;
 
-        // The wrapped text begins here; the original anchor/head sit at their offsets within it.
-        const contentOffset = prefix.length + CODE_FENCE.length + lineBreak.length;
-        changes.push({ from, to, insert: insertText });
-        anchorOffsets.push(contentOffset + (anchor - from));
-        headOffsets.push(contentOffset + (head - from));
+        changes.push({ from, to, insert: `${prefix}${CODE_FENCE}${lineBreak}${content}${CODE_FENCE}${suffix}` });
+        contentOffsets.push(prefix.length + CODE_FENCE.length + lineBreak.length);
     }
 
     if (changes.length === 0) return;
 
-    const changeSet = view.state.changes(changes);
+    const changeSet = state.changes(changes);
+
+    // Re-anchor each original cursor/selection inside its block, preserving column and
+    // direction. Each range's start falls inside exactly one block; clamp the endpoints in
+    // case a trailing-line was trimmed off the block.
     const selection = EditorSelection.create(
-        changes.map((change, i) => {
-            const insertStart = changeSet.mapPos(change.from, -1);
-            return EditorSelection.range(insertStart + anchorOffsets[i], insertStart + headOffsets[i]);
+        state.selection.ranges.map((range) => {
+            const index = blocks.findIndex((block) => range.from >= block.from && range.from <= block.to);
+            const block = blocks[index];
+            const base = changeSet.mapPos(block.from, -1) + contentOffsets[index];
+            const clamp = (pos: number) => base + (Math.min(Math.max(pos, block.from), block.to) - block.from);
+            return EditorSelection.range(clamp(range.anchor), clamp(range.head));
         })
     );
 
-    view.dispatch(view.state.update({ changes: changeSet, selection }));
+    view.dispatch(state.update({ changes: changeSet, selection }));
 
     view.focus();
 }
