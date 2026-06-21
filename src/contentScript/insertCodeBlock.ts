@@ -45,11 +45,14 @@ export function insertCodeBlockAtCursor(view: EditorView): void {
     const lineBreak = view.state.lineBreak || '\n';
 
     const changes: { from: number; to: number; insert: string }[] = [];
-    // Offset (relative to the start of each insertion) where the cursor should land,
-    // i.e. on the content line between the opening and closing fences.
-    const cursorOffsets: number[] = [];
+    // Per change, the anchor/head offsets relative to the start of the insertion. These
+    // re-create the original selection inside the new block, preserving its direction
+    // (for an empty cursor both collapse to the content line).
+    const anchorOffsets: number[] = [];
+    const headOffsets: number[] = [];
 
-    for (const { from, to } of view.state.selection.ranges) {
+    for (const range of view.state.selection.ranges) {
+        const { from, to, anchor, head } = range;
         const selectedText = view.state.sliceDoc(from, to);
         const leadingBreaks = from === 0 ? 0 : countLineBreaksBefore(view, from, lineBreak);
         const trailingBreaks = to === view.state.doc.length ? 0 : countLineBreaksAfter(view, to, lineBreak);
@@ -59,15 +62,21 @@ export function insertCodeBlockAtCursor(view: EditorView): void {
             selectedText.length > 0 ? `${selectedText}${selectedText.endsWith(lineBreak) ? '' : lineBreak}` : lineBreak;
         const insertText = `${prefix}${CODE_FENCE}${lineBreak}${content}${CODE_FENCE}${suffix}`;
 
+        // The wrapped text begins here; the original anchor/head sit at their offsets within it.
+        const contentOffset = prefix.length + CODE_FENCE.length + lineBreak.length;
         changes.push({ from, to, insert: insertText });
-        cursorOffsets.push(prefix.length + CODE_FENCE.length + lineBreak.length);
+        anchorOffsets.push(contentOffset + (anchor - from));
+        headOffsets.push(contentOffset + (head - from));
     }
 
     if (changes.length === 0) return;
 
     const changeSet = view.state.changes(changes);
     const selection = EditorSelection.create(
-        changes.map((change, i) => EditorSelection.cursor(changeSet.mapPos(change.from, -1) + cursorOffsets[i]))
+        changes.map((change, i) => {
+            const insertStart = changeSet.mapPos(change.from, -1);
+            return EditorSelection.range(insertStart + anchorOffsets[i], insertStart + headOffsets[i]);
+        })
     );
 
     view.dispatch(view.state.update({ changes: changeSet, selection }));

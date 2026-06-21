@@ -16,14 +16,37 @@ describe('insertCodeBlockAtCursor', () => {
         }
     });
 
-    it('wraps selected text in a fenced code block and preserves separation from surrounding text', () => {
+    it('wraps selected text in a fenced code block and keeps it selected', () => {
         const harness = createEditorHarness('alpha[[console.log(1);]]beta');
 
         try {
             insertCodeBlockAtCursor(harness.view);
 
             expect(harness.getText()).toBe('alpha\n\n```\nconsole.log(1);\n```\n\nbeta');
-            expect(harness.getCursor()).toBe(11);
+            // "console.log(1);" remains selected inside the new block.
+            expect(harness.getSelection()).toEqual({ anchor: 11, head: 26 });
+        } finally {
+            harness.destroy();
+        }
+    });
+
+    it('preserves the selection direction when wrapping a backward selection', () => {
+        const harness = createEditorHarness('abcdef', {
+            rawInput: true,
+            extensions: [EditorState.allowMultipleSelections.of(true)],
+        });
+
+        try {
+            // Select "bcd" with the head at the start (a backward / right-to-left selection).
+            harness.view.dispatch({
+                selection: EditorSelection.range(4, 1),
+            });
+
+            insertCodeBlockAtCursor(harness.view);
+
+            expect(harness.getText()).toBe('a\n\n```\nbcd\n```\n\nef');
+            // Head stays before the anchor, so the selection still reads right-to-left.
+            expect(harness.getSelection()).toEqual({ anchor: 10, head: 7 });
         } finally {
             harness.destroy();
         }
@@ -77,7 +100,13 @@ describe('insertCodeBlockAtCursor', () => {
             insertCodeBlockAtCursor(harness.view);
 
             expect(harness.getText()).toBe('a\n\n```\nb\n```\n\nc\n\n```\nd\n```\n\ne');
-            expect(harness.view.state.selection.ranges.map((range) => range.head)).toEqual([7, 21]);
+            // Each wrapped letter stays selected inside its own block.
+            expect(
+                harness.view.state.selection.ranges.map((range) => ({ anchor: range.anchor, head: range.head }))
+            ).toEqual([
+                { anchor: 7, head: 8 },
+                { anchor: 21, head: 22 },
+            ]);
         } finally {
             harness.destroy();
         }
@@ -98,7 +127,13 @@ describe('insertCodeBlockAtCursor', () => {
             insertCodeBlockAtCursor(harness.view);
 
             expect(harness.getText()).toBe('a\n\n```\n\n```\n\nbc\n\n```\nd\n```\n\ne');
-            expect(harness.view.state.selection.ranges.map((range) => range.head)).toEqual([7, 21]);
+            // Empty cursor collapses to the content line; the wrapped "d" stays selected.
+            expect(
+                harness.view.state.selection.ranges.map((range) => ({ anchor: range.anchor, head: range.head }))
+            ).toEqual([
+                { anchor: 7, head: 7 },
+                { anchor: 21, head: 22 },
+            ]);
         } finally {
             harness.destroy();
         }

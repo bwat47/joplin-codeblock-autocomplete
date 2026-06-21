@@ -58,7 +58,7 @@ src/
     - handles fence detection and language autocomplete
 - `src/contentScript/insertCodeBlock.ts`
     - inserts a fenced code block from the toolbar command
-    - supports multiple cursors and selections: each cursor inserts an empty block and each non-empty selection is wrapped in its own block, all in a single transaction
+    - supports multiple cursors and selections: each cursor inserts an empty block and each non-empty selection is wrapped in its own block, all in a single transaction; wrapped text stays selected afterwards
 - `src/contentScript/copyWidget.ts`
     - tracks visible fenced code blocks for the optional copy button
     - separates structural block discovery from selection-driven presentation updates
