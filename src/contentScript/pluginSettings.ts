@@ -4,7 +4,7 @@ import type { CodeMirrorControl } from 'api/types';
 import { logger } from '../logger';
 import type { PluginContext, PluginSettingsResponse } from './types';
 
-export const DEFAULT_SETTINGS: PluginSettingsResponse = {
+const DEFAULT_SETTINGS: PluginSettingsResponse = {
     enableLanguageAutocomplete: true,
     enableCopyWidget: false,
     languages: [],
@@ -20,7 +20,7 @@ export function getPluginSettings(state: EditorState): PluginSettingsResponse {
     return state.facet(pluginSettingsFacet);
 }
 
-export function normalizeSettings(value: unknown): PluginSettingsResponse {
+function normalizeSettings(value: unknown): PluginSettingsResponse {
     if (
         value &&
         typeof value === 'object' &&
