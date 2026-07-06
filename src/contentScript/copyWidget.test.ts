@@ -1,3 +1,4 @@
+import { vi, type Mocked } from 'vitest';
 import { markdown } from '@codemirror/lang-markdown';
 import { EditorSelection, EditorState } from '@codemirror/state';
 import { createEditorHarness } from '../testUtils/editorHarness';
@@ -5,9 +6,9 @@ import { copyWidgetTheme, createCopyWidgetPlugin } from './copyWidget';
 import { applyPluginSettings, createSettingsExtension } from './pluginSettings';
 import type { PluginContext } from './types';
 
-function createPluginContext(): jest.Mocked<PluginContext> {
+function createPluginContext(): Mocked<PluginContext> {
     return {
-        postMessage: jest.fn().mockResolvedValue(undefined),
+        postMessage: vi.fn().mockResolvedValue(undefined),
     };
 }
 
