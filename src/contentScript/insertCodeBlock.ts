@@ -54,12 +54,7 @@ export function insertCodeBlockAtCursor(view: EditorView): void {
     const contentOffset = CODE_FENCE.length + lineBreak.length;
     for (const { from, to } of blocks) {
         const wrappedText = doc.sliceString(from, to);
-        let content = wrappedText;
-        if (content.length === 0) {
-            content = lineBreak;
-        } else if (!content.endsWith(lineBreak)) {
-            content += lineBreak;
-        }
+        const content = `${wrappedText}${lineBreak}`;
 
         changes.push({ from, to, insert: `${CODE_FENCE}${lineBreak}${content}${CODE_FENCE}` });
     }
