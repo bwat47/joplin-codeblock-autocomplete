@@ -50,12 +50,14 @@ export function insertCodeBlockAtCursor(view: EditorView): void {
     // CommonMark does not require blank lines around fenced code blocks, only that the fences sit
     // on their own line. Because each span is already expanded to whole lines, the opening/closing
     // fences always land on their own line, so no surrounding padding needs to be added.
+    //
+    // Spans end at `Line.to`, which excludes the line terminator, so the sliced text never ends
+    // with a line break — appending one unconditionally also covers the empty-line case.
     const changes: { from: number; to: number; insert: string }[] = [];
     const contentOffset = CODE_FENCE.length + lineBreak.length;
     for (const { from, to } of blocks) {
         const wrappedText = doc.sliceString(from, to);
-        const content =
-            wrappedText.length > 0 ? `${wrappedText}${wrappedText.endsWith(lineBreak) ? '' : lineBreak}` : lineBreak;
+        const content = `${wrappedText}${lineBreak}`;
 
         changes.push({ from, to, insert: `${CODE_FENCE}${lineBreak}${content}${CODE_FENCE}` });
     }
