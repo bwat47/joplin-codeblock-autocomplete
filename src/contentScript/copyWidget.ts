@@ -16,7 +16,7 @@ type FencedCodeBlockInfo = {
     openingLineTo: number;
 };
 
-type FencedCodeBlockNodes = {
+type FenceChildNodes = {
     closingFenceMark: SyntaxNode | null;
     codeInfo: SyntaxNode | null;
     openingFenceMark: SyntaxNode | null;
@@ -77,7 +77,7 @@ export const copyWidgetTheme = EditorView.baseTheme({
     },
 });
 
-function findFenceChildNodes(fencedCodeNode: SyntaxNode, openingLine: Line): FencedCodeBlockNodes {
+function findFenceChildNodes(fencedCodeNode: SyntaxNode, openingLine: Line): FenceChildNodes {
     let openingFenceMark: SyntaxNode | null = null;
     let closingFenceMark: SyntaxNode | null = null;
     let codeInfo: SyntaxNode | null = null;
