@@ -1,5 +1,5 @@
 import { ensureSyntaxTree, syntaxTree } from '@codemirror/language';
-import { type Range } from '@codemirror/state';
+import { type Line, type Range } from '@codemirror/state';
 import { Decoration, type DecorationSet, EditorView, type ViewUpdate, ViewPlugin, WidgetType } from '@codemirror/view';
 import type { SyntaxNode } from '@lezer/common';
 import { logger } from '../logger';
@@ -14,6 +14,12 @@ type FencedCodeBlockInfo = {
     language: string | null;
     openingLineFrom: number;
     openingLineTo: number;
+};
+
+type FenceChildNodes = {
+    closingFenceMark: SyntaxNode | null;
+    codeInfo: SyntaxNode | null;
+    openingFenceMark: SyntaxNode | null;
 };
 
 const SYNTAX_TREE_PARSE_TIMEOUT_MS = 100;
@@ -71,11 +77,7 @@ export const copyWidgetTheme = EditorView.baseTheme({
     },
 });
 
-function getFencedCodeBlockInfo(
-    state: EditorView['state'],
-    fencedCodeNode: SyntaxNode
-): FencedCodeBlockInfo | undefined {
-    const openingLine = state.doc.lineAt(fencedCodeNode.from);
+function findFenceChildNodes(fencedCodeNode: SyntaxNode, openingLine: Line): FenceChildNodes {
     let openingFenceMark: SyntaxNode | null = null;
     let closingFenceMark: SyntaxNode | null = null;
     let codeInfo: SyntaxNode | null = null;
@@ -91,6 +93,16 @@ function getFencedCodeBlockInfo(
             codeInfo = child;
         }
     }
+
+    return { closingFenceMark, codeInfo, openingFenceMark };
+}
+
+function getFencedCodeBlockInfo(
+    state: EditorView['state'],
+    fencedCodeNode: SyntaxNode
+): FencedCodeBlockInfo | undefined {
+    const openingLine = state.doc.lineAt(fencedCodeNode.from);
+    const { closingFenceMark, codeInfo, openingFenceMark } = findFenceChildNodes(fencedCodeNode, openingLine);
 
     const lineBreak = state.lineBreak || '\n';
     const contentFrom = Math.min(openingLine.to + lineBreak.length, state.doc.length);
