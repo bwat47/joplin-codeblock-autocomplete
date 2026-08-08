@@ -16,6 +16,12 @@ type FencedCodeBlockInfo = {
     openingLineTo: number;
 };
 
+type FencedCodeBlockNodes = {
+    closingFenceMark: SyntaxNode | null;
+    codeInfo: SyntaxNode | null;
+    openingFenceMark: SyntaxNode | null;
+};
+
 const SYNTAX_TREE_PARSE_TIMEOUT_MS = 100;
 const COPY_WIDGET_TITLE = 'Copy code block';
 const COPY_ICON_LABEL = 'Copy';
@@ -71,26 +77,40 @@ export const copyWidgetTheme = EditorView.baseTheme({
     },
 });
 
-function getFencedCodeBlockInfo(
-    state: EditorView['state'],
-    fencedCodeNode: SyntaxNode
-): FencedCodeBlockInfo | undefined {
-    const openingLine = state.doc.lineAt(fencedCodeNode.from);
+function getFencedCodeBlockNodes(
+    fencedCodeNode: SyntaxNode,
+    openingLineFrom: number,
+    openingLineTo: number
+): FencedCodeBlockNodes {
     let openingFenceMark: SyntaxNode | null = null;
     let closingFenceMark: SyntaxNode | null = null;
     let codeInfo: SyntaxNode | null = null;
 
     for (let child = fencedCodeNode.firstChild; child; child = child.nextSibling) {
         if (child.name === 'CodeMark') {
-            if (!openingFenceMark && child.from >= openingLine.from && child.to <= openingLine.to) {
+            if (!openingFenceMark && child.from >= openingLineFrom && child.to <= openingLineTo) {
                 openingFenceMark = child;
-            } else if (child.from > openingLine.to) {
+            } else if (child.from > openingLineTo) {
                 closingFenceMark = child;
             }
-        } else if (child.name === 'CodeInfo' && child.from >= openingLine.from && child.to <= openingLine.to) {
+        } else if (child.name === 'CodeInfo' && child.from >= openingLineFrom && child.to <= openingLineTo) {
             codeInfo = child;
         }
     }
+
+    return { closingFenceMark, codeInfo, openingFenceMark };
+}
+
+function getFencedCodeBlockInfo(
+    state: EditorView['state'],
+    fencedCodeNode: SyntaxNode
+): FencedCodeBlockInfo | undefined {
+    const openingLine = state.doc.lineAt(fencedCodeNode.from);
+    const { closingFenceMark, codeInfo, openingFenceMark } = getFencedCodeBlockNodes(
+        fencedCodeNode,
+        openingLine.from,
+        openingLine.to
+    );
 
     const lineBreak = state.lineBreak || '\n';
     const contentFrom = Math.min(openingLine.to + lineBreak.length, state.doc.length);
