@@ -1,5 +1,5 @@
 import { ensureSyntaxTree, syntaxTree } from '@codemirror/language';
-import { type Range } from '@codemirror/state';
+import { type Line, type Range } from '@codemirror/state';
 import { Decoration, type DecorationSet, EditorView, type ViewUpdate, ViewPlugin, WidgetType } from '@codemirror/view';
 import type { SyntaxNode } from '@lezer/common';
 import { logger } from '../logger';
@@ -77,23 +77,19 @@ export const copyWidgetTheme = EditorView.baseTheme({
     },
 });
 
-function getFencedCodeBlockNodes(
-    fencedCodeNode: SyntaxNode,
-    openingLineFrom: number,
-    openingLineTo: number
-): FencedCodeBlockNodes {
+function findFenceChildNodes(fencedCodeNode: SyntaxNode, openingLine: Line): FencedCodeBlockNodes {
     let openingFenceMark: SyntaxNode | null = null;
     let closingFenceMark: SyntaxNode | null = null;
     let codeInfo: SyntaxNode | null = null;
 
     for (let child = fencedCodeNode.firstChild; child; child = child.nextSibling) {
         if (child.name === 'CodeMark') {
-            if (!openingFenceMark && child.from >= openingLineFrom && child.to <= openingLineTo) {
+            if (!openingFenceMark && child.from >= openingLine.from && child.to <= openingLine.to) {
                 openingFenceMark = child;
-            } else if (child.from > openingLineTo) {
+            } else if (child.from > openingLine.to) {
                 closingFenceMark = child;
             }
-        } else if (child.name === 'CodeInfo' && child.from >= openingLineFrom && child.to <= openingLineTo) {
+        } else if (child.name === 'CodeInfo' && child.from >= openingLine.from && child.to <= openingLine.to) {
             codeInfo = child;
         }
     }
@@ -106,11 +102,7 @@ function getFencedCodeBlockInfo(
     fencedCodeNode: SyntaxNode
 ): FencedCodeBlockInfo | undefined {
     const openingLine = state.doc.lineAt(fencedCodeNode.from);
-    const { closingFenceMark, codeInfo, openingFenceMark } = getFencedCodeBlockNodes(
-        fencedCodeNode,
-        openingLine.from,
-        openingLine.to
-    );
+    const { closingFenceMark, codeInfo, openingFenceMark } = findFenceChildNodes(fencedCodeNode, openingLine);
 
     const lineBreak = state.lineBreak || '\n';
     const contentFrom = Math.min(openingLine.to + lineBreak.length, state.doc.length);
