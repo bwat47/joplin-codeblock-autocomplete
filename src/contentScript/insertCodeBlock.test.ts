@@ -49,6 +49,62 @@ describe('insertCodeBlockAtCursor', () => {
         }
     });
 
+    it('keeps the list marker when the fence shares the list item line', () => {
+        const harness = createEditorHarness('- ```js\n  co|de\n  ```\n', {
+            extensions: [markdown()],
+        });
+
+        try {
+            insertCodeBlockAtCursor(harness.view);
+
+            expect(harness.getText()).toBe('-  code\n');
+        } finally {
+            harness.destroy();
+        }
+    });
+
+    it('keeps the ordered list marker when the fence shares the list item line', () => {
+        const harness = createEditorHarness('1. ```js\n   co|de\n   ```\n', {
+            extensions: [markdown()],
+        });
+
+        try {
+            insertCodeBlockAtCursor(harness.view);
+
+            expect(harness.getText()).toBe('1.   code\n');
+        } finally {
+            harness.destroy();
+        }
+    });
+
+    it('removes the whole opening line for a fence indented under a list item', () => {
+        const harness = createEditorHarness('- item\n\n  ```js\n  co|de\n  ```\n', {
+            extensions: [markdown()],
+        });
+
+        try {
+            insertCodeBlockAtCursor(harness.view);
+
+            expect(harness.getText()).toBe('- item\n\n  code\n');
+        } finally {
+            harness.destroy();
+        }
+    });
+
+    it('removes the whole opening line inside a blockquote, whose marker repeats per line', () => {
+        const harness = createEditorHarness('> ```js\n> co|de\n> ```\n', {
+            extensions: [markdown()],
+        });
+
+        try {
+            insertCodeBlockAtCursor(harness.view);
+
+            expect(harness.getText()).toBe('> code\n');
+        } finally {
+            harness.destroy();
+        }
+    });
+
     it('inserts an empty code block on an empty line and places the cursor inside it', () => {
         const harness = createEditorHarness('|');
 

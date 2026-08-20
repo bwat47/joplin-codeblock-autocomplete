@@ -21,6 +21,13 @@ export type FencedCodeBlockGeometry = {
     contentFrom: number;
     /** End of the content, just before the closing fence line's terminator. */
     contentTo: number;
+    /**
+     * Start of the block's own text on the opening line. This is `openingLineFrom` except when a
+     * list marker precedes the fence, in which case it starts after that marker — see
+     * `findOpeningLineListMark`. Callers rewriting the block should delete from here so they do
+     * not consume markup that belongs to the enclosing structure.
+     */
+    openingFenceFrom: number;
     openingLineFrom: number;
     openingLineTo: number;
 };
@@ -60,6 +67,26 @@ function findFenceChildNodes(fencedCodeNode: SyntaxNode, openingLine: Line): Fen
 }
 
 /**
+ * Finds a list marker that sits on the opening fence line, before the fence itself (`- ```js`).
+ *
+ * A list marker is written once, on the item's first line, so removing the whole opening line
+ * would destroy the list item. Blockquote markers need no such care: they are repeated on every
+ * line of the block, so the content lines keep their own.
+ */
+function findOpeningLineListMark(fencedCodeNode: SyntaxNode, openingLine: Line): SyntaxNode | null {
+    for (let ancestor = fencedCodeNode.parent; ancestor; ancestor = ancestor.parent) {
+        if (ancestor.name !== 'ListItem') continue;
+
+        const listMark = ancestor.firstChild;
+        if (listMark?.name === 'ListMark' && listMark.from >= openingLine.from && listMark.to <= fencedCodeNode.from) {
+            return listMark;
+        }
+    }
+
+    return null;
+}
+
+/**
  * Resolves the line and content offsets of a `FencedCode` node so callers can read or rewrite
  * the block without repeating the fence arithmetic.
  *
@@ -74,6 +101,7 @@ export function getFencedCodeBlockGeometry(state: EditorState, fencedCodeNode: S
     const lineBreak = state.lineBreak || '\n';
     const contentFrom = Math.min(openingLine.to + lineBreak.length, state.doc.length);
     const closingLine = children.closingFenceMark ? state.doc.lineAt(children.closingFenceMark.from) : null;
+    const openingLineListMark = findOpeningLineListMark(fencedCodeNode, openingLine);
 
     return {
         blockTo: closingLine ? closingLine.to : fencedCodeNode.to,
@@ -81,6 +109,7 @@ export function getFencedCodeBlockGeometry(state: EditorState, fencedCodeNode: S
         closingLineFrom: closingLine ? closingLine.from : null,
         contentFrom,
         contentTo: closingLine ? Math.max(contentFrom, closingLine.from - lineBreak.length) : fencedCodeNode.to,
+        openingFenceFrom: openingLineListMark ? openingLineListMark.to : openingLine.from,
         openingLineFrom: openingLine.from,
         openingLineTo: openingLine.to,
     };

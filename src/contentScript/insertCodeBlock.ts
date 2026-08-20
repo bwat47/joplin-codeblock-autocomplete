@@ -36,7 +36,7 @@ function removeCodeBlockFormatting(view: EditorView, blocks: readonly FencedCode
     const changes: { from: number; to: number; insert: string }[] = [];
 
     for (const block of blocks) {
-        changes.push({ from: block.openingLineFrom, to: block.contentFrom, insert: '' });
+        changes.push({ from: block.openingFenceFrom, to: block.contentFrom, insert: '' });
         if (block.closingLineFrom !== null) {
             changes.push({ from: block.contentTo, to: block.blockTo, insert: '' });
         }
