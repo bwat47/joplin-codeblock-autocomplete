@@ -1,5 +1,5 @@
 import { ensureSyntaxTree, syntaxTree } from '@codemirror/language';
-import { type Line, type Range } from '@codemirror/state';
+import { type Extension, type Line, type Range } from '@codemirror/state';
 import { Decoration, type DecorationSet, EditorView, type ViewUpdate, ViewPlugin, WidgetType } from '@codemirror/view';
 import type { SyntaxNode } from '@lezer/common';
 import { logger } from '../logger';
@@ -363,7 +363,7 @@ function buildCopyWidgetDecorations(
     return Decoration.set(decorationRanges, true);
 }
 
-export function createCopyWidgetPlugin(context: PluginContext) {
+export function createCopyWidgetPlugin(context: PluginContext): Extension {
     return ViewPlugin.fromClass(
         class {
             blocks: readonly FencedCodeBlockInfo[] = [];

@@ -5,7 +5,11 @@ import type { CodeMirrorControl } from 'api/types';
 import codeMirror6Plugin from './codeMirror6Plugin';
 import type { PluginContext } from './types';
 
-export default function (context: PluginContext) {
+type ContentScriptModule = {
+    plugin: (CodeMirror: CodeMirrorControl) => void;
+};
+
+export default function (context: PluginContext): ContentScriptModule {
     return {
         plugin: (CodeMirror: CodeMirrorControl) => {
             if (CodeMirror.cm6) {
