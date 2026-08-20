@@ -56,10 +56,17 @@ src/
     - stores plugin settings in CodeMirror state and syncs them from the main process
 - `src/contentScript/fenceAutocomplete.ts`
     - handles fence detection and language autocomplete
+- `src/contentScript/fencedCodeBlock.ts`
+    - shared syntax-tree helpers for locating fenced code blocks
+    - resolves a `FencedCode` node into line and content offsets (`FencedCodeBlockGeometry`) so `insertCodeBlock.ts` and `copyWidget.ts` do not each repeat the fence arithmetic
+    - `openingFenceFrom` starts after a list marker on the fence line, so removing a fence written as `- ```js` keeps the list item; blockquote markers need no such care because they repeat on every line
+    - reports whether syntax parsing reached the requested position when returning its parse-timeout fallback; mutation commands fail safely on an incomplete tree, while presentation-only consumers may use the partial tree
 - `src/contentScript/insertCodeBlock.ts`
-    - inserts a fenced code block from the toolbar command
+    - toggles fenced code block formatting from the toolbar command
+    - removes the enclosing fence lines when the cursor or selection is inside an existing fenced code block
     - line-aware: each cursor/selection is expanded to the whole lines it touches, so a bare cursor on a line of text wraps that line and a partial selection wraps the full line(s) it spans (a bare cursor on an empty line still inserts an empty block)
     - supports multiple cursors and selections in a single transaction: expanded spans that share lines are merged into one block, and the original cursors/selections are re-anchored inside their block, preserving column and direction
+    - sizes each opening/closing fence one backtick past the longest fence in the text it wraps, so wrapping content that already contains fences cannot end the new block early
 - `src/contentScript/copyWidget.ts`
     - tracks visible fenced code blocks for the optional copy button
     - separates structural block discovery from selection-driven presentation updates
