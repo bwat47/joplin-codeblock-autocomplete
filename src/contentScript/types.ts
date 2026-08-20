@@ -1,5 +1,5 @@
-/** Context provided by Joplin to content scripts */
-export interface PluginContext {
+/** Narrow messaging contract used by content-script internals. */
+export interface PostMessageContext {
     postMessage(message: unknown): Promise<unknown>;
 }
 

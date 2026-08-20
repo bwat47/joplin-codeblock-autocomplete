@@ -9,10 +9,10 @@ import { copyWidgetTheme, createCopyWidgetPlugin } from './copyWidget';
 import { createCodeBlockCompleter, createFenceTriggerExtension, fenceAutocompleteTheme } from './fenceAutocomplete';
 import { insertCodeBlockAtCursor } from './insertCodeBlock';
 import { applyPluginSettings, createSettingsExtension, syncInitialSettings } from './pluginSettings';
-import type { PluginContext } from './types';
+import type { PostMessageContext } from './types';
 import { INSERT_CODE_BLOCK_COMMAND, UPDATE_SETTINGS_COMMAND } from './types';
 
-export default function codeMirror6Plugin(context: PluginContext, CodeMirror: CodeMirrorControl): void {
+export default function codeMirror6Plugin(context: PostMessageContext, CodeMirror: CodeMirrorControl): void {
     const codeBlockCompleter = createCodeBlockCompleter();
     const settingsExtension = createSettingsExtension();
 

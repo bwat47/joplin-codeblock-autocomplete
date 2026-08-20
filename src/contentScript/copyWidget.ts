@@ -4,7 +4,7 @@ import type { SyntaxNode } from '@lezer/common';
 import { logger } from '../logger';
 import { getFencedCodeBlockGeometry, getFencedCodeSyntaxTree } from './fencedCodeBlock';
 import { areSettingsEqual, getPluginSettings } from './pluginSettings';
-import type { PluginContext } from './types';
+import type { PostMessageContext } from './types';
 
 type FencedCodeBlockInfo = {
     copyText: string;
@@ -213,7 +213,7 @@ function createCopyIcon(ownerDocument: Document): SVGSVGElement {
 
 class CopyCodeBlockWidget extends WidgetType {
     public constructor(
-        private readonly context: PluginContext,
+        private readonly context: PostMessageContext,
         private readonly interactionSelectionAnchor: number,
         private readonly language: string | null,
         private readonly copyText: string
@@ -297,7 +297,7 @@ class CopyCodeBlockWidget extends WidgetType {
 }
 
 function buildCopyWidgetDecorations(
-    context: PluginContext,
+    context: PostMessageContext,
     blocks: readonly FencedCodeBlockInfo[],
     activeOpeningLineFroms: ReadonlySet<number>
 ): DecorationSet {
@@ -334,7 +334,7 @@ function buildCopyWidgetDecorations(
     return Decoration.set(decorationRanges, true);
 }
 
-export function createCopyWidgetPlugin(context: PluginContext): Extension {
+export function createCopyWidgetPlugin(context: PostMessageContext): Extension {
     return ViewPlugin.fromClass(
         class {
             blocks: readonly FencedCodeBlockInfo[] = [];

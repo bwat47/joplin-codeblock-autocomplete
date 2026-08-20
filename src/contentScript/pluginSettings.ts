@@ -2,7 +2,7 @@ import { Compartment, Facet, type EditorState, type Extension } from '@codemirro
 import { EditorView } from '@codemirror/view';
 import type { CodeMirrorControl } from 'api/types';
 import { logger } from '../logger';
-import type { PluginContext, PluginSettingsResponse } from './types';
+import type { PluginSettingsResponse, PostMessageContext } from './types';
 
 const DEFAULT_SETTINGS: PluginSettingsResponse = {
     enableLanguageAutocomplete: true,
@@ -60,7 +60,7 @@ export function applyPluginSettings(view: EditorView, settings: unknown): void {
     });
 }
 
-export async function syncInitialSettings(context: PluginContext, codeMirror: CodeMirrorControl): Promise<void> {
+export async function syncInitialSettings(context: PostMessageContext, codeMirror: CodeMirrorControl): Promise<void> {
     try {
         const settings = normalizeSettings(
             await context.postMessage({

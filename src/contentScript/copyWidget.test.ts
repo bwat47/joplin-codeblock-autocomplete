@@ -4,9 +4,9 @@ import { EditorSelection, EditorState } from '@codemirror/state';
 import { createEditorHarness } from '../testUtils/editorHarness';
 import { copyWidgetTheme, createCopyWidgetPlugin } from './copyWidget';
 import { applyPluginSettings, createSettingsExtension } from './pluginSettings';
-import type { PluginContext } from './types';
+import type { PostMessageContext } from './types';
 
-function createPluginContext(): Mocked<PluginContext> {
+function createPostMessageContext(): Mocked<PostMessageContext> {
     return {
         postMessage: vi.fn().mockResolvedValue(undefined),
     };
@@ -51,7 +51,7 @@ function dispatchPointerUp(button: HTMLButtonElement, pointerType: string): void
 
 describe('createCopyWidgetPlugin', () => {
     it('copies quoted fenced code without block quote markers', () => {
-        const context = createPluginContext();
+        const context = createPostMessageContext();
         const harness = createEditorHarness('> ```txt\n> first line\n> second line\n> ```\n|', {
             extensions: [markdown(), createSettingsExtension(), copyWidgetTheme, createCopyWidgetPlugin(context)],
         });
@@ -75,7 +75,7 @@ describe('createCopyWidgetPlugin', () => {
     });
 
     it('copies plain fenced code content unchanged', () => {
-        const context = createPluginContext();
+        const context = createPostMessageContext();
         const harness = createEditorHarness('```txt\nplain text\n```\n|', {
             extensions: [markdown(), createSettingsExtension(), copyWidgetTheme, createCopyWidgetPlugin(context)],
         });
@@ -106,7 +106,7 @@ describe('createCopyWidgetPlugin', () => {
     });
 
     it('moves the cursor before copying for touch activations', () => {
-        const context = createPluginContext();
+        const context = createPostMessageContext();
         const harness = createEditorHarness('```txt\nplain text\n```\n|', {
             extensions: [markdown(), createSettingsExtension(), copyWidgetTheme, createCopyWidgetPlugin(context)],
         });
@@ -136,7 +136,7 @@ describe('createCopyWidgetPlugin', () => {
     });
 
     it('does not carry touch state into a later mouse click', () => {
-        const context = createPluginContext();
+        const context = createPostMessageContext();
         const harness = createEditorHarness('```txt\nplain text\n```\n|', {
             extensions: [markdown(), createSettingsExtension(), copyWidgetTheme, createCopyWidgetPlugin(context)],
         });
@@ -168,7 +168,7 @@ describe('createCopyWidgetPlugin', () => {
     });
 
     it('moves the cursor for successive touch taps on different widgets', () => {
-        const context = createPluginContext();
+        const context = createPostMessageContext();
         const harness = createEditorHarness('```txt\nfirst\n```\n\n```js\nsecond\n```\n|', {
             extensions: [markdown(), createSettingsExtension(), copyWidgetTheme, createCopyWidgetPlugin(context)],
         });
@@ -209,7 +209,7 @@ describe('createCopyWidgetPlugin', () => {
     });
 
     it('suppresses the widget for an opening fence line held by a non-primary cursor', () => {
-        const context = createPluginContext();
+        const context = createPostMessageContext();
         const harness = createEditorHarness('```txt\nfirst\n```\n\n```js\nsecond\n```\n|', {
             extensions: [
                 markdown(),
