@@ -1,4 +1,4 @@
-import { EditorSelection, type EditorState } from '@codemirror/state';
+import { EditorSelection, type EditorState, type SelectionRange } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
 import { type FencedCodeBlockGeometry, getFencedCodeBlockGeometry, getFencedCodeSyntaxTree } from './fencedCodeBlock';
 
@@ -18,9 +18,7 @@ function findFencedCodeBlocksAtSelections(state: EditorState): FencedCodeBlockGe
             if (node.name !== 'FencedCode') return undefined;
 
             const block = getFencedCodeBlockGeometry(state, node.node);
-            const containsSelection = state.selection.ranges.some(
-                (range) => range.from >= block.openingLineFrom && range.to <= block.blockTo
-            );
+            const containsSelection = state.selection.ranges.some((range) => isRangeInsideBlock(range, block));
             if (containsSelection) blocks.push(block);
 
             return false;
@@ -30,20 +28,12 @@ function findFencedCodeBlocksAtSelections(state: EditorState): FencedCodeBlockGe
     return blocks;
 }
 
-function removeCodeBlockFormatting(view: EditorView, blocks: readonly FencedCodeBlockGeometry[]): void {
-    const { state } = view;
-    const changes: { from: number; to: number; insert: string }[] = [];
+function isRangeInsideBlock(range: SelectionRange, block: FencedCodeBlockGeometry): boolean {
+    return range.from >= block.openingLineFrom && range.to <= block.blockTo;
+}
 
-    for (const block of blocks) {
-        changes.push({ from: block.openingFenceFrom, to: block.contentFrom, insert: '' });
-        if (block.hasClosingFence) {
-            changes.push({ from: block.contentTo, to: block.blockTo, insert: '' });
-        }
-    }
-
-    const changeSet = state.changes(changes);
-    view.dispatch(state.update({ changes: changeSet, selection: state.selection.map(changeSet) }));
-    view.focus();
+function blocksOverlap(block: { from: number; to: number }, fencedBlock: FencedCodeBlockGeometry): boolean {
+    return block.from < fencedBlock.blockTo && block.to > fencedBlock.openingFenceFrom;
 }
 
 /**
@@ -61,13 +51,13 @@ function expandToLines(state: EditorState, from: number, to: number): { from: nu
 /**
  * Toggles fenced code block formatting for the current selections.
  *
- * If a cursor or selection is contained by an existing fenced code block, the command removes
- * that block's opening and closing fence lines. Otherwise, each cursor/selection is first
- * expanded to the whole lines it touches, so a bare cursor on a line of text wraps that line and
- * a partial selection wraps the full line(s) it spans. Expanded spans that share lines are merged
- * into one block so a multi-cursor selection never produces overlapping changes; the original
- * cursors are then re-anchored inside their block, preserving column and direction. A bare cursor
- * on an empty line still inserts an empty code block.
+ * Each cursor or selection contained by an existing fenced code block removes that block's
+ * opening and closing fence lines. Every remaining cursor/selection is expanded to the whole
+ * lines it touches, so a bare cursor on a line of text wraps that line and a partial selection
+ * wraps the full line(s) it spans. Expanded spans that share lines are merged into one block so a
+ * multi-cursor selection never produces overlapping changes; the original cursors are then
+ * re-anchored inside their block, preserving column and direction. A bare cursor on an empty line
+ * still inserts an empty code block.
  */
 export function insertCodeBlockAtCursor(view: EditorView): void {
     const { state } = view;
@@ -75,24 +65,28 @@ export function insertCodeBlockAtCursor(view: EditorView): void {
     const lineBreak = state.lineBreak || '\n';
 
     const existingBlocks = findFencedCodeBlocksAtSelections(state);
-    if (existingBlocks.length > 0) {
-        removeCodeBlockFormatting(view, existingBlocks);
-        return;
-    }
 
-    // Expand each range to whole lines, then merge spans that share lines so changes never overlap.
+    // Ranges inside existing blocks remove those blocks' fences. Expand every remaining range to
+    // whole lines, then merge spans that share lines so wrapping changes never overlap.
     const spans = state.selection.ranges
+        .filter((range) => !existingBlocks.some((block) => isRangeInsideBlock(range, block)))
         .map((range) => expandToLines(state, range.from, range.to))
         .sort((a, b) => a.from - b.from);
-    const blocks: { from: number; to: number }[] = [];
+    const wrapBlocks: { from: number; to: number }[] = [];
     for (const span of spans) {
-        const last = blocks[blocks.length - 1];
+        const last = wrapBlocks[wrapBlocks.length - 1];
         if (last && span.from <= last.to) {
             last.to = Math.max(last.to, span.to);
         } else {
-            blocks.push({ from: span.from, to: span.to });
+            wrapBlocks.push({ from: span.from, to: span.to });
         }
     }
+
+    // A range that straddles a fence boundary conflicts with removing that fence for another
+    // cursor. Give the fence removal precedence instead of producing overlapping changes.
+    const nonOverlappingWrapBlocks = wrapBlocks.filter(
+        (block) => !existingBlocks.some((fencedBlock) => blocksOverlap(block, fencedBlock))
+    );
 
     // Build one change per block and remember where its wrapped content begins.
     //
@@ -104,7 +98,14 @@ export function insertCodeBlockAtCursor(view: EditorView): void {
     // with a line break — appending one unconditionally also covers the empty-line case.
     const changes: { from: number; to: number; insert: string }[] = [];
     const contentOffset = CODE_FENCE.length + lineBreak.length;
-    for (const { from, to } of blocks) {
+    for (const block of existingBlocks) {
+        changes.push({ from: block.openingFenceFrom, to: block.contentFrom, insert: '' });
+        if (block.hasClosingFence) {
+            changes.push({ from: block.contentTo, to: block.blockTo, insert: '' });
+        }
+    }
+
+    for (const { from, to } of nonOverlappingWrapBlocks) {
         const wrappedText = doc.sliceString(from, to);
         const content = `${wrappedText}${lineBreak}`;
 
@@ -113,18 +114,21 @@ export function insertCodeBlockAtCursor(view: EditorView): void {
 
     if (changes.length === 0) return;
 
+    changes.sort((a, b) => a.from - b.from || a.to - b.to);
     const changeSet = state.changes(changes);
 
-    // Re-anchor each original cursor/selection inside its block, preserving column and
-    // direction. Each range's start falls inside exactly one block; clamp the endpoints in
-    // case a trailing-line was trimmed off the block.
+    // Re-anchor wrapped cursors/selections inside their new blocks, preserving column and
+    // direction. Ranges that removed a fence, or conflicted with a fence removal, map normally.
     const selection = EditorSelection.create(
         state.selection.ranges.map((range) => {
-            const block = blocks.find((b) => range.from >= b.from && range.from <= b.to)!;
+            const block = nonOverlappingWrapBlocks.find((b) => range.from >= b.from && range.from <= b.to);
+            if (!block) return range.map(changeSet);
+
             const base = changeSet.mapPos(block.from, -1) + contentOffset;
             const clamp = (pos: number) => base + (Math.min(Math.max(pos, block.from), block.to) - block.from);
             return EditorSelection.range(clamp(range.anchor), clamp(range.head));
-        })
+        }),
+        state.selection.mainIndex
     );
 
     view.dispatch(state.update({ changes: changeSet, selection }));

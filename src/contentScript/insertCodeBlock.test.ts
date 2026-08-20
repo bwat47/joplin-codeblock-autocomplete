@@ -210,6 +210,26 @@ describe('insertCodeBlockAtCursor', () => {
         }
     });
 
+    it('toggles fenced and unfenced cursors independently', () => {
+        const harness = createEditorHarness('```js\ninside\n```\noutside', {
+            rawInput: true,
+            extensions: [markdown(), EditorState.allowMultipleSelections.of(true)],
+        });
+
+        try {
+            harness.view.dispatch({
+                selection: EditorSelection.create([EditorSelection.cursor(8), EditorSelection.cursor(23)]),
+            });
+
+            insertCodeBlockAtCursor(harness.view);
+
+            expect(harness.getText()).toBe('inside\n```\noutside\n```');
+            expect(harness.view.state.selection.ranges.map((range) => range.head)).toEqual([2, 17]);
+        } finally {
+            harness.destroy();
+        }
+    });
+
     it('wraps a shared line once but keeps every cursor on it', () => {
         const harness = createEditorHarness('abcd', {
             rawInput: true,
