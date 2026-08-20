@@ -56,6 +56,10 @@ src/
     - stores plugin settings in CodeMirror state and syncs them from the main process
 - `src/contentScript/fenceAutocomplete.ts`
     - handles fence detection and language autocomplete
+- `src/contentScript/fencedCodeBlock.ts`
+    - shared syntax-tree helpers for locating fenced code blocks
+    - resolves a `FencedCode` node into line and content offsets (`FencedCodeBlockGeometry`) so `insertCodeBlock.ts` and `copyWidget.ts` do not each repeat the fence arithmetic
+    - owns the parse-timeout fallback: an unfinished parse yields a partial tree, so callers must tolerate missing blocks
 - `src/contentScript/insertCodeBlock.ts`
     - toggles fenced code block formatting from the toolbar command
     - removes the enclosing fence lines when the cursor or selection is inside an existing fenced code block

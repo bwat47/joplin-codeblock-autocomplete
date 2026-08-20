@@ -1,8 +1,8 @@
-import { ensureSyntaxTree, syntaxTree } from '@codemirror/language';
-import { type Extension, type Line, type Range } from '@codemirror/state';
+import { type Extension, type Range } from '@codemirror/state';
 import { Decoration, type DecorationSet, EditorView, type ViewUpdate, ViewPlugin, WidgetType } from '@codemirror/view';
 import type { SyntaxNode } from '@lezer/common';
 import { logger } from '../logger';
+import { getFencedCodeBlockGeometry, getFencedCodeSyntaxTree } from './fencedCodeBlock';
 import { areSettingsEqual, getPluginSettings } from './pluginSettings';
 import type { PluginContext } from './types';
 
@@ -16,13 +16,6 @@ type FencedCodeBlockInfo = {
     openingLineTo: number;
 };
 
-type FenceChildNodes = {
-    closingFenceMark: SyntaxNode | null;
-    codeInfo: SyntaxNode | null;
-    openingFenceMark: SyntaxNode | null;
-};
-
-const SYNTAX_TREE_PARSE_TIMEOUT_MS = 100;
 const COPY_WIDGET_TITLE = 'Copy code block';
 const COPY_ICON_LABEL = 'Copy';
 
@@ -77,53 +70,31 @@ export const copyWidgetTheme = EditorView.baseTheme({
     },
 });
 
-function findFenceChildNodes(fencedCodeNode: SyntaxNode, openingLine: Line): FenceChildNodes {
-    let openingFenceMark: SyntaxNode | null = null;
-    let closingFenceMark: SyntaxNode | null = null;
-    let codeInfo: SyntaxNode | null = null;
-
-    for (let child = fencedCodeNode.firstChild; child; child = child.nextSibling) {
-        if (child.name === 'CodeMark') {
-            if (!openingFenceMark && child.from >= openingLine.from && child.to <= openingLine.to) {
-                openingFenceMark = child;
-            } else if (child.from > openingLine.to) {
-                closingFenceMark = child;
-            }
-        } else if (child.name === 'CodeInfo' && child.from >= openingLine.from && child.to <= openingLine.to) {
-            codeInfo = child;
-        }
-    }
-
-    return { closingFenceMark, codeInfo, openingFenceMark };
-}
-
 function getFencedCodeBlockInfo(
     state: EditorView['state'],
     fencedCodeNode: SyntaxNode
 ): FencedCodeBlockInfo | undefined {
-    const openingLine = state.doc.lineAt(fencedCodeNode.from);
-    const { closingFenceMark, codeInfo, openingFenceMark } = findFenceChildNodes(fencedCodeNode, openingLine);
-
-    const lineBreak = state.lineBreak || '\n';
-    const contentFrom = Math.min(openingLine.to + lineBreak.length, state.doc.length);
-    const closingLineStart = closingFenceMark ? state.doc.lineAt(closingFenceMark.from).from : fencedCodeNode.to;
-    const contentTo = closingFenceMark ? Math.max(contentFrom, closingLineStart - lineBreak.length) : closingLineStart;
+    const { children, contentFrom, contentTo, openingLineFrom, openingLineTo } = getFencedCodeBlockGeometry(
+        state,
+        fencedCodeNode
+    );
+    const { codeInfo, openingFenceMark } = children;
 
     return {
         copyText: getFencedCodeBlockCopyText(state, fencedCodeNode, contentFrom, contentTo),
         hiddenInfoFrom: openingFenceMark && codeInfo ? openingFenceMark.to : null,
         hiddenInfoTo: codeInfo ? codeInfo.to : null,
-        interactionSelectionAnchor: getInteractionSelectionAnchor(state, openingLine.from),
+        interactionSelectionAnchor: getInteractionSelectionAnchor(state, openingLineFrom),
         language: codeInfo ? state.doc.sliceString(codeInfo.from, codeInfo.to) : null,
-        openingLineFrom: openingLine.from,
-        openingLineTo: openingLine.to,
+        openingLineFrom,
+        openingLineTo,
     };
 }
 
 function getVisibleFencedCodeBlocks(view: EditorView): FencedCodeBlockInfo[] {
     const seenBlocks = new Set<number>();
     const blocks: FencedCodeBlockInfo[] = [];
-    const tree = ensureSyntaxTree(view.state, view.viewport.to, SYNTAX_TREE_PARSE_TIMEOUT_MS) ?? syntaxTree(view.state);
+    const tree = getFencedCodeSyntaxTree(view.state, view.viewport.to);
 
     for (const { from, to } of view.visibleRanges) {
         tree.iterate({

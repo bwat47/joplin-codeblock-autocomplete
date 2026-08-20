@@ -1,55 +1,26 @@
-import { ensureSyntaxTree, syntaxTree } from '@codemirror/language';
 import { EditorSelection } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
-import type { SyntaxNode } from '@lezer/common';
+import { type FencedCodeBlockGeometry, getFencedCodeBlockGeometry, getFencedCodeSyntaxTree } from './fencedCodeBlock';
 
 const CODE_FENCE = '```';
-const SYNTAX_TREE_PARSE_TIMEOUT_MS = 100;
 
-type FencedCodeBlock = {
-    closingLineFrom: number | null;
-    contentFrom: number;
-    contentTo: number;
-    from: number;
-    to: number;
-};
-
-function getFencedCodeBlock(view: EditorView, fencedCodeNode: SyntaxNode): FencedCodeBlock {
+/**
+ * Collects every fenced code block that fully contains at least one cursor or selection.
+ * A range straddling a fence boundary is not considered contained, so it falls through to
+ * the wrapping path instead.
+ */
+function findFencedCodeBlocksAtSelections(view: EditorView): FencedCodeBlockGeometry[] {
     const { state } = view;
-    const openingLine = state.doc.lineAt(fencedCodeNode.from);
-    let closingFenceFrom: number | null = null;
-
-    for (let child = fencedCodeNode.firstChild; child; child = child.nextSibling) {
-        if (child.name === 'CodeMark' && child.from > openingLine.to) {
-            closingFenceFrom = child.from;
-        }
-    }
-
-    const lineBreak = state.lineBreak || '\n';
-    const contentFrom = Math.min(openingLine.to + lineBreak.length, state.doc.length);
-    const closingLine = closingFenceFrom === null ? null : state.doc.lineAt(closingFenceFrom);
-
-    return {
-        closingLineFrom: closingLine?.from ?? null,
-        contentFrom,
-        contentTo: closingLine ? Math.max(contentFrom, closingLine.from - lineBreak.length) : fencedCodeNode.to,
-        from: openingLine.from,
-        to: closingLine?.to ?? fencedCodeNode.to,
-    };
-}
-
-function findFencedCodeBlocksAtSelections(view: EditorView): FencedCodeBlock[] {
-    const { state } = view;
-    const tree = ensureSyntaxTree(state, state.doc.length, SYNTAX_TREE_PARSE_TIMEOUT_MS) ?? syntaxTree(state);
-    const blocks: FencedCodeBlock[] = [];
+    const tree = getFencedCodeSyntaxTree(state, state.doc.length);
+    const blocks: FencedCodeBlockGeometry[] = [];
 
     tree.iterate({
         enter: (node) => {
             if (node.name !== 'FencedCode') return undefined;
 
-            const block = getFencedCodeBlock(view, node.node);
+            const block = getFencedCodeBlockGeometry(state, node.node);
             const containsSelection = state.selection.ranges.some(
-                (range) => range.from >= block.from && range.to <= block.to
+                (range) => range.from >= block.openingLineFrom && range.to <= block.blockTo
             );
             if (containsSelection) blocks.push(block);
 
@@ -60,14 +31,14 @@ function findFencedCodeBlocksAtSelections(view: EditorView): FencedCodeBlock[] {
     return blocks;
 }
 
-function removeCodeBlockFormatting(view: EditorView, blocks: readonly FencedCodeBlock[]): void {
+function removeCodeBlockFormatting(view: EditorView, blocks: readonly FencedCodeBlockGeometry[]): void {
     const { state } = view;
     const changes: { from: number; to: number; insert: string }[] = [];
 
     for (const block of blocks) {
-        changes.push({ from: block.from, to: block.contentFrom, insert: '' });
+        changes.push({ from: block.openingLineFrom, to: block.contentFrom, insert: '' });
         if (block.closingLineFrom !== null) {
-            changes.push({ from: block.contentTo, to: block.to, insert: '' });
+            changes.push({ from: block.contentTo, to: block.blockTo, insert: '' });
         }
     }
 
