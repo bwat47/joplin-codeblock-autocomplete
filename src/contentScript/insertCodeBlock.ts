@@ -1,4 +1,4 @@
-import { EditorSelection } from '@codemirror/state';
+import { EditorSelection, type EditorState } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
 import { type FencedCodeBlockGeometry, getFencedCodeBlockGeometry, getFencedCodeSyntaxTree } from './fencedCodeBlock';
 
@@ -9,8 +9,7 @@ const CODE_FENCE = '```';
  * A range straddling a fence boundary is not considered contained, so it falls through to
  * the wrapping path instead.
  */
-function findFencedCodeBlocksAtSelections(view: EditorView): FencedCodeBlockGeometry[] {
-    const { state } = view;
+function findFencedCodeBlocksAtSelections(state: EditorState): FencedCodeBlockGeometry[] {
     const tree = getFencedCodeSyntaxTree(state, state.doc.length);
     const blocks: FencedCodeBlockGeometry[] = [];
 
@@ -52,8 +51,8 @@ function removeCodeBlockFormatting(view: EditorView, blocks: readonly FencedCode
  * partial selection therefore wraps entire lines rather than a fragment. A non-empty
  * selection ending exactly at a line start does not pull in that trailing line.
  */
-function expandToLines(view: EditorView, from: number, to: number): { from: number; to: number } {
-    const { doc } = view.state;
+function expandToLines(state: EditorState, from: number, to: number): { from: number; to: number } {
+    const { doc } = state;
     const startLine = doc.lineAt(from);
     const endLine = to > from && to === doc.lineAt(to).from ? doc.lineAt(to - 1) : doc.lineAt(to);
     return { from: startLine.from, to: endLine.to };
@@ -75,7 +74,7 @@ export function insertCodeBlockAtCursor(view: EditorView): void {
     const { doc } = state;
     const lineBreak = state.lineBreak || '\n';
 
-    const existingBlocks = findFencedCodeBlocksAtSelections(view);
+    const existingBlocks = findFencedCodeBlocksAtSelections(state);
     if (existingBlocks.length > 0) {
         removeCodeBlockFormatting(view, existingBlocks);
         return;
@@ -83,7 +82,7 @@ export function insertCodeBlockAtCursor(view: EditorView): void {
 
     // Expand each range to whole lines, then merge spans that share lines so changes never overlap.
     const spans = state.selection.ranges
-        .map((range) => expandToLines(view, range.from, range.to))
+        .map((range) => expandToLines(state, range.from, range.to))
         .sort((a, b) => a.from - b.from);
     const blocks: { from: number; to: number }[] = [];
     for (const span of spans) {
