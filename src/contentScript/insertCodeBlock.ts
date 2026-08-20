@@ -132,7 +132,9 @@ export function insertCodeBlockAtCursor(view: EditorView): void {
     }
 
     for (const { from, to, fence } of wrapBlocks) {
-        const wrappedText = doc.sliceString(from, to);
+        // `sliceString` separates lines with '\n' unless told otherwise, but the inserted text is
+        // split back into lines on `state.lineBreak`, so both have to use the same separator.
+        const wrappedText = doc.sliceString(from, to, lineBreak);
         const content = `${wrappedText}${lineBreak}`;
 
         changes.push({ from, to, insert: `${fence}${lineBreak}${content}${fence}` });

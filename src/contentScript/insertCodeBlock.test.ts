@@ -125,6 +125,25 @@ describe('insertCodeBlockAtCursor', () => {
         }
     });
 
+    it('wraps several lines as separate lines in a CRLF document', () => {
+        const harness = createEditorHarness('aaa\r\nbbb', {
+            rawInput: true,
+            extensions: [EditorState.lineSeparator.of('\r\n')],
+        });
+
+        try {
+            harness.view.dispatch({ selection: EditorSelection.single(1, 6) });
+
+            insertCodeBlockAtCursor(harness.view);
+
+            // The wrapped text keeps its own separator, so it is not folded into one long line.
+            expect(harness.view.state.doc.lines).toBe(4);
+            expect(harness.getText()).toBe('```\naaa\nbbb\n```');
+        } finally {
+            harness.destroy();
+        }
+    });
+
     it('places the cursor inside a wrapped block in a CRLF document', () => {
         const harness = createEditorHarness('text', {
             rawInput: true,
