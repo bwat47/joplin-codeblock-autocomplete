@@ -1,7 +1,80 @@
+import { ensureSyntaxTree, syntaxTree } from '@codemirror/language';
 import { EditorSelection } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
+import type { SyntaxNode } from '@lezer/common';
 
 const CODE_FENCE = '```';
+const SYNTAX_TREE_PARSE_TIMEOUT_MS = 100;
+
+type FencedCodeBlock = {
+    closingLineFrom: number | null;
+    contentFrom: number;
+    contentTo: number;
+    from: number;
+    to: number;
+};
+
+function getFencedCodeBlock(view: EditorView, fencedCodeNode: SyntaxNode): FencedCodeBlock {
+    const { state } = view;
+    const openingLine = state.doc.lineAt(fencedCodeNode.from);
+    let closingFenceFrom: number | null = null;
+
+    for (let child = fencedCodeNode.firstChild; child; child = child.nextSibling) {
+        if (child.name === 'CodeMark' && child.from > openingLine.to) {
+            closingFenceFrom = child.from;
+        }
+    }
+
+    const lineBreak = state.lineBreak || '\n';
+    const contentFrom = Math.min(openingLine.to + lineBreak.length, state.doc.length);
+    const closingLine = closingFenceFrom === null ? null : state.doc.lineAt(closingFenceFrom);
+
+    return {
+        closingLineFrom: closingLine?.from ?? null,
+        contentFrom,
+        contentTo: closingLine ? Math.max(contentFrom, closingLine.from - lineBreak.length) : fencedCodeNode.to,
+        from: openingLine.from,
+        to: closingLine?.to ?? fencedCodeNode.to,
+    };
+}
+
+function findFencedCodeBlocksAtSelections(view: EditorView): FencedCodeBlock[] {
+    const { state } = view;
+    const tree = ensureSyntaxTree(state, state.doc.length, SYNTAX_TREE_PARSE_TIMEOUT_MS) ?? syntaxTree(state);
+    const blocks: FencedCodeBlock[] = [];
+
+    tree.iterate({
+        enter: (node) => {
+            if (node.name !== 'FencedCode') return undefined;
+
+            const block = getFencedCodeBlock(view, node.node);
+            const containsSelection = state.selection.ranges.some(
+                (range) => range.from >= block.from && range.to <= block.to
+            );
+            if (containsSelection) blocks.push(block);
+
+            return false;
+        },
+    });
+
+    return blocks;
+}
+
+function removeCodeBlockFormatting(view: EditorView, blocks: readonly FencedCodeBlock[]): void {
+    const { state } = view;
+    const changes: { from: number; to: number; insert: string }[] = [];
+
+    for (const block of blocks) {
+        changes.push({ from: block.from, to: block.contentFrom, insert: '' });
+        if (block.closingLineFrom !== null) {
+            changes.push({ from: block.contentTo, to: block.to, insert: '' });
+        }
+    }
+
+    const changeSet = state.changes(changes);
+    view.dispatch(state.update({ changes: changeSet, selection: state.selection.map(changeSet) }));
+    view.focus();
+}
 
 /**
  * Expands a selection range to cover the whole lines it touches. A bare cursor or a
@@ -16,20 +89,26 @@ function expandToLines(view: EditorView, from: number, to: number): { from: numb
 }
 
 /**
- * Inserts a fenced code block at every cursor and wraps every selection in a code block,
- * all in a single transaction.
+ * Toggles fenced code block formatting for the current selections.
  *
- * The command is line-aware: each cursor/selection is first expanded to the whole lines it
- * touches, so a bare cursor on a line of text wraps that line and a partial selection wraps
- * the full line(s) it spans. Expanded spans that share lines are merged into one block so a
- * multi-cursor selection never produces overlapping changes; the original cursors are then
- * re-anchored inside their block, preserving column and direction. A bare cursor on an empty
- * line still inserts an empty code block.
+ * If a cursor or selection is contained by an existing fenced code block, the command removes
+ * that block's opening and closing fence lines. Otherwise, each cursor/selection is first
+ * expanded to the whole lines it touches, so a bare cursor on a line of text wraps that line and
+ * a partial selection wraps the full line(s) it spans. Expanded spans that share lines are merged
+ * into one block so a multi-cursor selection never produces overlapping changes; the original
+ * cursors are then re-anchored inside their block, preserving column and direction. A bare cursor
+ * on an empty line still inserts an empty code block.
  */
 export function insertCodeBlockAtCursor(view: EditorView): void {
     const { state } = view;
     const { doc } = state;
     const lineBreak = state.lineBreak || '\n';
+
+    const existingBlocks = findFencedCodeBlocksAtSelections(view);
+    if (existingBlocks.length > 0) {
+        removeCodeBlockFormatting(view, existingBlocks);
+        return;
+    }
 
     // Expand each range to whole lines, then merge spans that share lines so changes never overlap.
     const spans = state.selection.ranges

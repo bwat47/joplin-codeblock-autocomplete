@@ -57,7 +57,8 @@ src/
 - `src/contentScript/fenceAutocomplete.ts`
     - handles fence detection and language autocomplete
 - `src/contentScript/insertCodeBlock.ts`
-    - inserts a fenced code block from the toolbar command
+    - toggles fenced code block formatting from the toolbar command
+    - removes the enclosing fence lines when the cursor or selection is inside an existing fenced code block
     - line-aware: each cursor/selection is expanded to the whole lines it touches, so a bare cursor on a line of text wraps that line and a partial selection wraps the full line(s) it spans (a bare cursor on an empty line still inserts an empty block)
     - supports multiple cursors and selections in a single transaction: expanded spans that share lines are merged into one block, and the original cursors/selections are re-anchored inside their block, preserving column and direction
 - `src/contentScript/copyWidget.ts`

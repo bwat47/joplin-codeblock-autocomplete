@@ -1,8 +1,54 @@
+import { markdown } from '@codemirror/lang-markdown';
 import { EditorSelection, EditorState } from '@codemirror/state';
 import { insertCodeBlockAtCursor } from './insertCodeBlock';
 import { createEditorHarness } from '../testUtils/editorHarness';
 
 describe('insertCodeBlockAtCursor', () => {
+    it('removes code block formatting when the cursor is inside a fenced code block', () => {
+        const harness = createEditorHarness('before\n```ts\nconst val|ue = 1;\n```\nafter', {
+            extensions: [markdown()],
+        });
+
+        try {
+            insertCodeBlockAtCursor(harness.view);
+
+            expect(harness.getText()).toBe('before\nconst value = 1;\nafter');
+            expect(harness.getCursor()).toBe(16);
+        } finally {
+            harness.destroy();
+        }
+    });
+
+    it('removes tilde fence lines when the cursor is on an existing block fence', () => {
+        const harness = createEditorHarness('before\n~~~js|\nvalue();\n~~~\nafter', {
+            extensions: [markdown()],
+        });
+
+        try {
+            insertCodeBlockAtCursor(harness.view);
+
+            expect(harness.getText()).toBe('before\nvalue();\nafter');
+            expect(harness.getCursor()).toBe(7);
+        } finally {
+            harness.destroy();
+        }
+    });
+
+    it('removes an unclosed opening fence and keeps its content', () => {
+        const harness = createEditorHarness('```python\npri|nt("hello")', {
+            extensions: [markdown()],
+        });
+
+        try {
+            insertCodeBlockAtCursor(harness.view);
+
+            expect(harness.getText()).toBe('print("hello")');
+            expect(harness.getCursor()).toBe(3);
+        } finally {
+            harness.destroy();
+        }
+    });
+
     it('inserts an empty code block on an empty line and places the cursor inside it', () => {
         const harness = createEditorHarness('|');
 
