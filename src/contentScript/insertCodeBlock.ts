@@ -2,7 +2,28 @@ import { EditorSelection, type EditorState, type SelectionRange } from '@codemir
 import { EditorView } from '@codemirror/view';
 import { type FencedCodeBlockGeometry, getFencedCodeBlockGeometry, getFencedCodeSyntaxTree } from './fencedCodeBlock';
 
-const CODE_FENCE = '```';
+const CODE_FENCE_CHAR = '`';
+const MIN_CODE_FENCE_LENGTH = 3;
+
+/**
+ * Picks a fence long enough that nothing being wrapped can end the block early. CommonMark closes
+ * a fenced block at the first line holding a run of at least as many backticks as the opening
+ * fence, so wrapping text that already contains fences needs one backtick more than the longest
+ * of them. Tilde fences are ignored: they cannot close a backtick-fenced block.
+ */
+function chooseCodeFence(state: EditorState, from: number, to: number): string {
+    const { doc } = state;
+    const lastLineNumber = doc.lineAt(to).number;
+    let longestEnclosedFence = 0;
+
+    for (let lineNumber = doc.lineAt(from).number; lineNumber <= lastLineNumber; lineNumber++) {
+        // Leading whitespace is allowed before a fence, so match past it: `  ```js`.
+        const enclosedFence = /^\s*(`{3,})/.exec(doc.line(lineNumber).text);
+        if (enclosedFence) longestEnclosedFence = Math.max(longestEnclosedFence, enclosedFence[1].length);
+    }
+
+    return CODE_FENCE_CHAR.repeat(Math.max(MIN_CODE_FENCE_LENGTH, longestEnclosedFence + 1));
+}
 
 /**
  * Collects every fenced code block that fully contains at least one cursor or selection.
@@ -78,15 +99,21 @@ export function insertCodeBlockAtCursor(view: EditorView): void {
 
     // Merge spans that share lines so wrapping changes never overlap. Every span lies wholly
     // before or wholly after each fenced block, so a merged span cannot reach into one either.
-    const wrapBlocks: { from: number; to: number }[] = [];
+    const mergedSpans: { from: number; to: number }[] = [];
     for (const span of spans) {
-        const last = wrapBlocks[wrapBlocks.length - 1];
+        const last = mergedSpans[mergedSpans.length - 1];
         if (last && span.from <= last.to) {
             last.to = Math.max(last.to, span.to);
         } else {
-            wrapBlocks.push({ from: span.from, to: span.to });
+            mergedSpans.push({ from: span.from, to: span.to });
         }
     }
+
+    // Each block is fenced against its own content, so the offset to the wrapped text varies.
+    const wrapBlocks = mergedSpans.map((span) => {
+        const fence = chooseCodeFence(state, span.from, span.to);
+        return { ...span, fence, contentOffset: fence.length + 1 };
+    });
 
     // Build one change per block and remember where its wrapped content begins.
     //
@@ -97,9 +124,6 @@ export function insertCodeBlockAtCursor(view: EditorView): void {
     // Spans end at `Line.to`, which excludes the line terminator, so the sliced text never ends
     // with a line break — appending one unconditionally also covers the empty-line case.
     const changes: { from: number; to: number; insert: string }[] = [];
-    // Where the wrapped content begins inside an inserted block. A document line break is one
-    // position whatever `state.lineBreak` holds, so this is not `lineBreak.length`.
-    const contentOffset = CODE_FENCE.length + 1;
     for (const block of existingBlocks) {
         changes.push({ from: block.openingFenceFrom, to: block.contentFrom, insert: '' });
         if (block.hasClosingFence) {
@@ -107,11 +131,11 @@ export function insertCodeBlockAtCursor(view: EditorView): void {
         }
     }
 
-    for (const { from, to } of wrapBlocks) {
+    for (const { from, to, fence } of wrapBlocks) {
         const wrappedText = doc.sliceString(from, to);
         const content = `${wrappedText}${lineBreak}`;
 
-        changes.push({ from, to, insert: `${CODE_FENCE}${lineBreak}${content}${CODE_FENCE}` });
+        changes.push({ from, to, insert: `${fence}${lineBreak}${content}${fence}` });
     }
 
     if (changes.length === 0) return;
@@ -126,7 +150,9 @@ export function insertCodeBlockAtCursor(view: EditorView): void {
             const block = wrapBlocks.find((b) => range.from >= b.from && range.from <= b.to);
             if (!block) return range.map(changeSet);
 
-            const base = changeSet.mapPos(block.from, -1) + contentOffset;
+            // A document line break is one position whatever `state.lineBreak` holds, which is
+            // why `contentOffset` counts it as 1 rather than by its length.
+            const base = changeSet.mapPos(block.from, -1) + block.contentOffset;
             const clamp = (pos: number) => base + (Math.min(Math.max(pos, block.from), block.to) - block.from);
             return EditorSelection.range(clamp(range.anchor), clamp(range.head));
         }),

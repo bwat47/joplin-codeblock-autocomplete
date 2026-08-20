@@ -248,6 +248,36 @@ describe('insertCodeBlockAtCursor', () => {
         }
     });
 
+    it('widens the fence past the blocks a selection spanning several of them encloses', () => {
+        const harness = createEditorHarness('[[```a\n1\n```\n\n```b\n2\n```]]\n', {
+            extensions: [markdown()],
+        });
+
+        try {
+            insertCodeBlockAtCursor(harness.view);
+
+            expect(harness.getText()).toBe('````\n```a\n1\n```\n\n```b\n2\n```\n````\n');
+        } finally {
+            harness.destroy();
+        }
+    });
+
+    it('widens the fence past the longest fence it encloses', () => {
+        const harness = createEditorHarness('[[text\n  ````\nmore]]', {
+            extensions: [markdown()],
+        });
+
+        try {
+            insertCodeBlockAtCursor(harness.view);
+
+            expect(harness.getText()).toBe('`````\ntext\n  ````\nmore\n`````');
+            // The selection is re-anchored past the wider fence, not a fixed three backticks.
+            expect(harness.getSelection()).toEqual({ anchor: 6, head: 22 });
+        } finally {
+            harness.destroy();
+        }
+    });
+
     it('keeps wrapping a span that only shares a line with one straddling a fence', () => {
         const harness = createEditorHarness('plain\n```js\ncode\n```\n', {
             rawInput: true,
