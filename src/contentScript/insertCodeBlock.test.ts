@@ -105,6 +105,44 @@ describe('insertCodeBlockAtCursor', () => {
         }
     });
 
+    it('removes fence lines without eating content in a CRLF document', () => {
+        // A document line break is one position even when the separator is two characters, so the
+        // fence geometry must not be derived from `state.lineBreak.length`.
+        const harness = createEditorHarness('before\r\n```ts\r\nconst value = 1;\r\n```\r\nafter', {
+            rawInput: true,
+            extensions: [markdown(), EditorState.lineSeparator.of('\r\n')],
+        });
+
+        try {
+            harness.view.dispatch({ selection: EditorSelection.cursor(20) });
+
+            insertCodeBlockAtCursor(harness.view);
+
+            // `Text.toString` joins lines with '\n' regardless of the configured separator.
+            expect(harness.getText()).toBe('before\nconst value = 1;\nafter');
+        } finally {
+            harness.destroy();
+        }
+    });
+
+    it('places the cursor inside a wrapped block in a CRLF document', () => {
+        const harness = createEditorHarness('text', {
+            rawInput: true,
+            extensions: [EditorState.lineSeparator.of('\r\n')],
+        });
+
+        try {
+            harness.view.dispatch({ selection: EditorSelection.cursor(2) });
+
+            insertCodeBlockAtCursor(harness.view);
+
+            expect(harness.getText()).toBe('```\ntext\n```');
+            expect(harness.getCursor()).toBe(6);
+        } finally {
+            harness.destroy();
+        }
+    });
+
     it('inserts an empty code block on an empty line and places the cursor inside it', () => {
         const harness = createEditorHarness('|');
 

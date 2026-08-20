@@ -95,19 +95,22 @@ function findOpeningLineListMark(fencedCodeNode: SyntaxNode, openingLine: Line):
  * backwards past the opening fence.
  */
 export function getFencedCodeBlockGeometry(state: EditorState, fencedCodeNode: SyntaxNode): FencedCodeBlockGeometry {
-    const openingLine = state.doc.lineAt(fencedCodeNode.from);
+    const { doc } = state;
+    const openingLine = doc.lineAt(fencedCodeNode.from);
     const children = findFenceChildNodes(fencedCodeNode, openingLine);
 
-    const lineBreak = state.lineBreak || '\n';
-    const contentFrom = Math.min(openingLine.to + lineBreak.length, state.doc.length);
-    const closingLine = children.closingFenceMark ? state.doc.lineAt(children.closingFenceMark.from) : null;
+    // The content starts on the line after the opening fence and ends on the line before the
+    // closing one. Addressing those lines by number keeps this independent of `state.lineBreak`,
+    // which is two characters for CRLF while a document line break is always one position.
+    const contentFrom = openingLine.number < doc.lines ? doc.line(openingLine.number + 1).from : doc.length;
+    const closingLine = children.closingFenceMark ? doc.lineAt(children.closingFenceMark.from) : null;
     const openingLineListMark = findOpeningLineListMark(fencedCodeNode, openingLine);
 
     return {
         blockTo: closingLine ? closingLine.to : fencedCodeNode.to,
         children,
         contentFrom,
-        contentTo: closingLine ? Math.max(contentFrom, closingLine.from - lineBreak.length) : fencedCodeNode.to,
+        contentTo: closingLine ? Math.max(contentFrom, doc.line(closingLine.number - 1).to) : fencedCodeNode.to,
         hasClosingFence: closingLine !== null,
         openingFenceFrom: openingLineListMark ? openingLineListMark.to : openingLine.from,
         openingLineFrom: openingLine.from,

@@ -59,7 +59,8 @@ function createApplyFunction(desiredLang: string) {
 
         const changes: { from: number; to: number; insert: string }[] = [];
         // Offset (relative to the start of each insertion) where the cursor should land,
-        // i.e. on the blank line between the opening and closing fences.
+        // i.e. on the blank line between the opening and closing fences. A document line break is
+        // one position whatever `state.lineBreak` holds, so it counts as 1 rather than its length.
         const cursorOffsets: number[] = [];
 
         for (const range of view.state.selection.ranges) {
@@ -73,7 +74,7 @@ function createApplyFunction(desiredLang: string) {
                 to: range.head,
                 insert: `${desiredLang}${lineBreak}${indent}${lineBreak}${indent}${fence}`,
             });
-            cursorOffsets.push(desiredLang.length + lineBreak.length + indent.length);
+            cursorOffsets.push(desiredLang.length + 1 + indent.length);
         }
 
         if (changes.length === 0) return;

@@ -97,7 +97,9 @@ export function insertCodeBlockAtCursor(view: EditorView): void {
     // Spans end at `Line.to`, which excludes the line terminator, so the sliced text never ends
     // with a line break — appending one unconditionally also covers the empty-line case.
     const changes: { from: number; to: number; insert: string }[] = [];
-    const contentOffset = CODE_FENCE.length + lineBreak.length;
+    // Where the wrapped content begins inside an inserted block. A document line break is one
+    // position whatever `state.lineBreak` holds, so this is not `lineBreak.length`.
+    const contentOffset = CODE_FENCE.length + 1;
     for (const block of existingBlocks) {
         changes.push({ from: block.openingFenceFrom, to: block.contentFrom, insert: '' });
         if (block.hasClosingFence) {

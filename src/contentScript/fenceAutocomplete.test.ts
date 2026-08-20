@@ -145,6 +145,38 @@ describe('createCodeBlockCompleter', () => {
         }
     });
 
+    it('places the cursor on the blank line in a CRLF document', () => {
+        // A document line break is one position even when the separator is two characters.
+        const harness = createEditorHarness('```', {
+            rawInput: true,
+            extensions: [createSettingsExtension(), EditorState.lineSeparator.of('\r\n')],
+        });
+
+        try {
+            applyPluginSettings(harness.view, {
+                enableLanguageAutocomplete: true,
+                enableCopyWidget: false,
+                languages: ['json'],
+            });
+
+            harness.view.dispatch({ selection: EditorSelection.cursor(3) });
+
+            const completer = createCodeBlockCompleter();
+            const result = completer(createCompletionContext(harness.view));
+            if (!result) {
+                throw new Error('Expected completions for an opening fence.');
+            }
+
+            applyCompletion(harness.view, result, 'json');
+
+            // `Text.toString` joins lines with '\n' regardless of the configured separator.
+            expect(harness.getText()).toBe('```json\n\n```');
+            expect(harness.getCursor()).toBe(8);
+        } finally {
+            harness.destroy();
+        }
+    });
+
     it('applies the selected language at every cursor in a multi-cursor selection', () => {
         const harness = createEditorHarness('```\n~~~py', {
             rawInput: true,
