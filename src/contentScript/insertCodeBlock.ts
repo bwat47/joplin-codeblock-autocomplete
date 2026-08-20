@@ -32,8 +32,8 @@ function isRangeInsideBlock(range: SelectionRange, block: FencedCodeBlockGeometr
     return range.from >= block.openingLineFrom && range.to <= block.blockTo;
 }
 
-function blocksOverlap(block: { from: number; to: number }, fencedBlock: FencedCodeBlockGeometry): boolean {
-    return block.from < fencedBlock.blockTo && block.to > fencedBlock.openingFenceFrom;
+function overlapsFencedBlock(span: { from: number; to: number }, fencedBlock: FencedCodeBlockGeometry): boolean {
+    return span.from < fencedBlock.blockTo && span.to > fencedBlock.openingFenceFrom;
 }
 
 /**
@@ -67,11 +67,17 @@ export function insertCodeBlockAtCursor(view: EditorView): void {
     const existingBlocks = findFencedCodeBlocksAtSelections(state);
 
     // Ranges inside existing blocks remove those blocks' fences. Expand every remaining range to
-    // whole lines, then merge spans that share lines so wrapping changes never overlap.
+    // the whole lines it touches, then drop the spans that straddle a fence boundary: those
+    // conflict with removing that fence, so the removal takes precedence. Discarding them before
+    // merging keeps a span that merely shares a line with one from being discarded too.
     const spans = state.selection.ranges
         .filter((range) => !existingBlocks.some((block) => isRangeInsideBlock(range, block)))
         .map((range) => expandToLines(state, range.from, range.to))
+        .filter((span) => !existingBlocks.some((fencedBlock) => overlapsFencedBlock(span, fencedBlock)))
         .sort((a, b) => a.from - b.from);
+
+    // Merge spans that share lines so wrapping changes never overlap. Every span lies wholly
+    // before or wholly after each fenced block, so a merged span cannot reach into one either.
     const wrapBlocks: { from: number; to: number }[] = [];
     for (const span of spans) {
         const last = wrapBlocks[wrapBlocks.length - 1];
@@ -81,12 +87,6 @@ export function insertCodeBlockAtCursor(view: EditorView): void {
             wrapBlocks.push({ from: span.from, to: span.to });
         }
     }
-
-    // A range that straddles a fence boundary conflicts with removing that fence for another
-    // cursor. Give the fence removal precedence instead of producing overlapping changes.
-    const nonOverlappingWrapBlocks = wrapBlocks.filter(
-        (block) => !existingBlocks.some((fencedBlock) => blocksOverlap(block, fencedBlock))
-    );
 
     // Build one change per block and remember where its wrapped content begins.
     //
@@ -107,7 +107,7 @@ export function insertCodeBlockAtCursor(view: EditorView): void {
         }
     }
 
-    for (const { from, to } of nonOverlappingWrapBlocks) {
+    for (const { from, to } of wrapBlocks) {
         const wrappedText = doc.sliceString(from, to);
         const content = `${wrappedText}${lineBreak}`;
 
@@ -123,7 +123,7 @@ export function insertCodeBlockAtCursor(view: EditorView): void {
     // direction. Ranges that removed a fence, or conflicted with a fence removal, map normally.
     const selection = EditorSelection.create(
         state.selection.ranges.map((range) => {
-            const block = nonOverlappingWrapBlocks.find((b) => range.from >= b.from && range.from <= b.to);
+            const block = wrapBlocks.find((b) => range.from >= b.from && range.from <= b.to);
             if (!block) return range.map(changeSet);
 
             const base = changeSet.mapPos(block.from, -1) + contentOffset;

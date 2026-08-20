@@ -248,6 +248,29 @@ describe('insertCodeBlockAtCursor', () => {
         }
     });
 
+    it('keeps wrapping a span that only shares a line with one straddling a fence', () => {
+        const harness = createEditorHarness('plain\n```js\ncode\n```\n', {
+            rawInput: true,
+            extensions: [markdown(), EditorState.allowMultipleSelections.of(true)],
+        });
+
+        try {
+            harness.view.dispatch({
+                selection: EditorSelection.create([
+                    EditorSelection.range(0, 1), // within "plain": wraps that line
+                    EditorSelection.range(3, 8), // straddles into the opening fence line: dropped
+                    EditorSelection.cursor(14), // inside the block: removes its fences
+                ]),
+            });
+
+            insertCodeBlockAtCursor(harness.view);
+
+            expect(harness.getText()).toBe('```\nplain\n```\ncode\n');
+        } finally {
+            harness.destroy();
+        }
+    });
+
     it('toggles fenced and unfenced cursors independently', () => {
         const harness = createEditorHarness('```js\ninside\n```\noutside', {
             rawInput: true,
