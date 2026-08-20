@@ -15,12 +15,12 @@ export type FencedCodeBlockGeometry = {
     blockTo: number;
     /** Child fence nodes, for callers that need the info string or the fence marks themselves. */
     children: FenceChildNodes;
-    /** Start of the closing fence line, or `null` when the block has no closing fence. */
-    closingLineFrom: number | null;
     /** First position of the content, just past the opening fence line's terminator. */
     contentFrom: number;
     /** End of the content, just before the closing fence line's terminator. */
     contentTo: number;
+    /** Whether the block is closed by a trailing fence, as opposed to running to the node's end. */
+    hasClosingFence: boolean;
     /**
      * Start of the block's own text on the opening line. This is `openingLineFrom` except when a
      * list marker precedes the fence, in which case it starts after that marker — see
@@ -106,9 +106,9 @@ export function getFencedCodeBlockGeometry(state: EditorState, fencedCodeNode: S
     return {
         blockTo: closingLine ? closingLine.to : fencedCodeNode.to,
         children,
-        closingLineFrom: closingLine ? closingLine.from : null,
         contentFrom,
         contentTo: closingLine ? Math.max(contentFrom, closingLine.from - lineBreak.length) : fencedCodeNode.to,
+        hasClosingFence: closingLine !== null,
         openingFenceFrom: openingLineListMark ? openingLineListMark.to : openingLine.from,
         openingLineFrom: openingLine.from,
         openingLineTo: openingLine.to,
