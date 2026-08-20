@@ -28,10 +28,13 @@ function chooseCodeFence(state: EditorState, from: number, to: number): string {
 /**
  * Collects every fenced code block that fully contains at least one cursor or selection.
  * A range straddling a fence boundary is not considered contained, so it falls through to
- * the wrapping path instead.
+ * the wrapping path instead. Returns `null` when syntax coverage is incomplete so the caller
+ * can avoid treating an unparsed fenced block as ordinary text.
  */
-function findFencedCodeBlocksAtSelections(state: EditorState): FencedCodeBlockGeometry[] {
-    const tree = getFencedCodeSyntaxTree(state, state.doc.length);
+function findFencedCodeBlocksAtSelections(state: EditorState): FencedCodeBlockGeometry[] | null {
+    const { complete, tree } = getFencedCodeSyntaxTree(state, state.doc.length);
+    if (!complete) return null;
+
     const blocks: FencedCodeBlockGeometry[] = [];
 
     tree.iterate({
@@ -86,6 +89,9 @@ export function insertCodeBlockAtCursor(view: EditorView): void {
     const lineBreak = state.lineBreak || '\n';
 
     const existingBlocks = findFencedCodeBlocksAtSelections(state);
+    // Failing safely avoids wrapping a line that may belong to a fenced block omitted from a
+    // partial syntax tree.
+    if (existingBlocks === null) return;
 
     // Ranges inside existing blocks remove those blocks' fences. Expand every remaining range to
     // the whole lines it touches, then drop the spans that straddle a fence boundary: those

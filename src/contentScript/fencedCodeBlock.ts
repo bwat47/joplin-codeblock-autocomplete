@@ -1,4 +1,4 @@
-import { ensureSyntaxTree, syntaxTree } from '@codemirror/language';
+import { ensureSyntaxTree, language, syntaxTree } from '@codemirror/language';
 import type { EditorState, Line } from '@codemirror/state';
 import type { SyntaxNode, Tree } from '@lezer/common';
 
@@ -8,6 +8,12 @@ type FenceChildNodes = {
     closingFenceMark: SyntaxNode | null;
     codeInfo: SyntaxNode | null;
     openingFenceMark: SyntaxNode | null;
+};
+
+export type FencedCodeSyntaxTree = {
+    /** Whether the tree covers the requested document range. */
+    complete: boolean;
+    tree: Tree;
 };
 
 export type FencedCodeBlockGeometry = {
@@ -33,12 +39,18 @@ export type FencedCodeBlockGeometry = {
 };
 
 /**
- * Parses up to `upto`, falling back to whatever has already been parsed when the parse does
- * not finish in time. That fallback tree may cover only part of the document, so callers must
- * tolerate blocks being missing rather than assuming the whole document was scanned.
+ * Parses up to `upto`, falling back to whatever has already been parsed when the parse does not
+ * finish in time. Callers that need to distinguish an absent node from an unparsed one must check
+ * `complete` before acting on the tree. Without a configured language parser, the empty fallback
+ * tree is complete for fenced-code discovery because no syntax nodes can be available.
  */
-export function getFencedCodeSyntaxTree(state: EditorState, upto: number): Tree {
-    return ensureSyntaxTree(state, upto, SYNTAX_TREE_PARSE_TIMEOUT_MS) ?? syntaxTree(state);
+export function getFencedCodeSyntaxTree(state: EditorState, upto: number): FencedCodeSyntaxTree {
+    const completeTree = ensureSyntaxTree(state, upto, SYNTAX_TREE_PARSE_TIMEOUT_MS);
+
+    return {
+        complete: completeTree !== null || state.facet(language) === null,
+        tree: completeTree ?? syntaxTree(state),
+    };
 }
 
 /**

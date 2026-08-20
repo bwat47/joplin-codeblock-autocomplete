@@ -60,7 +60,7 @@ src/
     - shared syntax-tree helpers for locating fenced code blocks
     - resolves a `FencedCode` node into line and content offsets (`FencedCodeBlockGeometry`) so `insertCodeBlock.ts` and `copyWidget.ts` do not each repeat the fence arithmetic
     - `openingFenceFrom` starts after a list marker on the fence line, so removing a fence written as `- ```js` keeps the list item; blockquote markers need no such care because they repeat on every line
-    - owns the parse-timeout fallback: an unfinished parse yields a partial tree, so callers must tolerate missing blocks
+    - reports whether syntax parsing reached the requested position when returning its parse-timeout fallback; mutation commands fail safely on an incomplete tree, while presentation-only consumers may use the partial tree
 - `src/contentScript/insertCodeBlock.ts`
     - toggles fenced code block formatting from the toolbar command
     - removes the enclosing fence lines when the cursor or selection is inside an existing fenced code block

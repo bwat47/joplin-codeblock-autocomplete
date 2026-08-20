@@ -1,9 +1,32 @@
+import { ensureSyntaxTree } from '@codemirror/language';
 import { markdown } from '@codemirror/lang-markdown';
 import { EditorSelection, EditorState } from '@codemirror/state';
 import { insertCodeBlockAtCursor } from './insertCodeBlock';
 import { createEditorHarness } from '../testUtils/editorHarness';
 
+vi.mock('@codemirror/language', async () => {
+    const actual = await vi.importActual<typeof import('@codemirror/language')>('@codemirror/language');
+    return { ...actual, ensureSyntaxTree: vi.fn(actual.ensureSyntaxTree) };
+});
+
 describe('insertCodeBlockAtCursor', () => {
+    it('makes no change when the syntax tree cannot be completed in time', () => {
+        const harness = createEditorHarness('```js\nco|de\n```', {
+            extensions: [markdown()],
+        });
+
+        try {
+            vi.mocked(ensureSyntaxTree).mockReturnValueOnce(null);
+
+            insertCodeBlockAtCursor(harness.view);
+
+            expect(harness.getText()).toBe('```js\ncode\n```');
+            expect(harness.getCursor()).toBe(8);
+        } finally {
+            harness.destroy();
+        }
+    });
+
     it('removes code block formatting when the cursor is inside a fenced code block', () => {
         const harness = createEditorHarness('before\n```ts\nconst val|ue = 1;\n```\nafter', {
             extensions: [markdown()],

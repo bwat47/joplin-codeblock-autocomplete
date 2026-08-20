@@ -94,7 +94,7 @@ function getFencedCodeBlockInfo(
 function getVisibleFencedCodeBlocks(view: EditorView): FencedCodeBlockInfo[] {
     const seenBlocks = new Set<number>();
     const blocks: FencedCodeBlockInfo[] = [];
-    const tree = getFencedCodeSyntaxTree(view.state, view.viewport.to);
+    const { tree } = getFencedCodeSyntaxTree(view.state, view.viewport.to);
 
     for (const { from, to } of view.visibleRanges) {
         tree.iterate({
