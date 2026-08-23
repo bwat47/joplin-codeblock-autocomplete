@@ -2,7 +2,7 @@ import { ensureSyntaxTree } from '@codemirror/language';
 import { markdown } from '@codemirror/lang-markdown';
 import { EditorSelection, EditorState } from '@codemirror/state';
 import { insertCodeBlockAtCursor } from './insertCodeBlock';
-import { createEditorHarness } from '../testUtils/editorHarness';
+import { createEditorHarness } from '../../testUtils/editorHarness';
 
 vi.mock('@codemirror/language', async () => {
     const actual = await vi.importActual<typeof import('@codemirror/language')>('@codemirror/language');

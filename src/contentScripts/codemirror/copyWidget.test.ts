@@ -1,7 +1,7 @@
 import { vi, type Mocked } from 'vitest';
 import { markdown } from '@codemirror/lang-markdown';
 import { EditorSelection, EditorState } from '@codemirror/state';
-import { createEditorHarness } from '../testUtils/editorHarness';
+import { createEditorHarness } from '../../testUtils/editorHarness';
 import { copyWidgetTheme, createCopyWidgetPlugin } from './copyWidget';
 import { applyPluginSettings, createSettingsExtension } from './pluginSettings';
 import type { PostMessageContext } from './types';

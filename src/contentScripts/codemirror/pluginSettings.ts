@@ -1,7 +1,7 @@
 import { Compartment, Facet, type EditorState, type Extension } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
 import type { CodeMirrorControl } from 'api/types';
-import { logger } from '../logger';
+import { logger } from '../../logger';
 import type { PluginSettingsResponse, PostMessageContext } from './types';
 
 const DEFAULT_SETTINGS: PluginSettingsResponse = {

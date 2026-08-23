@@ -5,7 +5,7 @@
 import joplin from 'api';
 import { ContentScriptType, MenuItemLocation, ToastType, ToolbarButtonLocation } from 'api/types';
 import { logger } from './logger';
-import { INSERT_CODE_BLOCK_COMMAND, UPDATE_SETTINGS_COMMAND } from './contentScript/types';
+import { INSERT_CODE_BLOCK_COMMAND, UPDATE_SETTINGS_COMMAND } from './contentScripts/codemirror/types';
 import { registerSettings, getContentScriptSettings, arePluginSettingsChanged } from './settings';
 
 const CONTENT_SCRIPT_ID = 'codeBlockCompleter';
@@ -36,7 +36,7 @@ joplin.plugins.register({
         await joplin.contentScripts.register(
             ContentScriptType.CodeMirrorPlugin,
             CONTENT_SCRIPT_ID,
-            './contentScript/index.js'
+            './contentScripts/codemirror/index.js'
         );
 
         await joplin.contentScripts.onMessage(CONTENT_SCRIPT_ID, async (message: ContentScriptMessage) => {
