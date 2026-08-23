@@ -23,6 +23,12 @@ const SETTINGS_CONFIG = {
         description:
             'Show a copy button on fenced code blocks in the Markdown editor and hide the opening-fence language text when the cursor is not on that line.',
     },
+    enableViewerCopyWidget: {
+        key: `${SECTION_ID}.enableViewerCopyWidget`,
+        defaultValue: false,
+        label: 'Enable Markdown viewer copy widget',
+        description: 'Show a copy button when hovering over fenced code blocks in the Markdown viewer.',
+    },
     languages: {
         key: `${SECTION_ID}.languages`,
         defaultValue: DEFAULT_LANGUAGES,
@@ -38,7 +44,15 @@ export type ContentScriptSettings = {
     languages: string[];
 };
 
-const SETTINGS_KEYS = new Set<string>(Object.values(SETTINGS_CONFIG).map((setting) => setting.key));
+export type ViewerContentScriptSettings = {
+    enableViewerCopyWidget: boolean;
+};
+
+const CODE_MIRROR_SETTINGS_KEYS = new Set<string>([
+    SETTINGS_CONFIG.enableLanguageAutocomplete.key,
+    SETTINGS_CONFIG.enableCopyWidget.key,
+    SETTINGS_CONFIG.languages.key,
+]);
 
 function parseLanguageList(languages: string): string[] {
     return languages
@@ -62,8 +76,14 @@ export async function getContentScriptSettings(): Promise<ContentScriptSettings>
     };
 }
 
-export function arePluginSettingsChanged(keys: string[]): boolean {
-    return keys.some((key) => SETTINGS_KEYS.has(key));
+export async function getViewerContentScriptSettings(): Promise<ViewerContentScriptSettings> {
+    return {
+        enableViewerCopyWidget: await joplin.settings.value(SETTINGS_CONFIG.enableViewerCopyWidget.key),
+    };
+}
+
+export function areCodeMirrorSettingsChanged(keys: string[]): boolean {
+    return keys.some((key) => CODE_MIRROR_SETTINGS_KEYS.has(key));
 }
 
 /** Registers plugin settings with Joplin */
@@ -89,6 +109,14 @@ export async function registerSettings(): Promise<void> {
             public: true,
             label: SETTINGS_CONFIG.enableCopyWidget.label,
             description: SETTINGS_CONFIG.enableCopyWidget.description,
+        },
+        [SETTINGS_CONFIG.enableViewerCopyWidget.key]: {
+            value: SETTINGS_CONFIG.enableViewerCopyWidget.defaultValue,
+            type: SettingItemType.Bool,
+            section: SECTION_ID,
+            public: true,
+            label: SETTINGS_CONFIG.enableViewerCopyWidget.label,
+            description: SETTINGS_CONFIG.enableViewerCopyWidget.description,
         },
         [SETTINGS_CONFIG.languages.key]: {
             value: SETTINGS_CONFIG.languages.defaultValue,

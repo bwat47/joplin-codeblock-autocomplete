@@ -1,0 +1,65 @@
+.joplin-editable:has(> .codeblock-autocomplete-viewer-copy-button) {
+    position: relative;
+}
+
+.codeblock-autocomplete-viewer-copy-button {
+    position: absolute;
+    top: 0.25rem;
+    right: 0.25rem;
+    z-index: 1;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    width: 1.75rem;
+    height: 1.75rem;
+    padding: 0.35rem;
+    border: 0;
+    border-radius: 4px;
+    background: transparent;
+    color: inherit;
+    cursor: pointer;
+    opacity: 0;
+    transition:
+        background-color 0.12s ease,
+        opacity 0.12s ease;
+}
+
+.codeblock-autocomplete-viewer-copy-enabled .codeblock-autocomplete-viewer-copy-button {
+    display: inline-flex;
+}
+
+.codeblock-autocomplete-viewer-copy-enabled
+    .joplin-editable:has(> .codeblock-autocomplete-viewer-copy-button):hover
+    > .codeblock-autocomplete-viewer-copy-button,
+.codeblock-autocomplete-viewer-copy-enabled .codeblock-autocomplete-viewer-copy-button:focus-visible {
+    opacity: 1;
+}
+
+.codeblock-autocomplete-viewer-copy-button:hover {
+    background-color: rgba(127, 127, 127, 0.16);
+}
+
+.codeblock-autocomplete-viewer-copy-button:focus-visible {
+    outline: 2px solid currentColor;
+    outline-offset: 1px;
+}
+
+.codeblock-autocomplete-viewer-copy-button svg {
+    display: block;
+    width: 1rem;
+    height: 1rem;
+    fill: currentColor;
+    pointer-events: none;
+}
+
+@media (any-hover: none) {
+    .codeblock-autocomplete-viewer-copy-enabled .codeblock-autocomplete-viewer-copy-button {
+        opacity: 1;
+    }
+}
+
+@media print {
+    .codeblock-autocomplete-viewer-copy-button {
+        display: none !important;
+    }
+}

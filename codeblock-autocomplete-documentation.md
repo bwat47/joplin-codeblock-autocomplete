@@ -2,15 +2,14 @@
 
 ## Purpose
 
-This plugin adds CodeMirror 6 editor enhancements for fenced code blocks in Joplin. The feature set is split between the main plugin process and a CodeMirror content script.
+This plugin adds fenced-code-block utilities to Joplin's CodeMirror 6 editor and Markdown viewer. The feature set is split between the main plugin process and editor/viewer content scripts.
 
 ## Runtime Layout
 
 - Main plugin process:
-    - registers plugin settings
-    - registers the CodeMirror content script
+    - registers plugin settings and both content scripts
     - registers the insert-code-block command with Edit menu and editor toolbar entry points
-    - responds to content-script messages for settings hydration and clipboard copy
+    - responds to editor/viewer messages for settings hydration and clipboard copy
     - pushes updated settings into the active editor when Joplin settings change
 - CodeMirror content script:
     - installs the editor extensions used by the plugin
@@ -18,6 +17,10 @@ This plugin adds CodeMirror 6 editor enhancements for fenced code blocks in Jopl
     - provides fenced code block autocomplete behavior
     - provides the insert-code-block editor command
     - provides the optional copy widget decoration layer
+- Markdown viewer content script:
+    - extends only Markdown-it's fenced-code renderer while preserving Joplin's existing rendered HTML
+    - injects the optional icon-only copy button into Joplin's fenced-code container
+    - loads viewer JavaScript and CSS for live settings, hover/focus presentation, and delegated copy actions
 
 ## Source Layout
 
@@ -25,14 +28,20 @@ This plugin adds CodeMirror 6 editor enhancements for fenced code blocks in Jopl
 src/
 ├── index.ts
 ├── settings.ts
-└── contentScript/
-    ├── index.ts
-    ├── codeMirror6Plugin.ts
-    ├── pluginSettings.ts
-    ├── fenceAutocomplete.ts
-    ├── insertCodeBlock.ts
-    ├── copyWidget.ts
-    └── types.ts
+└── contentScripts/
+    ├── codemirror/
+    │   ├── index.ts
+    │   ├── codeMirror6Plugin.ts
+    │   ├── pluginSettings.ts
+    │   ├── fenceAutocomplete.ts
+    │   ├── fencedCodeBlock.ts
+    │   ├── insertCodeBlock.ts
+    │   ├── copyWidget.ts
+    │   └── types.ts
+    └── viewer/
+        ├── index.ts
+        ├── copyWidget.js
+        └── copyWidget.css
 ```
 
 ## Module Responsibilities
@@ -44,44 +53,59 @@ src/
     - wires Joplin registration, toolbar integration, message handling, and settings updates
 - `src/settings.ts`
     - defines and registers plugin settings
-    - converts Joplin settings into the normalized shape used by the content script
+    - returns independent settings payloads for the editor and viewer content scripts
 
-### Content Script
+### CodeMirror Content Script
 
-- `src/contentScript/index.ts`
+- `src/contentScripts/codemirror/index.ts`
     - content script entry point for CodeMirror 6
-- `src/contentScript/codeMirror6Plugin.ts`
+- `src/contentScripts/codemirror/codeMirror6Plugin.ts`
     - composition root for the editor-side extensions and commands
-- `src/contentScript/pluginSettings.ts`
+- `src/contentScripts/codemirror/pluginSettings.ts`
     - stores plugin settings in CodeMirror state and syncs them from the main process
-- `src/contentScript/fenceAutocomplete.ts`
+- `src/contentScripts/codemirror/fenceAutocomplete.ts`
     - handles fence detection and language autocomplete
-- `src/contentScript/fencedCodeBlock.ts`
+- `src/contentScripts/codemirror/fencedCodeBlock.ts`
     - shared syntax-tree helpers for locating fenced code blocks
     - resolves a `FencedCode` node into line and content offsets (`FencedCodeBlockGeometry`) so `insertCodeBlock.ts` and `copyWidget.ts` do not each repeat the fence arithmetic
     - `openingFenceFrom` starts after a list marker on the fence line, so removing a fence written as `- ```js` keeps the list item; blockquote markers need no such care because they repeat on every line
     - reports whether syntax parsing reached the requested position when returning its parse-timeout fallback; mutation commands fail safely on an incomplete tree, while presentation-only consumers may use the partial tree
-- `src/contentScript/insertCodeBlock.ts`
+- `src/contentScripts/codemirror/insertCodeBlock.ts`
     - toggles fenced code block formatting from the toolbar command
     - removes the enclosing fence lines when the cursor or selection is inside an existing fenced code block
     - line-aware: each cursor/selection is expanded to the whole lines it touches, so a bare cursor on a line of text wraps that line and a partial selection wraps the full line(s) it spans (a bare cursor on an empty line still inserts an empty block)
     - supports multiple cursors and selections in a single transaction: expanded spans that share lines are merged into one block, and the original cursors/selections are re-anchored inside their block, preserving column and direction
     - sizes each opening/closing fence one backtick past the longest fence in the text it wraps, so wrapping content that already contains fences cannot end the new block early
-- `src/contentScript/copyWidget.ts`
+- `src/contentScripts/codemirror/copyWidget.ts`
     - tracks visible fenced code blocks for the optional copy button
     - separates structural block discovery from selection-driven presentation updates
     - resolves copied text from the current editor state when the button is clicked
-- `src/contentScript/types.ts`
+- `src/contentScripts/codemirror/types.ts`
     - shared content-script message and command types
+
+### Markdown Viewer Content Script
+
+- `src/contentScripts/viewer/index.ts`
+    - wraps the existing Markdown-it `fence` renderer and leaves all other renderer rules unchanged
+    - injects one accessible copy button only when the expected Joplin fenced-code container is present
+    - exposes the viewer JavaScript and CSS assets
+- `src/contentScripts/viewer/copyWidget.js`
+    - fetches the independent viewer setting at startup, after note updates, and on a short polling interval
+    - delegates button clicks through the viewer content-script message channel
+    - reads the original `.joplin-source` text, with rendered code as a fallback
+- `src/contentScripts/viewer/copyWidget.css`
+    - provides hover, focus, touch, theme-compatible, and print behavior for the icon-only button
 
 ## Main Flow
 
 1. Joplin starts the plugin through `src/index.ts`.
-2. The plugin registers settings, the content script, the Edit menu item, and the toolbar button.
-3. The content script loads `src/contentScript/codeMirror6Plugin.ts` for CodeMirror 6 editors.
-4. The content script requests current settings from the main process and stores them in editor state.
-5. Editor features read from that shared state for autocomplete, code block insertion, and the optional copy widget.
-6. When plugin settings change, the main process pushes the new values back into the active editor.
+2. The plugin registers settings, the CodeMirror and Markdown viewer content scripts, the Edit menu item, and the toolbar button.
+3. The CodeMirror content script loads `src/contentScripts/codemirror/codeMirror6Plugin.ts` for CodeMirror 6 editors.
+4. The CodeMirror content script requests current settings from the main process and stores them in editor state.
+5. Editor features read from that shared state for autocomplete, code block insertion, and the optional editor copy widget.
+6. The viewer content script injects buttons only for Markdown-it fence tokens and its asset script requests the independent viewer setting.
+7. Copy actions from either content script use the main process's clipboard helper and success toast.
+8. Editor setting changes are pushed into the active editor; the viewer refreshes its setting after note updates and by polling.
 
 ## Notes
 
