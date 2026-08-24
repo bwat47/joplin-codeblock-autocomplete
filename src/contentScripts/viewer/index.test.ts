@@ -119,6 +119,35 @@ describe('installViewerCopyButtonRenderer', () => {
         expect(renderFence(markdownIt)).toBe(unsupportedHtml);
     });
 
+    // Joplin's mermaid, ABC and Fountain rules each override `renderer.rules.fence`
+    // and emit their own `joplin-editable` container, and content-script rules are
+    // installed after them, so this renderer wraps their output too.
+    it.each([
+        [
+            'mermaid diagram',
+            '<div class="joplin-editable"><pre class="joplin-source" hidden data-joplin-language="mermaid" ' +
+                'data-joplin-source-open="```mermaid&#10;" data-joplin-source-close="&#10;```&#10;">graph TD;</pre>' +
+                '<pre class="mermaid">graph TD;</pre></div>\n',
+        ],
+        [
+            'ABC notation block',
+            '<div class="joplin-editable joplin-abc-notation">' +
+                '<pre class="joplin-source" hidden data-joplin-language="abc">CDEF</pre>' +
+                '<pre class="joplin-rendered joplin-abc-notation-rendered">CDEF</pre></div>\n',
+        ],
+        [
+            'Fountain screenplay block',
+            '<div class="fountain joplin-editable">' +
+                '<pre class="joplin-source" hidden data-joplin-language="fountain">INT. HOUSE</pre>' +
+                '<div class="screenplay"><p>INT. HOUSE</p></div></div>\n',
+        ],
+    ])('returns the original fence HTML for a %s', (_name, diagramHtml) => {
+        const { markdownIt } = createMarkdownIt(diagramHtml);
+        installViewerCopyButtonRenderer(markdownIt, COPY_WIDGET_ENABLED);
+
+        expect(renderFence(markdownIt, { markup: '```', info: 'mermaid' })).toBe(diagramHtml);
+    });
+
     it('does not stack renderer wrappers when installed more than once', () => {
         const { markdownIt, defaultFenceRenderer } = createMarkdownIt(JOPLIN_FENCE_HTML);
 

@@ -3,7 +3,9 @@
  *
  * The existing fence renderer remains responsible for all code rendering and
  * Rich Text metadata. This plugin only inserts a button into the outer
- * `joplin-editable` container produced for fenced blocks.
+ * `joplin-editable` container produced for fenced blocks that actually render
+ * code, leaving Joplin's other `fence` overrides (mermaid, ABC, Fountain)
+ * untouched.
  */
 import type { MarkdownItContentScriptModule } from 'api/types';
 import { SETTING_KEYS } from '../../settingsKeys';
@@ -50,6 +52,14 @@ type IsViewerCopyWidgetEnabled = () => boolean;
 
 const COPY_BUTTON_CLASS = 'codeblock-autocomplete-viewer-copy-button';
 const EDITABLE_CLASS_PATTERN = /class=(['"])[^'"]*\bjoplin-editable\b[^'"]*\1/;
+/**
+ * Joplin's own `fence` overrides (mermaid, ABC, Fountain) also emit a
+ * `joplin-editable` container, so the container alone does not identify a code
+ * block. Only Joplin's code renderer wraps its output in `<code>`, and none of
+ * the diagram renderers do, so require a rendered `<code>` element as well.
+ * Matches `<code>` and `<code class="...">` but not `<codesomething>`.
+ */
+const RENDERED_CODE_PATTERN = /<code[\s/>]/;
 const OUTER_CONTAINER_CLOSE = '</div>';
 
 const COPY_BUTTON_HTML = `<button type="button" class="${COPY_BUTTON_CLASS}" title="Copy code block" aria-label="Copy code block">
@@ -60,7 +70,7 @@ const COPY_BUTTON_HTML = `<button type="button" class="${COPY_BUTTON_CLASS}" tit
 </button>`;
 
 function injectCopyButton(renderedHtml: string): string {
-    if (!EDITABLE_CLASS_PATTERN.test(renderedHtml)) {
+    if (!EDITABLE_CLASS_PATTERN.test(renderedHtml) || !RENDERED_CODE_PATTERN.test(renderedHtml)) {
         return renderedHtml;
     }
 

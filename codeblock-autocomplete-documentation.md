@@ -91,7 +91,8 @@ src/
 - `src/contentScripts/viewer/index.ts`
     - wraps the existing Markdown-it `fence` renderer and leaves all other renderer rules unchanged
     - reads the viewer setting through Markdown-it's `pluginOptions.settingValue()` callback
-    - injects one accessible copy button only when enabled and the expected Joplin fenced-code container is present
+    - injects one accessible copy button only when enabled and the rendered output is a Joplin fenced-code container
+    - Joplin's own `fence` overrides (Mermaid, ABC, Fountain) also emit a `joplin-editable` container and are installed before content-script rules, so container detection alone is not enough; the renderer additionally requires a rendered `<code>` element, which only Joplin's code renderer emits
     - exposes the viewer JavaScript and CSS assets
 - `src/contentScripts/viewer/copyWidget.js`
     - delegates button clicks through the viewer content-script message channel

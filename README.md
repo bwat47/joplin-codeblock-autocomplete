@@ -41,7 +41,7 @@ Clicking the copy button will copy the code block contents to your clipboard. If
 
 The Markdown viewer has a separate copy-widget setting. When enabled, hovering over a rendered fenced code block shows an icon-only copy button in its top-right corner. The button remains visible on touch devices and can also be reached with the keyboard.
 
-Clicking the button copies the fenced code contents and displays a success toast. Indented code blocks, inline code, and raw HTML code blocks are not changed.
+Clicking the button copies the fenced code contents and displays a success toast. Indented code blocks, inline code, raw HTML code blocks, and fences that Joplin renders as something other than code (Mermaid, ABC notation, Fountain) are not changed.
 
 ## Settings
 
