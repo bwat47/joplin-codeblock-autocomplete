@@ -75,7 +75,7 @@ describe('viewer copy widget asset', () => {
     });
 
     it('enables and disables the widget from live settings', async () => {
-        setViewerHtml('code\n');
+        setViewerHtml('code');
         controller = await loadViewerAsset();
 
         expect(document.documentElement.classList.contains('codeblock-autocomplete-viewer-copy-enabled')).toBe(true);
@@ -87,7 +87,7 @@ describe('viewer copy widget asset', () => {
     });
 
     it('refreshes settings after a note update and on the polling interval', async () => {
-        setViewerHtml('code\n');
+        setViewerHtml('code');
         controller = await loadViewerAsset();
         postMessage.mockClear();
 
@@ -100,8 +100,8 @@ describe('viewer copy widget asset', () => {
         expect(postMessage).toHaveBeenCalledWith('codeblockAutocompleteViewer', { command: 'getSettings' });
     });
 
-    it('copies source text and removes only one structural trailing line ending', async () => {
-        const button = setViewerHtml('first &amp; second\n\n', '<span>highlighted output</span>');
+    it('copies source text exactly, including an intentional trailing line ending', async () => {
+        const button = setViewerHtml('first &amp; second\n', '<span>highlighted output</span>');
         controller = await loadViewerAsset();
         postMessage.mockClear();
 
@@ -116,7 +116,7 @@ describe('viewer copy widget asset', () => {
 
     it('falls back to highlighted rendered code when source metadata is missing', async () => {
         document.body.innerHTML =
-            '<div class="joplin-editable"><pre><code>const <span>value</span> = &quot;x&quot;;\n</code></pre>' +
+            '<div class="joplin-editable"><pre><code>const <span>value</span> = &quot;x&quot;;</code></pre>' +
             BUTTON_HTML +
             '</div>';
         const button = document.querySelector('.codeblock-autocomplete-viewer-copy-button');
@@ -134,11 +134,11 @@ describe('viewer copy widget asset', () => {
     });
 
     it('keeps delegated clicks working after the rendered note is replaced', async () => {
-        setViewerHtml('first\n');
+        setViewerHtml('first');
         controller = await loadViewerAsset();
         postMessage.mockClear();
 
-        const replacementButton = setViewerHtml('replacement\n');
+        const replacementButton = setViewerHtml('replacement');
         replacementButton.click();
         await Promise.resolve();
 
@@ -149,7 +149,7 @@ describe('viewer copy widget asset', () => {
     });
 
     it('does not copy while disabled or when no code source can be found', async () => {
-        const button = setViewerHtml('code\n');
+        const button = setViewerHtml('code');
         postMessage.mockResolvedValueOnce({ enableViewerCopyWidget: false });
         controller = await loadViewerAsset();
         postMessage.mockClear();
@@ -166,7 +166,7 @@ describe('viewer copy widget asset', () => {
     });
 
     it('fails safely when settings and copy requests reject', async () => {
-        const button = setViewerHtml('code\n');
+        const button = setViewerHtml('code');
         postMessage.mockRejectedValueOnce(new Error('settings unavailable'));
         controller = await loadViewerAsset();
 

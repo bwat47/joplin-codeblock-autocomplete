@@ -48,7 +48,7 @@
         }
         if (typeof text !== 'string') return null;
 
-        return text.replace(/(?:\r\n|\n|\r)$/, '');
+        return text;
     }
 
     function copyCodeBlock(button) {
