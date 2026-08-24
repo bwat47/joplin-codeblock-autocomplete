@@ -16,11 +16,21 @@ const BUTTON_HTML =
     '<button type="button" class="codeblock-autocomplete-viewer-copy-button" title="Copy code block" aria-label="Copy code block">' +
     '<svg><path></path></svg></button>';
 
-function setViewerHtml(sourceText: string, renderedCode = sourceText): HTMLButtonElement {
+/**
+ * Mirrors the container Joplin's `MdToHtml` `highlight()` callback emits for a
+ * fenced code block: a `hidden` `pre.joplin-source` carrying the Rich Text
+ * round-trip metadata, followed by the highlighted `pre.hljs > code`.
+ *
+ * `sourceText` is the already-escaped text Joplin puts inside `pre.joplin-source`.
+ * Joplin applies `removeLastNewLine()` before writing it, so it holds the fence
+ * contents minus the single newline that belongs to the closing fence.
+ */
+function setViewerHtml(sourceText: string, renderedCode = sourceText, language = 'ts'): HTMLButtonElement {
     document.body.innerHTML =
         '<div class="joplin-editable">' +
-        `<pre class="joplin-source">${sourceText}</pre>` +
-        `<pre><code>${renderedCode}</code></pre>` +
+        `<pre class="joplin-source" hidden data-joplin-language="${language}" ` +
+        `data-joplin-source-open="\`\`\`${language}&#10;" data-joplin-source-close="&#10;\`\`\`">${sourceText}</pre>` +
+        `<pre class="hljs"><code>${renderedCode}</code></pre>` +
         BUTTON_HTML +
         '</div>';
 
@@ -76,8 +86,10 @@ describe('viewer copy widget asset', () => {
         expect(postMessage).not.toHaveBeenCalled();
     });
 
-    it('copies source text exactly, including an intentional trailing line ending', async () => {
-        const button = setViewerHtml('first &amp; second\n', '<span>highlighted output</span>');
+    it('copies the unescaped source text verbatim', async () => {
+        // Joplin has already removed the newline belonging to the closing fence,
+        // so an ordinary block reaches us without a trailing line ending.
+        const button = setViewerHtml('first &amp; second', '<span>highlighted output</span>');
         controller = await loadViewerAsset();
         postMessage.mockClear();
 
@@ -86,13 +98,30 @@ describe('viewer copy widget asset', () => {
 
         expect(postMessage).toHaveBeenCalledWith('codeblockAutocompleteViewer', {
             command: 'copyCodeBlock',
-            text: 'first & second\n',
+            text: 'first & second',
+        });
+    });
+
+    it('preserves a trailing blank line the author wrote inside the block', async () => {
+        // Source ending in a blank line reaches `pre.joplin-source` as
+        // 'code\n\n' minus Joplin's one stripped newline, so the remaining '\n'
+        // is the author's blank line and must survive the copy.
+        const button = setViewerHtml('code\n', '<span>highlighted output</span>');
+        controller = await loadViewerAsset();
+        postMessage.mockClear();
+
+        button.click();
+        await Promise.resolve();
+
+        expect(postMessage).toHaveBeenCalledWith('codeblockAutocompleteViewer', {
+            command: 'copyCodeBlock',
+            text: 'code\n',
         });
     });
 
     it('falls back to highlighted rendered code when source metadata is missing', async () => {
         document.body.innerHTML =
-            '<div class="joplin-editable"><pre><code>const <span>value</span> = &quot;x&quot;;</code></pre>' +
+            '<div class="joplin-editable"><pre class="hljs"><code>const <span>value</span> = &quot;x&quot;;</code></pre>' +
             BUTTON_HTML +
             '</div>';
         const button = document.querySelector('.codeblock-autocomplete-viewer-copy-button');

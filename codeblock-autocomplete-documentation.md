@@ -97,6 +97,7 @@ src/
 - `src/contentScripts/viewer/copyWidget.js`
     - delegates button clicks through the viewer content-script message channel
     - reads the original `.joplin-source` text, with rendered code as a fallback
+    - copies that text verbatim: Joplin already strips the newline belonging to the closing fence, so any newline still present is one the author wrote and must be preserved
 - `src/contentScripts/viewer/copyWidget.css`
     - provides hover, focus, touch, theme-compatible, and print behavior for the icon-only button
     - renders the button as a bare icon (no padding or chip) that greys out at rest and takes the note's text colour on hover or focus, over a `backdrop-filter` blur so a horizontally scrolled line of code does not show through it
