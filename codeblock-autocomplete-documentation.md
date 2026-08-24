@@ -95,6 +95,8 @@ src/
     - reads the original `.joplin-source` text, with rendered code as a fallback
 - `src/contentScripts/viewer/copyWidget.css`
     - provides hover, focus, touch, theme-compatible, and print behavior for the icon-only button
+    - renders the button as a bare icon (no padding or chip) that greys out at rest and takes the note's text colour on hover or focus, over a `backdrop-filter` blur so a horizontally scrolled line of code does not show through it
+    - fits the icon to the block: sized in `em` (`min(1.4em, 100%)` plus `aspect-ratio: 1`) so it tracks the viewer font, with a `clamp()` top offset that centres it vertically once a block is too short for the full inset — Joplin renders fenced code with no padding, so a single-line block is only one line tall — and the rendered `pre` gets `padding-right` so code does not end underneath it
 
 ## Main Flow
 

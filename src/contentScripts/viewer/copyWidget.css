@@ -2,25 +2,58 @@
     position: relative;
 }
 
+/*
+ * Joplin renders fenced code blocks with no padding, so a single-line block is
+ * only one line tall. Reserve room at the end of the line so code never runs
+ * underneath the icon.
+ */
+.codeblock-autocomplete-viewer-copy-enabled
+    .joplin-editable:has(> .codeblock-autocomplete-viewer-copy-button)
+    > pre:not(.joplin-source) {
+    padding-right: 2em;
+}
+
 .codeblock-autocomplete-viewer-copy-button {
     position: absolute;
-    top: 0.25rem;
-    right: 0.25rem;
+    /*
+     * Sit in the top-right corner of tall blocks, and centre vertically once
+     * the block is too short for the full inset.
+     */
+    top: clamp(0px, (100% - 1.4em) / 2, 0.25em);
+    right: 0.25em;
     z-index: 1;
     display: none;
     align-items: center;
     justify-content: center;
-    width: 1.75rem;
-    height: 1.75rem;
-    padding: 0.35rem;
+    /*
+     * The button is the icon: no padding and no chip behind it. Sizing in `em`
+     * keeps it proportional to the viewer font, and the clamp keeps it inside
+     * blocks shorter than the icon. `aspect-ratio` keeps the icon square once
+     * the height is clamped.
+     */
+    height: min(1.4em, 100%);
+    width: auto;
+    aspect-ratio: 1;
+    padding: 0;
     border: 0;
-    border-radius: 4px;
+    border-radius: 2px;
     background: transparent;
-    color: inherit;
+    /*
+     * Frost whatever is behind the icon. `padding-right` on the block keeps
+     * short lines clear, but a long line scrolls underneath the icon and would
+     * otherwise show through it.
+     */
+    -webkit-backdrop-filter: blur(6px);
+    backdrop-filter: blur(6px);
+    /* Buttons do not inherit the font by default, and the `em` sizes above
+       need the viewer font size rather than the UA default. */
+    font: inherit;
+    /* Neutral grey reads against both light and dark code backgrounds. */
+    color: rgb(127, 127, 127);
     cursor: pointer;
     opacity: 0;
     transition:
-        background-color 0.12s ease,
+        color 0.12s ease,
         opacity 0.12s ease;
 }
 
@@ -35,8 +68,10 @@
     opacity: 1;
 }
 
-.codeblock-autocomplete-viewer-copy-button:hover {
-    background-color: rgba(127, 127, 127, 0.16);
+/* Hovering the icon brings it up to the note's full text colour. */
+.codeblock-autocomplete-viewer-copy-button:hover,
+.codeblock-autocomplete-viewer-copy-button:focus-visible {
+    color: inherit;
 }
 
 .codeblock-autocomplete-viewer-copy-button:focus-visible {
@@ -46,8 +81,8 @@
 
 .codeblock-autocomplete-viewer-copy-button svg {
     display: block;
-    width: 1rem;
-    height: 1rem;
+    width: 100%;
+    height: 100%;
     fill: currentColor;
     pointer-events: none;
 }
