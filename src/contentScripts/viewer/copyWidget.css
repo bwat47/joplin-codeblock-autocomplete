@@ -7,9 +7,7 @@
  * only one line tall. Reserve room at the end of the line so code never runs
  * underneath the icon.
  */
-.codeblock-autocomplete-viewer-copy-enabled
-    .joplin-editable:has(> .codeblock-autocomplete-viewer-copy-button)
-    > pre:not(.joplin-source) {
+.joplin-editable:has(> .codeblock-autocomplete-viewer-copy-button) > pre:not(.joplin-source) {
     padding-right: 2em;
 }
 
@@ -22,7 +20,7 @@
     top: clamp(0px, (100% - 1.4em) / 2, 0.25em);
     right: 0.25em;
     z-index: 1;
-    display: none;
+    display: inline-flex;
     align-items: center;
     justify-content: center;
     /*
@@ -57,14 +55,8 @@
         opacity 0.12s ease;
 }
 
-.codeblock-autocomplete-viewer-copy-enabled .codeblock-autocomplete-viewer-copy-button {
-    display: inline-flex;
-}
-
-.codeblock-autocomplete-viewer-copy-enabled
-    .joplin-editable:has(> .codeblock-autocomplete-viewer-copy-button):hover
-    > .codeblock-autocomplete-viewer-copy-button,
-.codeblock-autocomplete-viewer-copy-enabled .codeblock-autocomplete-viewer-copy-button:focus-visible {
+.joplin-editable:has(> .codeblock-autocomplete-viewer-copy-button):hover > .codeblock-autocomplete-viewer-copy-button,
+.codeblock-autocomplete-viewer-copy-button:focus-visible {
     opacity: 1;
 }
 
@@ -88,7 +80,7 @@
 }
 
 @media (any-hover: none) {
-    .codeblock-autocomplete-viewer-copy-enabled .codeblock-autocomplete-viewer-copy-button {
+    .codeblock-autocomplete-viewer-copy-button {
         opacity: 1;
     }
 }

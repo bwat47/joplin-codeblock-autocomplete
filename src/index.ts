@@ -6,12 +6,7 @@ import joplin from 'api';
 import { ContentScriptType, MenuItemLocation, ToastType, ToolbarButtonLocation } from 'api/types';
 import { logger } from './logger';
 import { INSERT_CODE_BLOCK_COMMAND, UPDATE_SETTINGS_COMMAND } from './contentScripts/codemirror/types';
-import {
-    areCodeMirrorSettingsChanged,
-    getContentScriptSettings,
-    getViewerContentScriptSettings,
-    registerSettings,
-} from './settings';
+import { areCodeMirrorSettingsChanged, getContentScriptSettings, registerSettings } from './settings';
 
 const CODE_MIRROR_CONTENT_SCRIPT_ID = 'codeBlockCompleter';
 const VIEWER_CONTENT_SCRIPT_ID = 'codeblockAutocompleteViewer';
@@ -76,9 +71,6 @@ async function handleViewerMessage(rawMessage: unknown): Promise<unknown> {
         return null;
     }
 
-    if (message.command === 'getSettings') {
-        return getViewerContentScriptSettings();
-    }
     if (message.command === 'copyCodeBlock') {
         return copyCodeBlock(message.text);
     }

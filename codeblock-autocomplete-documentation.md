@@ -19,8 +19,8 @@ This plugin adds fenced-code-block utilities to Joplin's CodeMirror 6 editor and
     - provides the optional copy widget decoration layer
 - Markdown viewer content script:
     - extends only Markdown-it's fenced-code renderer while preserving Joplin's existing rendered HTML
-    - injects the optional icon-only copy button into Joplin's fenced-code container
-    - loads viewer JavaScript and CSS for live settings, hover/focus presentation, and delegated copy actions
+    - reads the viewer setting through Joplin's renderer options and injects the optional icon-only copy button into Joplin's fenced-code container
+    - loads viewer JavaScript and CSS for hover/focus presentation and delegated copy actions
 
 ## Source Layout
 
@@ -28,6 +28,7 @@ This plugin adds fenced-code-block utilities to Joplin's CodeMirror 6 editor and
 src/
 ├── index.ts
 ├── settings.ts
+├── settingsKeys.ts
 └── contentScripts/
     ├── codemirror/
     │   ├── index.ts
@@ -53,7 +54,9 @@ src/
     - wires Joplin registration, toolbar integration, message handling, and settings updates
 - `src/settings.ts`
     - defines and registers plugin settings
-    - returns independent settings payloads for the editor and viewer content scripts
+    - returns the settings payload for the editor content script
+- `src/settingsKeys.ts`
+    - defines shared plugin setting keys without importing the main-process Joplin API
 
 ### CodeMirror Content Script
 
@@ -87,10 +90,10 @@ src/
 
 - `src/contentScripts/viewer/index.ts`
     - wraps the existing Markdown-it `fence` renderer and leaves all other renderer rules unchanged
-    - injects one accessible copy button only when the expected Joplin fenced-code container is present
+    - reads the viewer setting through Markdown-it's `pluginOptions.settingValue()` callback
+    - injects one accessible copy button only when enabled and the expected Joplin fenced-code container is present
     - exposes the viewer JavaScript and CSS assets
 - `src/contentScripts/viewer/copyWidget.js`
-    - fetches the independent viewer setting at startup, after note updates, and on a short polling interval
     - delegates button clicks through the viewer content-script message channel
     - reads the original `.joplin-source` text, with rendered code as a fallback
 - `src/contentScripts/viewer/copyWidget.css`
@@ -105,9 +108,9 @@ src/
 3. The CodeMirror content script loads `src/contentScripts/codemirror/codeMirror6Plugin.ts` for CodeMirror 6 editors.
 4. The CodeMirror content script requests current settings from the main process and stores them in editor state.
 5. Editor features read from that shared state for autocomplete, code block insertion, and the optional editor copy widget.
-6. The viewer content script injects buttons only for Markdown-it fence tokens and its asset script requests the independent viewer setting.
+6. The viewer content script reads its independent setting from Joplin's renderer options and injects buttons only for enabled Markdown-it fence tokens.
 7. Copy actions from either content script use the main process's clipboard helper and success toast.
-8. Editor setting changes are pushed into the active editor; the viewer refreshes its setting after note updates and by polling.
+8. Editor setting changes are pushed into the active editor; viewer setting changes are applied through Joplin's normal Markdown rerender lifecycle.
 
 ## Notes
 

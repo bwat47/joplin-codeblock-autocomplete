@@ -1,11 +1,13 @@
-import { installViewerCopyButtonRenderer } from './index';
+import viewerContentScript, { installViewerCopyButtonRenderer } from './index';
 
 type MarkdownItLike = Parameters<typeof installViewerCopyButtonRenderer>[0];
 type RendererRule = NonNullable<MarkdownItLike['renderer']['rules']['fence']>;
 
 const JOPLIN_FENCE_HTML =
-    '<div class="joplin-editable"><pre class="joplin-source" data-joplin-language="ts">const value = 1;\n</pre>' +
-    '<pre class="hljs"><code><span>const value = 1;</span>\n</code></pre></div>\n';
+    '<div class="joplin-editable"><pre class="joplin-source" data-joplin-language="ts">const value = 1;</pre>' +
+    '<pre class="hljs"><code><span>const value = 1;</span></code></pre></div>\n';
+
+const COPY_WIDGET_ENABLED = () => true;
 
 function createMarkdownIt(renderedHtml: string): {
     markdownIt: MarkdownItLike;
@@ -43,7 +45,7 @@ describe('installViewerCopyButtonRenderer', () => {
         ['outer fence containing a shorter fence', { markup: '````', info: 'markdown' }],
     ])('adds one accessible copy button to a %s', (_name, token) => {
         const { markdownIt } = createMarkdownIt(JOPLIN_FENCE_HTML);
-        installViewerCopyButtonRenderer(markdownIt);
+        installViewerCopyButtonRenderer(markdownIt, COPY_WIDGET_ENABLED);
 
         const renderedHtml = renderFence(markdownIt, token);
         const document = new DOMParser().parseFromString(renderedHtml, 'text/html');
@@ -58,13 +60,31 @@ describe('installViewerCopyButtonRenderer', () => {
 
     it('preserves the existing rendered HTML and Rich Text source metadata', () => {
         const { markdownIt, defaultFenceRenderer } = createMarkdownIt(JOPLIN_FENCE_HTML);
-        installViewerCopyButtonRenderer(markdownIt);
+        installViewerCopyButtonRenderer(markdownIt, COPY_WIDGET_ENABLED);
 
         const renderedHtml = renderFence(markdownIt);
 
         expect(defaultFenceRenderer).toHaveBeenCalledOnce();
-        expect(renderedHtml).toContain('<pre class="joplin-source" data-joplin-language="ts">const value = 1;\n</pre>');
-        expect(renderedHtml).toContain('<pre class="hljs"><code><span>const value = 1;</span>\n</code></pre>');
+        expect(renderedHtml).toContain('<pre class="joplin-source" data-joplin-language="ts">const value = 1;</pre>');
+        expect(renderedHtml).toContain('<pre class="hljs"><code><span>const value = 1;</span></code></pre>');
+    });
+
+    it('returns the original fence HTML while the viewer copy widget is disabled', () => {
+        const { markdownIt } = createMarkdownIt(JOPLIN_FENCE_HTML);
+        installViewerCopyButtonRenderer(markdownIt, () => false);
+
+        expect(renderFence(markdownIt)).toBe(JOPLIN_FENCE_HTML);
+    });
+
+    it('reads the current setting on each render', () => {
+        const { markdownIt } = createMarkdownIt(JOPLIN_FENCE_HTML);
+        let enabled = false;
+        installViewerCopyButtonRenderer(markdownIt, () => enabled);
+
+        expect(renderFence(markdownIt)).toBe(JOPLIN_FENCE_HTML);
+
+        enabled = true;
+        expect(renderFence(markdownIt)).toContain('codeblock-autocomplete-viewer-copy-button');
     });
 
     it('does not modify non-code fence output or renderer rules for other code forms', () => {
@@ -81,7 +101,7 @@ describe('installViewerCopyButtonRenderer', () => {
         rules.code_inline = codeInlineRenderer;
         rules.html_block = htmlBlockRenderer;
 
-        installViewerCopyButtonRenderer(markdownIt);
+        installViewerCopyButtonRenderer(markdownIt, COPY_WIDGET_ENABLED);
 
         const renderer = { renderToken: vi.fn(() => '') };
         const fenceRenderer = markdownIt.renderer.rules.fence;
@@ -94,7 +114,7 @@ describe('installViewerCopyButtonRenderer', () => {
     it('returns the original fence HTML when the expected editable container is unavailable', () => {
         const unsupportedHtml = '<pre><code>plain renderer output</code></pre>\n';
         const { markdownIt } = createMarkdownIt(unsupportedHtml);
-        installViewerCopyButtonRenderer(markdownIt);
+        installViewerCopyButtonRenderer(markdownIt, COPY_WIDGET_ENABLED);
 
         expect(renderFence(markdownIt)).toBe(unsupportedHtml);
     });
@@ -102,11 +122,22 @@ describe('installViewerCopyButtonRenderer', () => {
     it('does not stack renderer wrappers when installed more than once', () => {
         const { markdownIt, defaultFenceRenderer } = createMarkdownIt(JOPLIN_FENCE_HTML);
 
-        installViewerCopyButtonRenderer(markdownIt);
-        installViewerCopyButtonRenderer(markdownIt);
+        installViewerCopyButtonRenderer(markdownIt, COPY_WIDGET_ENABLED);
+        installViewerCopyButtonRenderer(markdownIt, COPY_WIDGET_ENABLED);
 
         const renderedHtml = renderFence(markdownIt);
         expect(defaultFenceRenderer).toHaveBeenCalledOnce();
         expect(renderedHtml.match(/codeblock-autocomplete-viewer-copy-button/g)).toHaveLength(1);
+    });
+
+    it('reads the viewer setting through Markdown-it plugin options', () => {
+        const { markdownIt } = createMarkdownIt(JOPLIN_FENCE_HTML);
+        const settingValue = vi.fn(() => true);
+        const contentScript = viewerContentScript();
+
+        contentScript.plugin(markdownIt, { settingValue });
+        renderFence(markdownIt);
+
+        expect(settingValue).toHaveBeenCalledWith('codeblockAutocomplete.enableViewerCopyWidget');
     });
 });

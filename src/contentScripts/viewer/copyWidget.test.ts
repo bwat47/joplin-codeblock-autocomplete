@@ -5,7 +5,6 @@ type WebviewMessage = {
 
 type ViewerController = {
     destroy(): void;
-    refreshSettings(): Promise<void>;
 };
 
 type ViewerWindow = Window &
@@ -54,16 +53,9 @@ describe('viewer copy widget asset', () => {
     let controller: ViewerController | undefined;
 
     beforeEach(() => {
-        vi.useFakeTimers();
-        document.documentElement.classList.remove('codeblock-autocomplete-viewer-copy-enabled');
         document.body.innerHTML = '';
 
-        postMessage = vi.fn(async (_contentScriptId, message) => {
-            if (message.command === 'getSettings') {
-                return { enableViewerCopyWidget: true };
-            }
-            return { ok: true };
-        });
+        postMessage = vi.fn(async () => ({ ok: true }));
         Object.assign(globalThis, { webviewApi: { postMessage } });
     });
 
@@ -71,33 +63,17 @@ describe('viewer copy widget asset', () => {
         controller?.destroy();
         controller = undefined;
         delete (globalThis as { webviewApi?: unknown }).webviewApi;
-        vi.useRealTimers();
     });
 
-    it('enables and disables the widget from live settings', async () => {
+    it('does not request settings or react to note updates', async () => {
         setViewerHtml('code');
         controller = await loadViewerAsset();
 
-        expect(document.documentElement.classList.contains('codeblock-autocomplete-viewer-copy-enabled')).toBe(true);
-
-        postMessage.mockResolvedValueOnce({ enableViewerCopyWidget: false });
-        await controller.refreshSettings();
-
-        expect(document.documentElement.classList.contains('codeblock-autocomplete-viewer-copy-enabled')).toBe(false);
-    });
-
-    it('refreshes settings after a note update and on the polling interval', async () => {
-        setViewerHtml('code');
-        controller = await loadViewerAsset();
-        postMessage.mockClear();
+        expect(postMessage).not.toHaveBeenCalled();
 
         document.dispatchEvent(new Event('joplin-noteDidUpdate'));
         await Promise.resolve();
-        expect(postMessage).toHaveBeenCalledWith('codeblockAutocompleteViewer', { command: 'getSettings' });
-
-        postMessage.mockClear();
-        await vi.advanceTimersByTimeAsync(2000);
-        expect(postMessage).toHaveBeenCalledWith('codeblockAutocompleteViewer', { command: 'getSettings' });
+        expect(postMessage).not.toHaveBeenCalled();
     });
 
     it('copies source text exactly, including an intentional trailing line ending', async () => {
@@ -148,16 +124,9 @@ describe('viewer copy widget asset', () => {
         });
     });
 
-    it('does not copy while disabled or when no code source can be found', async () => {
-        const button = setViewerHtml('code');
-        postMessage.mockResolvedValueOnce({ enableViewerCopyWidget: false });
+    it('does not copy when no code source can be found', async () => {
         controller = await loadViewerAsset();
-        postMessage.mockClear();
 
-        button.click();
-        expect(postMessage).not.toHaveBeenCalled();
-
-        document.documentElement.classList.add('codeblock-autocomplete-viewer-copy-enabled');
         document.body.innerHTML = `<div class="joplin-editable">${BUTTON_HTML}</div>`;
         const sourceLessButton = document.querySelector('.codeblock-autocomplete-viewer-copy-button');
         if (!(sourceLessButton instanceof HTMLButtonElement)) throw new Error('Expected a copy button.');
@@ -165,15 +134,9 @@ describe('viewer copy widget asset', () => {
         expect(postMessage).not.toHaveBeenCalled();
     });
 
-    it('fails safely when settings and copy requests reject', async () => {
+    it('fails safely when copy requests reject', async () => {
         const button = setViewerHtml('code');
-        postMessage.mockRejectedValueOnce(new Error('settings unavailable'));
         controller = await loadViewerAsset();
-
-        expect(document.documentElement.classList.contains('codeblock-autocomplete-viewer-copy-enabled')).toBe(false);
-
-        postMessage.mockResolvedValueOnce({ enableViewerCopyWidget: true });
-        await controller.refreshSettings();
         postMessage.mockRejectedValueOnce(new Error('clipboard unavailable'));
 
         expect(() => button.click()).not.toThrow();

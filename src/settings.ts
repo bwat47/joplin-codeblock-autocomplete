@@ -3,34 +3,33 @@
  */
 import joplin from 'api';
 import { SettingItem, SettingItemType } from 'api/types';
-
-const SECTION_ID = 'codeblockAutocomplete';
+import { SETTING_KEYS, SETTINGS_SECTION_ID } from './settingsKeys';
 
 const DEFAULT_LANGUAGES =
     'bash, c, clojure, cpp, csharp, css, dart, diff, dockerfile, elixir, elm, erlang, go, groovy, haskell, html, java, javascript, json, julia, kotlin, latex, lua, makefile, markdown, objective-c, ocaml, perl, php, powershell, python, r, ruby, rust, scala, shell, sql, swift, toml, txt, typescript, xml, yaml';
 
 const SETTINGS_CONFIG = {
     enableLanguageAutocomplete: {
-        key: `${SECTION_ID}.enableLanguageAutocomplete`,
+        key: SETTING_KEYS.enableLanguageAutocomplete,
         defaultValue: true,
         label: 'Enable language auto-complete',
         description: 'Enable auto-complete dropdown for code block languages.',
     },
     enableCopyWidget: {
-        key: `${SECTION_ID}.enableCopyWidget`,
+        key: SETTING_KEYS.enableCopyWidget,
         defaultValue: false,
         label: 'Enable code block copy widget',
         description:
             'Show a copy button on fenced code blocks in the Markdown editor and hide the opening-fence language text when the cursor is not on that line.',
     },
     enableViewerCopyWidget: {
-        key: `${SECTION_ID}.enableViewerCopyWidget`,
+        key: SETTING_KEYS.enableViewerCopyWidget,
         defaultValue: false,
         label: 'Enable Markdown viewer copy widget',
         description: 'Show a copy button when hovering over fenced code blocks in the Markdown viewer.',
     },
     languages: {
-        key: `${SECTION_ID}.languages`,
+        key: SETTING_KEYS.languages,
         defaultValue: DEFAULT_LANGUAGES,
         label: 'Autocomplete languages',
         description:
@@ -42,10 +41,6 @@ export type ContentScriptSettings = {
     enableLanguageAutocomplete: boolean;
     enableCopyWidget: boolean;
     languages: string[];
-};
-
-export type ViewerContentScriptSettings = {
-    enableViewerCopyWidget: boolean;
 };
 
 const CODE_MIRROR_SETTINGS_KEYS = new Set<string>([
@@ -76,19 +71,13 @@ export async function getContentScriptSettings(): Promise<ContentScriptSettings>
     };
 }
 
-export async function getViewerContentScriptSettings(): Promise<ViewerContentScriptSettings> {
-    return {
-        enableViewerCopyWidget: await joplin.settings.value(SETTINGS_CONFIG.enableViewerCopyWidget.key),
-    };
-}
-
 export function areCodeMirrorSettingsChanged(keys: string[]): boolean {
     return keys.some((key) => CODE_MIRROR_SETTINGS_KEYS.has(key));
 }
 
 /** Registers plugin settings with Joplin */
 export async function registerSettings(): Promise<void> {
-    await joplin.settings.registerSection(SECTION_ID, {
+    await joplin.settings.registerSection(SETTINGS_SECTION_ID, {
         label: 'Codeblock Autocomplete',
         iconName: 'fas fa-code',
     });
@@ -97,7 +86,7 @@ export async function registerSettings(): Promise<void> {
         [SETTINGS_CONFIG.enableLanguageAutocomplete.key]: {
             value: SETTINGS_CONFIG.enableLanguageAutocomplete.defaultValue,
             type: SettingItemType.Bool,
-            section: SECTION_ID,
+            section: SETTINGS_SECTION_ID,
             public: true,
             label: SETTINGS_CONFIG.enableLanguageAutocomplete.label,
             description: SETTINGS_CONFIG.enableLanguageAutocomplete.description,
@@ -105,7 +94,7 @@ export async function registerSettings(): Promise<void> {
         [SETTINGS_CONFIG.enableCopyWidget.key]: {
             value: SETTINGS_CONFIG.enableCopyWidget.defaultValue,
             type: SettingItemType.Bool,
-            section: SECTION_ID,
+            section: SETTINGS_SECTION_ID,
             public: true,
             label: SETTINGS_CONFIG.enableCopyWidget.label,
             description: SETTINGS_CONFIG.enableCopyWidget.description,
@@ -113,7 +102,7 @@ export async function registerSettings(): Promise<void> {
         [SETTINGS_CONFIG.enableViewerCopyWidget.key]: {
             value: SETTINGS_CONFIG.enableViewerCopyWidget.defaultValue,
             type: SettingItemType.Bool,
-            section: SECTION_ID,
+            section: SETTINGS_SECTION_ID,
             public: true,
             label: SETTINGS_CONFIG.enableViewerCopyWidget.label,
             description: SETTINGS_CONFIG.enableViewerCopyWidget.description,
@@ -121,7 +110,7 @@ export async function registerSettings(): Promise<void> {
         [SETTINGS_CONFIG.languages.key]: {
             value: SETTINGS_CONFIG.languages.defaultValue,
             type: SettingItemType.String,
-            section: SECTION_ID,
+            section: SETTINGS_SECTION_ID,
             public: true,
             label: SETTINGS_CONFIG.languages.label,
             description: SETTINGS_CONFIG.languages.description,

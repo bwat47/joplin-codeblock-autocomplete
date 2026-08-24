@@ -6,6 +6,7 @@
  * `joplin-editable` container produced for fenced blocks.
  */
 import type { MarkdownItContentScriptModule } from 'api/types';
+import { SETTING_KEYS } from '../../settingsKeys';
 
 type MarkdownItToken = {
     tag?: string;
@@ -41,6 +42,12 @@ type InstalledRendererRule = MarkdownItRendererRule & {
     codeblockAutocompleteViewerCopy?: boolean;
 };
 
+type MarkdownItPluginOptions = {
+    settingValue(key: string): unknown;
+};
+
+type IsViewerCopyWidgetEnabled = () => boolean;
+
 const COPY_BUTTON_CLASS = 'codeblock-autocomplete-viewer-copy-button';
 const EDITABLE_CLASS_PATTERN = /class=(['"])[^'"]*\bjoplin-editable\b[^'"]*\1/;
 const OUTER_CONTAINER_CLOSE = '</div>';
@@ -65,7 +72,10 @@ function injectCopyButton(renderedHtml: string): string {
     return `${renderedHtml.slice(0, closingTagIndex)}${COPY_BUTTON_HTML}${renderedHtml.slice(closingTagIndex)}`;
 }
 
-export function installViewerCopyButtonRenderer(markdownIt: MarkdownItLike): void {
+export function installViewerCopyButtonRenderer(
+    markdownIt: MarkdownItLike,
+    isCopyWidgetEnabled: IsViewerCopyWidgetEnabled
+): void {
     const currentRenderer = markdownIt.renderer.rules.fence as InstalledRendererRule | undefined;
     if (currentRenderer?.codeblockAutocompleteViewerCopy) {
         return;
@@ -78,7 +88,7 @@ export function installViewerCopyButtonRenderer(markdownIt: MarkdownItLike): voi
 
     const viewerCopyRenderer: InstalledRendererRule = (tokens, index, options, environment, renderer) => {
         const renderedHtml = defaultRenderer(tokens, index, options, environment, renderer);
-        if (tokens[index]?.tag !== 'code') {
+        if (tokens[index]?.tag !== 'code' || !isCopyWidgetEnabled()) {
             return renderedHtml;
         }
 
@@ -91,8 +101,11 @@ export function installViewerCopyButtonRenderer(markdownIt: MarkdownItLike): voi
 
 export default function (): MarkdownItContentScriptModule {
     return {
-        plugin: (markdownIt: MarkdownItLike) => {
-            installViewerCopyButtonRenderer(markdownIt);
+        plugin: (markdownIt: MarkdownItLike, pluginOptions: MarkdownItPluginOptions) => {
+            installViewerCopyButtonRenderer(
+                markdownIt,
+                () => pluginOptions.settingValue(SETTING_KEYS.enableViewerCopyWidget) === true
+            );
         },
         assets: () => [{ name: 'copyWidget.css' }, { name: 'copyWidget.js' }],
     };
