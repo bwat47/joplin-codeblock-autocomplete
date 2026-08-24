@@ -94,6 +94,26 @@ export function areCodeMirrorSettingsChanged(keys: string[]): boolean {
     return keys.some((key) => CODE_MIRROR_SETTINGS_KEYS.has(key));
 }
 
+/**
+ * Maps a default value onto the Joplin setting type that stores it. Deriving
+ * this rather than declaring it per setting keeps the two from disagreeing.
+ */
+function settingItemType(defaultValue: SettingDefinition['defaultValue']): SettingItemType {
+    switch (typeof defaultValue) {
+        case 'boolean':
+            return SettingItemType.Bool;
+        case 'string':
+            return SettingItemType.String;
+        default: {
+            // `defaultValue` narrows to `never` here, so widening the union in
+            // `SettingDefinition` fails to compile rather than silently
+            // registering the new kind of setting as a string.
+            const unsupported: never = defaultValue;
+            throw new Error(`Unsupported setting default value: ${String(unsupported)}`);
+        }
+    }
+}
+
 /** Registers plugin settings with Joplin */
 export async function registerSettings(): Promise<void> {
     await joplin.settings.registerSection(SETTINGS_SECTION_ID, {
@@ -101,40 +121,19 @@ export async function registerSettings(): Promise<void> {
         iconName: 'fas fa-code',
     });
 
-    const settingsSpec: Record<string, SettingItem> = {
-        [SETTINGS_CONFIG.enableLanguageAutocomplete.key]: {
-            value: SETTINGS_CONFIG.enableLanguageAutocomplete.defaultValue,
-            type: SettingItemType.Bool,
-            section: SETTINGS_SECTION_ID,
-            public: true,
-            label: SETTINGS_CONFIG.enableLanguageAutocomplete.label,
-            description: SETTINGS_CONFIG.enableLanguageAutocomplete.description,
-        },
-        [SETTINGS_CONFIG.enableCopyWidget.key]: {
-            value: SETTINGS_CONFIG.enableCopyWidget.defaultValue,
-            type: SettingItemType.Bool,
-            section: SETTINGS_SECTION_ID,
-            public: true,
-            label: SETTINGS_CONFIG.enableCopyWidget.label,
-            description: SETTINGS_CONFIG.enableCopyWidget.description,
-        },
-        [SETTINGS_CONFIG.enableViewerCopyWidget.key]: {
-            value: SETTINGS_CONFIG.enableViewerCopyWidget.defaultValue,
-            type: SettingItemType.Bool,
-            section: SETTINGS_SECTION_ID,
-            public: true,
-            label: SETTINGS_CONFIG.enableViewerCopyWidget.label,
-            description: SETTINGS_CONFIG.enableViewerCopyWidget.description,
-        },
-        [SETTINGS_CONFIG.languages.key]: {
-            value: SETTINGS_CONFIG.languages.defaultValue,
-            type: SettingItemType.String,
-            section: SETTINGS_SECTION_ID,
-            public: true,
-            label: SETTINGS_CONFIG.languages.label,
-            description: SETTINGS_CONFIG.languages.description,
-        },
-    };
+    const settingsSpec: Record<string, SettingItem> = Object.fromEntries(
+        Object.values(SETTINGS_CONFIG).map((setting) => [
+            setting.key,
+            {
+                value: setting.defaultValue,
+                type: settingItemType(setting.defaultValue),
+                section: SETTINGS_SECTION_ID,
+                public: true,
+                label: setting.label,
+                description: setting.description,
+            },
+        ])
+    );
 
     await joplin.settings.registerSettings(settingsSpec);
 }
