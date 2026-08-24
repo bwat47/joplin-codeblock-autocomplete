@@ -1,7 +1,7 @@
 import { type Extension, type Range } from '@codemirror/state';
 import { Decoration, type DecorationSet, EditorView, type ViewUpdate, ViewPlugin, WidgetType } from '@codemirror/view';
 import type { SyntaxNode } from '@lezer/common';
-import { logger } from '../logger';
+import { logger } from '../../logger';
 import { getFencedCodeBlockGeometry, getFencedCodeSyntaxTree } from './fencedCodeBlock';
 import { areSettingsEqual, getPluginSettings } from './pluginSettings';
 import type { PostMessageContext } from './types';

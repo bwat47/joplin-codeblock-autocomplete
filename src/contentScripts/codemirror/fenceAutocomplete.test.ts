@@ -9,7 +9,7 @@ import {
 import { EditorSelection, EditorState, Transaction } from '@codemirror/state';
 import { applyPluginSettings, createSettingsExtension } from './pluginSettings';
 import { createCodeBlockCompleter, createFenceTriggerExtension } from './fenceAutocomplete';
-import { createEditorHarness } from '../testUtils/editorHarness';
+import { createEditorHarness } from '../../testUtils/editorHarness';
 
 const EMPTY_CLIENT_RECTS = {
     length: 0,

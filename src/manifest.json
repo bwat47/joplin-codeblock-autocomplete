@@ -5,7 +5,7 @@
     "version": "1.4.0",
     "platforms": ["desktop", "mobile"],
     "name": "Codeblock Autocomplete",
-    "description": "Code block utilities for the markdown editor: auto-completes fenced code, copy button for code blocks, toolbar button/editor command to create code blocks",
+    "description": "Code block utilities for the Markdown editor and viewer: fenced-code autocomplete and copy buttons, plus a command to create code blocks",
     "author": "bwat47",
     "homepage_url": "https://github.com/bwat47/joplin-codeblock-autocomplete",
     "repository_url": "https://github.com/bwat47/joplin-codeblock-autocomplete",
@@ -19,7 +19,7 @@
         "code fence autocomplete",
         "copy"
     ],
-    "categories": ["productivity", "developer tools", "editor"],
+    "categories": ["productivity", "developer tools", "editor", "viewer"],
     "screenshots": [{ "src": "images/screenshot1.png", "label": "Codeblock Autocomplete Screenshot 1" }],
     "icons": {
         "16": "images/16.png",

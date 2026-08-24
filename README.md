@@ -3,9 +3,10 @@
 
 # Codeblock Autocomplete
 
-Provides auto-complete when creating fenced code blocks by typing backticks/tildes in the markdown editor, plus a few other utilities:
+Provides auto-complete when creating fenced code blocks by typing backticks/tildes in the Markdown editor, plus a few other utilities:
 
-- Copy button for code blocks in the markdown editor
+- Copy button for code blocks in the Markdown editor
+- Copy button for fenced code blocks in the Markdown viewer
 - Toolbar button/Editor command to insert new code block or wrap existing text in a code block
 
 Codemirror 6 only, legacy editor is not supported.
@@ -30,11 +31,17 @@ An insert code block command is available via a formatting toolbar icon, Edit me
 
 The command supports multiple cursors and selections, and is line-aware (e.g. cursor on line with no selection > invoke command > wraps entire line in code block). Invoking it with a cursor or selection inside an existing fenced code block removes the surrounding fence lines.
 
-### Copy button
+### Markdown editor copy button
 
 If the copy widget is enabled, you will see the code fence language rendered as a clickable copy button on the top-right of the code block (when the cursor isn't on the opening fence line).
 
 Clicking the copy button will copy the code block contents to your clipboard. If the code fence doesn't have a language specified, it will display a generic "Copy" label instead of the language.
+
+### Markdown viewer copy button
+
+The Markdown viewer has a separate copy-widget setting. When enabled, hovering over a rendered fenced code block shows an icon-only copy button in its top-right corner. The button remains visible on touch devices and can also be reached with the keyboard.
+
+Clicking the button copies the fenced code contents and displays a success toast. Indented code blocks, inline code, raw HTML code blocks, and fences that Joplin renders as something other than code (Mermaid, ABC notation, Fountain) are not changed.
 
 ## Settings
 
@@ -42,4 +49,6 @@ Enable language auto-complete - Toggle the language dropdown for code fences. Wh
 
 Autocomplete languages - Comma-separated list of language identifiers to show in the autocomplete menu.
 
-Enable code block copy widget - Show a copy button on fenced code blocks in the Markdown editor and hide the opening-fence language text when the cursor is not on that line.
+Enable Markdown editor copy widget - Show a copy button on fenced code blocks in the Markdown editor and hide the opening-fence language text when the cursor is not on that line.
+
+Enable Markdown viewer copy widget - Show a copy button when hovering over fenced code blocks in the Markdown viewer.
