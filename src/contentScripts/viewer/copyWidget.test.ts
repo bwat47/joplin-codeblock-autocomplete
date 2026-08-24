@@ -24,10 +24,13 @@ const BUTTON_HTML =
  * `sourceText` is the already-escaped text Joplin puts inside `pre.joplin-source`.
  * Joplin applies `removeLastNewLine()` before writing it, so it holds the fence
  * contents minus the single newline that belongs to the closing fence.
+ *
+ * The container also carries the marker class the renderer appends whenever it
+ * injects a button.
  */
 function setViewerHtml(sourceText: string, renderedCode = sourceText, language = 'ts'): HTMLButtonElement {
     document.body.innerHTML =
-        '<div class="joplin-editable">' +
+        '<div class="joplin-editable codeblock-autocomplete-viewer-copy-container">' +
         `<pre class="joplin-source" hidden data-joplin-language="${language}" ` +
         `data-joplin-source-open="\`\`\`${language}&#10;" data-joplin-source-close="&#10;\`\`\`">${sourceText}</pre>` +
         `<pre class="hljs"><code>${renderedCode}</code></pre>` +
@@ -121,7 +124,8 @@ describe('viewer copy widget asset', () => {
 
     it('falls back to highlighted rendered code when source metadata is missing', async () => {
         document.body.innerHTML =
-            '<div class="joplin-editable"><pre class="hljs"><code>const <span>value</span> = &quot;x&quot;;</code></pre>' +
+            '<div class="joplin-editable codeblock-autocomplete-viewer-copy-container">' +
+            '<pre class="hljs"><code>const <span>value</span> = &quot;x&quot;;</code></pre>' +
             BUTTON_HTML +
             '</div>';
         const button = document.querySelector('.codeblock-autocomplete-viewer-copy-button');
@@ -156,7 +160,7 @@ describe('viewer copy widget asset', () => {
     it('does not copy when no code source can be found', async () => {
         controller = await loadViewerAsset();
 
-        document.body.innerHTML = `<div class="joplin-editable">${BUTTON_HTML}</div>`;
+        document.body.innerHTML = `<div class="joplin-editable codeblock-autocomplete-viewer-copy-container">${BUTTON_HTML}</div>`;
         const sourceLessButton = document.querySelector('.codeblock-autocomplete-viewer-copy-button');
         if (!(sourceLessButton instanceof HTMLButtonElement)) throw new Error('Expected a copy button.');
         sourceLessButton.click();

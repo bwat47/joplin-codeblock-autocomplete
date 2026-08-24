@@ -56,6 +56,26 @@ describe('installViewerCopyButtonRenderer', () => {
         expect(button?.getAttribute('title')).toBe('Copy code block');
         expect(button?.getAttribute('aria-label')).toBe('Copy code block');
         expect(button?.closest('.joplin-editable')).not.toBeNull();
+        expect(button?.closest('.codeblock-autocomplete-viewer-copy-container')).not.toBeNull();
+    });
+
+    // The stylesheet scopes `position` and the reserved `padding-right` to this
+    // class instead of matching the container structurally with `:has()`.
+    it.each([
+        ['a single-class container', '<div class="joplin-editable">', 'joplin-editable'],
+        ['a multi-class container', '<div class="fountain joplin-editable">', 'fountain joplin-editable'],
+        ['a container using single quotes', "<div class='joplin-editable'>", 'joplin-editable'],
+    ])('marks %s without dropping its existing classes', (_name, openingTag, existingClasses) => {
+        const { markdownIt } = createMarkdownIt(`${openingTag}<pre class="hljs"><code>x</code></pre></div>\n`);
+        installViewerCopyButtonRenderer(markdownIt, COPY_WIDGET_ENABLED);
+
+        const renderedHtml = renderFence(markdownIt);
+        const container = new DOMParser()
+            .parseFromString(renderedHtml, 'text/html')
+            .querySelector('.codeblock-autocomplete-viewer-copy-container');
+
+        expect(container?.className).toBe(`${existingClasses} codeblock-autocomplete-viewer-copy-container`);
+        expect(renderedHtml.match(/codeblock-autocomplete-viewer-copy-container/g)).toHaveLength(1);
     });
 
     it('preserves the existing rendered HTML and Rich Text source metadata', () => {
@@ -146,6 +166,13 @@ describe('installViewerCopyButtonRenderer', () => {
         installViewerCopyButtonRenderer(markdownIt, COPY_WIDGET_ENABLED);
 
         expect(renderFence(markdownIt, { markup: '```', info: 'mermaid' })).toBe(diagramHtml);
+    });
+
+    it('leaves the container unmarked when no button is injected', () => {
+        const { markdownIt } = createMarkdownIt(JOPLIN_FENCE_HTML);
+        installViewerCopyButtonRenderer(markdownIt, () => false);
+
+        expect(renderFence(markdownIt)).not.toContain('codeblock-autocomplete-viewer-copy-container');
     });
 
     it('does not stack renderer wrappers when installed more than once', () => {

@@ -51,6 +51,14 @@ type MarkdownItPluginOptions = {
 type IsViewerCopyWidgetEnabled = () => boolean;
 
 const COPY_BUTTON_CLASS = 'codeblock-autocomplete-viewer-copy-button';
+/**
+ * Added to the container that receives a button. The stylesheet needs to scope
+ * `position` and the reserved `padding-right` to those containers only, since
+ * Joplin reuses `joplin-editable` for diagrams and maths; marking the container
+ * here means the stylesheet does not have to rediscover that with `:has()`,
+ * which is the newest thing the viewer would otherwise depend on.
+ */
+const COPY_CONTAINER_CLASS = 'codeblock-autocomplete-viewer-copy-container';
 const EDITABLE_CLASS_PATTERN = /class=(['"])[^'"]*\bjoplin-editable\b[^'"]*\1/;
 /**
  * Joplin's own `fence` overrides (mermaid, ABC, Fountain) also emit a
@@ -79,7 +87,15 @@ function injectCopyButton(renderedHtml: string): string {
         return renderedHtml;
     }
 
-    return `${renderedHtml.slice(0, closingTagIndex)}${COPY_BUTTON_HTML}${renderedHtml.slice(closingTagIndex)}`;
+    const withButton = `${renderedHtml.slice(0, closingTagIndex)}${COPY_BUTTON_HTML}${renderedHtml.slice(closingTagIndex)}`;
+
+    // Append to the existing class list rather than rewriting it, so Joplin's
+    // own classes on the container survive. The pattern is not global, so only
+    // the outer container is marked.
+    return withButton.replace(
+        EDITABLE_CLASS_PATTERN,
+        (attribute) => `${attribute.slice(0, -1)} ${COPY_CONTAINER_CLASS}${attribute.slice(-1)}`
+    );
 }
 
 export function installViewerCopyButtonRenderer(

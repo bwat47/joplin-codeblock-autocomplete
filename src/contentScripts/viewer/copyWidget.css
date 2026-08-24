@@ -1,4 +1,9 @@
-.joplin-editable:has(> .codeblock-autocomplete-viewer-copy-button) {
+/*
+ * The renderer marks every container it puts a button into, so these rules
+ * never touch the `joplin-editable` containers Joplin also emits for diagrams
+ * and maths, and the stylesheet needs no `:has()` to tell them apart.
+ */
+.codeblock-autocomplete-viewer-copy-container {
     position: relative;
 }
 
@@ -7,7 +12,7 @@
  * only one line tall. Reserve room at the end of the line so code never runs
  * underneath the icon.
  */
-.joplin-editable:has(> .codeblock-autocomplete-viewer-copy-button) > pre:not(.joplin-source) {
+.codeblock-autocomplete-viewer-copy-container > pre:not(.joplin-source) {
     padding-right: 2em;
 }
 
@@ -27,10 +32,11 @@
      * The button is the icon: no padding and no chip behind it. Sizing in `em`
      * keeps it proportional to the viewer font, and the clamp keeps it inside
      * blocks shorter than the icon. `aspect-ratio` keeps the icon square once
-     * the height is clamped.
+     * the height is clamped; the explicit `width` is what it falls back to,
+     * because `width: auto` would collapse around an SVG sized at `100%`.
      */
     height: min(1.4em, 100%);
-    width: auto;
+    width: min(1.4em, 100%);
     aspect-ratio: 1;
     padding: 0;
     border: 0;
@@ -55,7 +61,7 @@
         opacity 0.12s ease;
 }
 
-.joplin-editable:has(> .codeblock-autocomplete-viewer-copy-button):hover > .codeblock-autocomplete-viewer-copy-button,
+.codeblock-autocomplete-viewer-copy-container:hover > .codeblock-autocomplete-viewer-copy-button,
 .codeblock-autocomplete-viewer-copy-button:focus-visible {
     opacity: 1;
 }

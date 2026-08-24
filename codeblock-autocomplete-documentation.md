@@ -93,6 +93,7 @@ src/
     - reads the viewer setting through Markdown-it's `pluginOptions.settingValue()` callback
     - injects one accessible copy button only when enabled and the rendered output is a Joplin fenced-code container
     - Joplin's own `fence` overrides (Mermaid, ABC, Fountain) also emit a `joplin-editable` container and are installed before content-script rules, so container detection alone is not enough; the renderer additionally requires a rendered `<code>` element, which only Joplin's code renderer emits
+    - appends a marker class to the container it injects into, so the stylesheet can scope its rules without `:has()`
     - exposes the viewer JavaScript and CSS assets
 - `src/contentScripts/viewer/copyWidget.js`
     - delegates button clicks through the viewer content-script message channel
@@ -100,8 +101,9 @@ src/
     - copies that text verbatim: Joplin already strips the newline belonging to the closing fence, so any newline still present is one the author wrote and must be preserved
 - `src/contentScripts/viewer/copyWidget.css`
     - provides hover, focus, touch, theme-compatible, and print behavior for the icon-only button
+    - keys off the renderer's marker class rather than `:has()`, which would otherwise be the newest feature the viewer depends on and whose absence would strand the absolutely positioned button outside its block
     - renders the button as a bare icon (no padding or chip) that greys out at rest and takes the note's text colour on hover or focus, over a `backdrop-filter` blur so a horizontally scrolled line of code does not show through it
-    - fits the icon to the block: sized in `em` (`min(1.4em, 100%)` plus `aspect-ratio: 1`) so it tracks the viewer font, with a `clamp()` top offset that centres it vertically once a block is too short for the full inset — Joplin renders fenced code with no padding, so a single-line block is only one line tall — and the rendered `pre` gets `padding-right` so code does not end underneath it
+    - fits the icon to the block: sized in `em` (`min(1.4em, 100%)` on both axes, with `aspect-ratio: 1` governing the clamped case and the explicit width as its fallback) so it tracks the viewer font, with a `clamp()` top offset that centres it vertically once a block is too short for the full inset — Joplin renders fenced code with no padding, so a single-line block is only one line tall — and the rendered `pre` gets `padding-right` so code does not end underneath it
 
 ## Main Flow
 
