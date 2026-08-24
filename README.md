@@ -49,6 +49,6 @@ Enable language auto-complete - Toggle the language dropdown for code fences. Wh
 
 Autocomplete languages - Comma-separated list of language identifiers to show in the autocomplete menu.
 
-Enable code block copy widget - Show a copy button on fenced code blocks in the Markdown editor and hide the opening-fence language text when the cursor is not on that line.
+Enable Markdown editor copy widget - Show a copy button on fenced code blocks in the Markdown editor and hide the opening-fence language text when the cursor is not on that line.
 
 Enable Markdown viewer copy widget - Show a copy button when hovering over fenced code blocks in the Markdown viewer.

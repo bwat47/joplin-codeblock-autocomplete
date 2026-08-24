@@ -34,7 +34,7 @@ const SETTINGS_CONFIG = {
     enableCopyWidget: {
         key: SETTING_KEYS.enableCopyWidget,
         defaultValue: false,
-        label: 'Enable code block copy widget',
+        label: 'Enable Markdown editor copy widget',
         description:
             'Show a copy button on fenced code blocks in the Markdown editor and hide the opening-fence language text when the cursor is not on that line.',
         target: 'editor',
