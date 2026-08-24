@@ -3,10 +3,10 @@
 
 # Codeblock Autocomplete
 
-Provides auto-complete when creating fenced code blocks by typing backticks/tildes in the Markdown editor, plus a few other utilities:
+Provides auto-complete when creating fenced code blocks by typing backticks/tildes in the Markdown editor, plus a few additional code block features:
 
 - Copy button for code blocks in the Markdown editor
-- Copy button for fenced code blocks in the Markdown viewer
+- Copy button for fenced code blocks in the Markdown viewer (and Rich Text editor)
 - Toolbar button/Editor command to insert new code block or wrap existing text in a code block
 
 Codemirror 6 only, legacy editor is not supported.
@@ -42,6 +42,11 @@ Clicking the copy button will copy the code block contents to your clipboard. If
 The Markdown viewer has a separate copy-widget setting. When enabled, hovering over a rendered fenced code block shows an icon-only copy button in its top-right corner. The button remains visible on touch devices and can also be reached with the keyboard.
 
 Clicking the button copies the fenced code contents and displays a success toast. Indented code blocks, inline code, raw HTML code blocks, and fences that Joplin renders as something other than code (Mermaid, ABC notation, Fountain) are not changed.
+
+> [!note]
+> This setting also enables a working copy button in the desktop rich text editor (TinyMCE).
+>
+> It technically works in the mobile (prosemirror) rich text editor as well, however, the prosemirror editor places its own "edit" button on the top right, so the two buttons overlap.
 
 ## Settings
 
