@@ -75,18 +75,22 @@ function parseLanguageList(languages: string): string[] {
         .filter((lang) => lang.length > 0);
 }
 
-/** Returns the current content-script settings directly from Joplin's settings store. */
+/**
+ * Returns the current content-script settings directly from Joplin's settings
+ * store. Joplin recommends `values()` over repeated `value()` calls: it reads
+ * the whole batch over a single IPC round trip.
+ */
 export async function getContentScriptSettings(): Promise<ContentScriptSettings> {
-    const [enableLanguageAutocomplete, enableCopyWidget, languages] = await Promise.all([
-        joplin.settings.value(SETTINGS_CONFIG.enableLanguageAutocomplete.key),
-        joplin.settings.value(SETTINGS_CONFIG.enableCopyWidget.key),
-        joplin.settings.value(SETTINGS_CONFIG.languages.key),
+    const values = await joplin.settings.values([
+        SETTINGS_CONFIG.enableLanguageAutocomplete.key,
+        SETTINGS_CONFIG.enableCopyWidget.key,
+        SETTINGS_CONFIG.languages.key,
     ]);
 
     return {
-        enableLanguageAutocomplete,
-        enableCopyWidget,
-        languages: parseLanguageList(languages),
+        enableLanguageAutocomplete: values[SETTINGS_CONFIG.enableLanguageAutocomplete.key] as boolean,
+        enableCopyWidget: values[SETTINGS_CONFIG.enableCopyWidget.key] as boolean,
+        languages: parseLanguageList(values[SETTINGS_CONFIG.languages.key] as string),
     };
 }
 
