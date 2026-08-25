@@ -2,7 +2,7 @@
     "manifest_version": 1,
     "id": "com.bwat47.codeblock-autocomplete",
     "app_min_version": "3.3",
-    "version": "1.5.0",
+    "version": "1.5.1",
     "platforms": ["desktop", "mobile"],
     "name": "Codeblock Autocomplete",
     "description": "Code block utilities for the Markdown editor and viewer: fenced-code autocomplete and copy buttons, plus a command to create code blocks",
