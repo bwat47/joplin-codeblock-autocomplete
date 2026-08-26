@@ -5,7 +5,7 @@
 
 Provides auto-complete when creating fenced code blocks by typing backticks/tildes in the Markdown editor, plus a few additional code block features:
 
-- Copy button for code blocks in the Markdown editor
+- Copy button for fenced code blocks in the Markdown editor
 - Copy button for fenced code blocks in the Markdown viewer (and Rich Text editor)
 - Toolbar button/Editor command to insert new code block or wrap existing text in a code block in the Markdown Editor
 
