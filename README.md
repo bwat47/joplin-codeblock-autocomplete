@@ -7,9 +7,7 @@ Provides auto-complete when creating fenced code blocks by typing backticks/tild
 
 - Copy button for code blocks in the Markdown editor
 - Copy button for fenced code blocks in the Markdown viewer (and Rich Text editor)
-- Toolbar button/Editor command to insert new code block or wrap existing text in a code block
-
-Codemirror 6 only, legacy editor is not supported.
+- Toolbar button/Editor command to insert new code block or wrap existing text in a code block in the Markdown Editor
 
 ![ex](https://github.com/bwat47/joplin-codeblock-autocomplete/blob/main/images/example.gif)
 
