@@ -42,6 +42,8 @@ If code block folding is enabled, hovering a line inside a fenced code block tha
 
 Folding is based on indentation, so it works for any language but only folds code that is indented. It applies only inside fenced code blocks. On touch devices the arrows are always visible.
 
+Folds are remembered per note on this device and restored when you reopen the note. A fold is dropped if the line it started on has since been changed or removed.
+
 ### Markdown viewer copy button
 
 The Markdown viewer has a separate copy-widget setting. When enabled, hovering over a rendered fenced code block shows an icon-only copy button in its top-right corner. The button remains visible on touch devices and can also be reached with the keyboard.

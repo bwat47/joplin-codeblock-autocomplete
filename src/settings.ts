@@ -9,11 +9,12 @@ const DEFAULT_LANGUAGES =
     'bash, c, clojure, cpp, csharp, css, dart, diff, dockerfile, elixir, elm, erlang, go, groovy, haskell, html, java, javascript, json, julia, kotlin, latex, lua, makefile, markdown, objective-c, ocaml, perl, php, powershell, python, r, ruby, rust, scala, shell, sql, swift, toml, txt, typescript, xml, yaml';
 
 /**
- * Which content script consumes a setting. The editor is pushed new values
+ * Which part of the plugin consumes a setting. The editor is pushed new values
  * explicitly on change, so it needs to know which keys concern it; the viewer
- * reads its own settings through Joplin's renderer options instead.
+ * reads its own settings through Joplin's renderer options instead. Internal
+ * settings are hidden storage owned by the main process.
  */
-type SettingTarget = 'editor' | 'viewer';
+type SettingTarget = 'editor' | 'viewer' | 'internal';
 
 type SettingDefinition = {
     key: string;
@@ -61,6 +62,13 @@ const SETTINGS_CONFIG = {
         description:
             'Comma-separated list of language identifiers to show in the autocomplete menu. The "No language" option is always shown first.',
         target: 'editor',
+    },
+    foldState: {
+        key: SETTING_KEYS.foldState,
+        defaultValue: '{}',
+        label: 'Code block fold state',
+        description: 'Internal storage for the folded code block lines of each note.',
+        target: 'internal',
     },
 } as const satisfies Record<string, SettingDefinition>;
 
@@ -143,7 +151,7 @@ export async function registerSettings(): Promise<void> {
                 value: setting.defaultValue,
                 type: settingItemType(setting.defaultValue),
                 section: SETTINGS_SECTION_ID,
-                public: true,
+                public: setting.target !== 'internal',
                 label: setting.label,
                 description: setting.description,
             },

@@ -2,11 +2,13 @@
  * CodeMirror 6 content-script composition root for code block features.
  */
 import { autocompletion } from '@codemirror/autocomplete';
-import type { Extension } from '@codemirror/state';
+import type { Extension, Facet } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
 import type { CodeMirrorControl } from 'api/types';
+import { logger } from '../../logger';
 import { createCodeFoldingExtension } from './codeFolding';
 import { copyWidgetTheme, createCopyWidgetPlugin } from './copyWidget';
+import { createFoldPersistence } from './foldPersistence';
 import { createCodeBlockCompleter, createFenceTriggerExtension, fenceAutocompleteTheme } from './fenceAutocomplete';
 import { insertCodeBlockAtCursor } from './insertCodeBlock';
 import { applyPluginSettings, createSettingsExtension, syncInitialSettings } from './pluginSettings';
@@ -31,6 +33,13 @@ export default function codeMirror6Plugin(context: PostMessageContext, CodeMirro
         completionExt = autocompletion({ override: [codeBlockCompleter] });
     }
 
+    // Joplin exposes the open note's ID from 3.3, the plugin's minimum version; without it, folds
+    // simply are not remembered between notes.
+    const noteIdFacet = CodeMirror.joplinExtensions?.noteIdFacet as Facet<string, string> | undefined;
+    if (!noteIdFacet) {
+        logger.warn('Note ID facet unavailable; code block folds will not be remembered.');
+    }
+
     CodeMirror.addExtension([
         settingsExtension,
         completionExt,
@@ -39,6 +48,7 @@ export default function codeMirror6Plugin(context: PostMessageContext, CodeMirro
         fenceAutocompleteTheme,
         createCopyWidgetPlugin(context),
         createCodeFoldingExtension(),
+        noteIdFacet ? createFoldPersistence(context, noteIdFacet) : [],
     ]);
 
     void syncInitialSettings(context, CodeMirror);

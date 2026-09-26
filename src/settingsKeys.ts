@@ -6,4 +6,5 @@ export const SETTING_KEYS = {
     enableCodeFolding: `${SETTINGS_SECTION_ID}.enableCodeFolding`,
     enableViewerCopyWidget: `${SETTINGS_SECTION_ID}.enableViewerCopyWidget`,
     languages: `${SETTINGS_SECTION_ID}.languages`,
+    foldState: `${SETTINGS_SECTION_ID}.foldState`,
 } as const;

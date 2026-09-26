@@ -5,7 +5,14 @@
 import joplin from 'api';
 import { ContentScriptType, MenuItemLocation, ToastType, ToolbarButtonLocation } from 'api/types';
 import { logger } from './logger';
-import { INSERT_CODE_BLOCK_COMMAND, UPDATE_SETTINGS_COMMAND } from './contentScripts/codemirror/types';
+import { normalizeSerializedFolds, type SerializedFold } from './contentScripts/codemirror/foldSerialization';
+import {
+    GET_FOLD_STATE_COMMAND,
+    INSERT_CODE_BLOCK_COMMAND,
+    SAVE_FOLD_STATE_COMMAND,
+    UPDATE_SETTINGS_COMMAND,
+} from './contentScripts/codemirror/types';
+import { FoldStateStore } from './foldStateStore';
 import { areCodeMirrorSettingsChanged, getContentScriptSettings, registerSettings } from './settings';
 
 const CODE_MIRROR_CONTENT_SCRIPT_ID = 'codeBlockCompleter';
@@ -13,8 +20,12 @@ const VIEWER_CONTENT_SCRIPT_ID = 'codeblockAutocompleteViewer';
 const INSERT_CODE_BLOCK_TOOLBAR_COMMAND = 'insertCodeblockAutocompleteToolbarBlock';
 const INSERT_CODE_BLOCK_MENU_ITEM_ID = 'insertCodeblockAutocompleteEditMenuItem';
 const INSERT_CODE_BLOCK_TOOLBAR_BUTTON_ID = 'insertCodeblockAutocompleteToolbarButton';
+/** Delay before checking stored fold state for deleted notes, to keep it off the startup path. */
+const FOLD_STATE_SWEEP_DELAY_MS = 10_000;
 
-type ContentScriptMessage = { command: string; text?: unknown };
+type ContentScriptMessage = { command: string; text?: unknown; noteId?: unknown; folds?: unknown };
+
+const foldStateStore = new FoldStateStore();
 
 type CopyCodeBlockResult = {
     ok: boolean;
@@ -49,6 +60,25 @@ async function copyCodeBlock(text: unknown): Promise<CopyCodeBlockResult> {
     return { ok: true };
 }
 
+function getFoldState(noteId: unknown): SerializedFold[] {
+    if (typeof noteId !== 'string' || noteId === '') {
+        logger.warn('Ignoring a fold state request without a note ID.');
+        return [];
+    }
+
+    return foldStateStore.getFolds(noteId);
+}
+
+function saveFoldState(noteId: unknown, rawFolds: unknown): void {
+    const folds = normalizeSerializedFolds(rawFolds);
+    if (typeof noteId !== 'string' || noteId === '' || !folds) {
+        logger.warn('Ignoring invalid fold state from the editor.');
+        return;
+    }
+
+    foldStateStore.setFolds(noteId, folds);
+}
+
 async function handleCodeMirrorMessage(rawMessage: unknown): Promise<unknown> {
     const message = normalizeContentScriptMessage(rawMessage);
     if (!message) {
@@ -60,6 +90,13 @@ async function handleCodeMirrorMessage(rawMessage: unknown): Promise<unknown> {
     }
     if (message.command === 'copyCodeBlock') {
         return copyCodeBlock(message.text);
+    }
+    if (message.command === GET_FOLD_STATE_COMMAND) {
+        return getFoldState(message.noteId);
+    }
+    if (message.command === SAVE_FOLD_STATE_COMMAND) {
+        saveFoldState(message.noteId, message.folds);
+        return null;
     }
 
     return null;
@@ -92,6 +129,8 @@ async function insertCodeBlockInEditor(): Promise<void> {
 joplin.plugins.register({
     onStart: async function () {
         await registerSettings();
+        await foldStateStore.load();
+        setTimeout(() => void foldStateStore.sweepDeletedNotes(), FOLD_STATE_SWEEP_DELAY_MS);
 
         await joplin.contentScripts.register(
             ContentScriptType.CodeMirrorPlugin,

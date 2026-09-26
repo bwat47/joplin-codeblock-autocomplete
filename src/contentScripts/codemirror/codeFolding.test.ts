@@ -2,7 +2,7 @@ import { markdown } from '@codemirror/lang-markdown';
 import { foldedRanges } from '@codemirror/language';
 import type { EditorView } from '@codemirror/view';
 import { createEditorHarness, type EditorHarness } from '../../testUtils/editorHarness';
-import { createCodeFoldingExtension } from './codeFolding';
+import { createCodeFoldingExtension, resolveFoldableLine } from './codeFolding';
 import { applyPluginSettings, createSettingsExtension } from './pluginSettings';
 
 type FoldRange = { from: number; to: number };
@@ -142,5 +142,37 @@ describe('code block folding', () => {
         expect(getMarkers(view)).toHaveLength(0);
         expect(view.dom.querySelector('.cm-codeblock-fold-line')).toBeNull();
         expect(getFolds(view)).toEqual([]);
+    });
+});
+
+describe('resolveFoldableLine', () => {
+    const doc = ['- item', '    indented list text', '```js', 'function f() {', '    return 1;', '}', '```'].join('\n');
+
+    it('resolves the fold for a foldable content line', () => {
+        const view = createFoldingEditor(doc);
+        expect(resolveFoldableLine(view.state, 4)).toEqual({
+            complete: true,
+            line: { from: lineEnd(view, 4), to: lineEnd(view, 5) },
+        });
+    });
+
+    it.each([
+        ['indented text outside code blocks', 1],
+        ['an opening fence line', 3],
+        ['a content line that cannot fold', 5],
+        ['a closing fence line', 7],
+    ])('returns no fold for %s', (_description, lineNumber) => {
+        const view = createFoldingEditor(doc);
+        expect(resolveFoldableLine(view.state, lineNumber)).toEqual({ complete: true, line: null });
+    });
+
+    it('resolves content lines of a block inside a list item', () => {
+        const view = createFoldingEditor(['- ```js', '  if (x) {', '      y();', '  }', '  ```'].join('\n'));
+        expect(resolveFoldableLine(view.state, 2).line).toEqual({ from: lineEnd(view, 2), to: lineEnd(view, 3) });
+    });
+
+    it('resolves content lines of a block inside a blockquote', () => {
+        const view = createFoldingEditor(['> ```py', '> def f():', '>     return 1', '> ```'].join('\n'));
+        expect(resolveFoldableLine(view.state, 2).line).toEqual({ from: lineEnd(view, 2), to: lineEnd(view, 3) });
     });
 });

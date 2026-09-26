@@ -30,14 +30,18 @@ describe('areCodeMirrorSettingsChanged', () => {
      * editor key set from `SETTINGS_CONFIG.target` is what keeps a newly added
      * editor setting from silently failing to reach the open editor.
      */
-    it('classifies every registered setting as either editor or viewer', async () => {
+    it('classifies every registered setting as editor, viewer, or internal', async () => {
         const registeredKeys = Object.keys(await getRegisteredSettingsSpec());
+        const nonEditorKeys: string[] = [SETTING_KEYS.enableViewerCopyWidget, SETTING_KEYS.foldState];
 
         expect(registeredKeys.length).toBeGreaterThan(0);
         for (const key of registeredKeys) {
-            const isViewerSetting = key === SETTING_KEYS.enableViewerCopyWidget;
-            expect(areCodeMirrorSettingsChanged([key])).toBe(!isViewerSetting);
+            expect(areCodeMirrorSettingsChanged([key])).toBe(!nonEditorKeys.includes(key));
         }
+    });
+
+    it('ignores the internal fold state, which only the main process uses', () => {
+        expect(areCodeMirrorSettingsChanged([SETTING_KEYS.foldState])).toBe(false);
     });
 
     it('ignores the viewer setting, which the renderer reads for itself', () => {
@@ -55,7 +59,7 @@ describe('areCodeMirrorSettingsChanged', () => {
 });
 
 describe('registerSettings', () => {
-    it('registers every configured setting as public in the plugin section', async () => {
+    it('registers every configured setting in the plugin section, hiding internal ones', async () => {
         const spec = await getRegisteredSettingsSpec();
 
         expect(Object.keys(spec)).toEqual([
@@ -64,10 +68,11 @@ describe('registerSettings', () => {
             SETTING_KEYS.enableCodeFolding,
             SETTING_KEYS.enableViewerCopyWidget,
             SETTING_KEYS.languages,
+            SETTING_KEYS.foldState,
         ]);
-        for (const item of Object.values(spec)) {
+        for (const [key, item] of Object.entries(spec)) {
             expect(item.section).toBe(SETTINGS_SECTION_ID);
-            expect(item.public).toBe(true);
+            expect(item.public).toBe(key !== SETTING_KEYS.foldState);
             expect(item.label).toBeTruthy();
             expect(item.description).toBeTruthy();
         }

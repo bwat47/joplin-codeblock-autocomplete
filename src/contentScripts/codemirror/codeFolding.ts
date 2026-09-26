@@ -87,10 +87,60 @@ function getIndentLength(text: string): number {
     return index === -1 ? text.length : index;
 }
 
+type CodeBlockContent = {
+    firstLine: number;
+    lastLine: number;
+    blockquoteDepth: number;
+    /** Reads a content line by its index within the block, blockquote markers removed. */
+    getLine: (index: number) => string | undefined;
+};
+
+/** Describes a fenced code block's content lines, or returns `null` when it has none. */
+function getCodeBlockContent(state: EditorState, fencedCodeNode: SyntaxNode): CodeBlockContent | null {
+    const { doc } = state;
+    const { contentFrom, contentTo } = getFencedCodeBlockGeometry(state, fencedCodeNode);
+    if (contentTo <= contentFrom) {
+        return null;
+    }
+
+    const firstLine = doc.lineAt(contentFrom).number;
+    const lastLine = doc.lineAt(contentTo).number;
+    const blockquoteDepth = getBlockquoteDepth(fencedCodeNode);
+    return {
+        firstLine,
+        lastLine,
+        blockquoteDepth,
+        getLine: (index) => {
+            const lineNumber = firstLine + index;
+            return lineNumber <= lastLine
+                ? stripBlockquoteMarkers(doc.line(lineNumber).text, blockquoteDepth)
+                : undefined;
+        },
+    };
+}
+
+/**
+ * Computes the fold starting at a content line of the given block. A fold runs from the end of its
+ * first line to the end of its last line, so the first line stays visible.
+ */
+function computeFoldableLine(state: EditorState, block: CodeBlockContent, lineNumber: number): FoldableLine | null {
+    const end = findIndentFoldEnd(block.getLine, lineNumber - block.firstLine, state.tabSize);
+    if (end === null) {
+        return null;
+    }
+
+    const line = state.doc.line(lineNumber);
+    const content = stripBlockquoteMarkers(line.text, block.blockquoteDepth);
+    return {
+        from: line.to,
+        to: state.doc.line(block.firstLine + end).to,
+        markerPos: line.from + (line.text.length - content.length) + getIndentLength(content),
+    };
+}
+
 /**
  * Finds the visible lines of the fenced code blocks within the viewport, and every foldable
- * content line among them keyed by the line's start offset. A fold runs from the end of its first
- * line to the end of its last line, so the first line stays visible.
+ * content line among them keyed by the line's start offset.
  */
 function findViewportCodeBlocks(view: EditorView): ViewportCodeBlocks {
     const { state } = view;
@@ -110,38 +160,22 @@ function findViewportCodeBlocks(view: EditorView): ViewportCodeBlocks {
                 return undefined;
             }
 
-            const { blockTo, contentFrom, contentTo, openingLineFrom } = getFencedCodeBlockGeometry(state, node.node);
+            const { blockTo, openingLineFrom } = getFencedCodeBlockGeometry(state, node.node);
             const blockLast = Math.min(doc.lineAt(blockTo).number, viewportLastLine);
             for (let n = Math.max(doc.lineAt(openingLineFrom).number, viewportFirstLine); n <= blockLast; n++) {
                 blockLineFroms.push(doc.line(n).from);
             }
 
-            if (contentTo <= contentFrom) {
+            const block = getCodeBlockContent(state, node.node);
+            if (!block) {
                 return false;
             }
 
-            const firstLine = doc.lineAt(contentFrom).number;
-            const lastLine = doc.lineAt(contentTo).number;
-            const blockquoteDepth = getBlockquoteDepth(node.node);
-            const getLine = (index: number): string | undefined => {
-                const lineNumber = firstLine + index;
-                return lineNumber <= lastLine
-                    ? stripBlockquoteMarkers(doc.line(lineNumber).text, blockquoteDepth)
-                    : undefined;
-            };
-
-            const visibleFirst = Math.max(firstLine, viewportFirstLine);
-            const visibleLast = Math.min(lastLine, viewportLastLine);
-            for (let lineNumber = visibleFirst; lineNumber <= visibleLast; lineNumber++) {
-                const end = findIndentFoldEnd(getLine, lineNumber - firstLine, state.tabSize);
-                if (end !== null) {
-                    const line = doc.line(lineNumber);
-                    const content = stripBlockquoteMarkers(line.text, blockquoteDepth);
-                    foldableLines.set(line.from, {
-                        from: line.to,
-                        to: doc.line(firstLine + end).to,
-                        markerPos: line.from + (line.text.length - content.length) + getIndentLength(content),
-                    });
+            const visibleLast = Math.min(block.lastLine, viewportLastLine);
+            for (let n = Math.max(block.firstLine, viewportFirstLine); n <= visibleLast; n++) {
+                const foldableLine = computeFoldableLine(state, block, n);
+                if (foldableLine) {
+                    foldableLines.set(doc.line(n).from, foldableLine);
                 }
             }
 
@@ -152,8 +186,43 @@ function findViewportCodeBlocks(view: EditorView): ViewportCodeBlocks {
     return { blockLineFroms, foldableLines };
 }
 
+export type ResolvedFoldableLine = {
+    /** Whether the syntax tree covered the line; when false, `line` is not meaningful yet. */
+    complete: boolean;
+    line: FoldRange | null;
+};
+
+/**
+ * Resolves the fold that would start at the given line, for restoring saved folds. Only content
+ * lines of fenced code blocks can fold; fence lines and lines outside code blocks resolve to `null`.
+ */
+export function resolveFoldableLine(state: EditorState, lineNumber: number): ResolvedFoldableLine {
+    const line = state.doc.line(lineNumber);
+    const { complete, tree } = getFencedCodeSyntaxTree(state, line.to);
+    if (!complete) {
+        return { complete: false, line: null };
+    }
+
+    // A fenced block's range is contiguous, so its node covers the start of every line it spans,
+    // including blockquote markers and list indentation on its content lines.
+    let block: CodeBlockContent | null = null;
+    for (let node: SyntaxNode | null = tree.resolveInner(line.from, 1); node; node = node.parent) {
+        if (node.name === 'FencedCode') {
+            block = getCodeBlockContent(state, node);
+            break;
+        }
+    }
+
+    if (!block || lineNumber < block.firstLine || lineNumber > block.lastLine) {
+        return { complete: true, line: null };
+    }
+
+    const foldableLine = computeFoldableLine(state, block, lineNumber);
+    return { complete: true, line: foldableLine && { from: foldableLine.from, to: foldableLine.to } };
+}
+
 /** Returns the folded range that starts at the end of the given line, if any. */
-function findFoldAtLine(state: EditorState, lineFrom: number): FoldRange | null {
+function findFoldedRangeAtLine(state: EditorState, lineFrom: number): FoldRange | null {
     const lineTo = state.doc.lineAt(lineFrom).to;
     let found: FoldRange | null = null;
     foldedRanges(state).between(lineTo, lineTo, (from, to) => {
@@ -262,7 +331,7 @@ const foldMarkerPlugin = ViewPlugin.fromClass(FoldMarkerPlugin, {
 });
 
 function toggleFoldAtLine(view: EditorView, lineFrom: number): void {
-    const folded = findFoldAtLine(view.state, lineFrom);
+    const folded = findFoldedRangeAtLine(view.state, lineFrom);
     if (folded) {
         view.dispatch({ effects: unfoldEffect.of(folded) });
         return;

@@ -9,7 +9,8 @@ This plugin adds fenced-code-block utilities to Joplin's CodeMirror 6 editor and
 - Main plugin process:
     - registers plugin settings and both content scripts
     - registers the insert-code-block command with Edit menu and editor toolbar entry points
-    - responds to editor/viewer messages for settings hydration and clipboard copy
+    - responds to editor/viewer messages for settings hydration, clipboard copy, and code block fold state
+    - keeps each note's code block folds in a hidden setting and sweeps out entries for deleted notes after startup
     - pushes updated settings into the active editor when Joplin settings change
 - CodeMirror content script:
     - installs the editor extensions used by the plugin
@@ -17,7 +18,7 @@ This plugin adds fenced-code-block utilities to Joplin's CodeMirror 6 editor and
     - provides fenced code block autocomplete behavior
     - provides the insert-code-block editor command
     - provides the optional copy widget decoration layer
-    - provides optional indentation folding inside fenced code blocks
+    - provides optional indentation folding inside fenced code blocks, remembered per note
 - Markdown viewer content script:
     - extends only Markdown-it's fenced-code renderer while preserving Joplin's existing rendered HTML
     - reads the viewer setting through Joplin's renderer options and injects the optional icon-only copy button into Joplin's fenced-code container
@@ -28,6 +29,7 @@ This plugin adds fenced-code-block utilities to Joplin's CodeMirror 6 editor and
 ```text
 src/
 ├── index.ts
+├── foldStateStore.ts
 ├── settings.ts
 ├── settingsKeys.ts
 └── contentScripts/
@@ -41,6 +43,8 @@ src/
     │   ├── copyWidget.ts
     │   ├── codeFolding.ts
     │   ├── indentFold.ts
+    │   ├── foldPersistence.ts
+    │   ├── foldSerialization.ts
     │   └── types.ts
     └── viewer/
         ├── index.ts
@@ -57,7 +61,13 @@ src/
     - wires Joplin registration, toolbar integration, message handling, and settings updates
 - `src/settings.ts`
     - defines and registers plugin settings
+    - each setting has a target: `editor` settings are pushed to the open editor on change, `viewer` settings are read by the renderer, and `internal` settings are hidden storage that change handlers ignore
     - returns the settings payload for the editor content script
+- `src/foldStateStore.ts`
+    - holds each note's saved code block folds in memory and writes them, after a short delay, to the hidden `foldState` setting as JSON (local to the device, works on mobile)
+    - an empty fold list removes the note's entry; a note cap evicting the least recently updated entries is only a backstop
+    - `sweepDeletedNotes` runs shortly after startup and removes entries whose note lookup fails with not-found; trashed notes still resolve and keep their entry, and other lookup errors keep it too
+    - not-found is recognised by a 404 code or a "not found" message, because only the message is guaranteed to survive the IPC hop from Joplin's `ErrorNotFound`
 - `src/settingsKeys.ts`
     - defines shared plugin setting keys without importing the main-process Joplin API
 
@@ -89,6 +99,7 @@ src/
 - `src/contentScripts/codemirror/codeFolding.ts`
     - folds indented lines inside fenced code blocks only; headings, lists, and whole fences are never made foldable
     - the whole feature (CodeMirror's `codeFolding()` fold state, marker plugin, theme) lives in one compartment; `pluginSettings.ts` reconfigures it in the same transaction that applies settings, so disabling drops existing folds along with the fold state
+    - viewport scanning and `resolveFoldableLine` (used to restore saved folds for a single line) share the same per-block helpers, so both compute identical fold ranges
     - `codeFolding()` is installed without config so it cannot conflict with another fold configuration in the editor; the placeholder keeps CodeMirror's default style
     - arrows are zero-width inline widgets placed just before each foldable line's first character (after blockquote markers and indent), with the icon positioned absolutely to the left so line text never shifts; every visible code block line (fences included) gets a `cm-codeblock-fold-line` class with extra left padding, so unindented lines' arrows sit inside the code block's background rather than in the editor margin
     - a marker `ViewPlugin` caches fold ranges for the viewport's code blocks (rebuilt on doc, viewport, or syntax tree changes) and rebuilds its widget decorations from that cache when fold state changes
@@ -96,6 +107,14 @@ src/
     - inside a blockquote, exactly as many `>` markers as the block's blockquote depth are stripped before measuring indent, so code that starts with `>` in an ordinary block is left alone
 - `src/contentScripts/codemirror/indentFold.ts`
     - pure indentation fold-range function with no editor dependency; reads lines through an accessor so large blocks are not copied
+- `src/contentScripts/codemirror/foldPersistence.ts`
+    - saves and restores the open note's folds through `getFoldState`/`saveFoldState` messages, keyed by Joplin's note ID facet (registered only when the facet exists)
+    - Joplin reuses one editor and swaps notes, and applies sync changes to the open note, by replacing the whole document, which drops every fold; folds are therefore read from the transaction's start state at those moments, and never saved from them
+    - a saved fold is its starting line's number and text; restoring uses that line if the text matches, otherwise the nearest line within 50 lines with that text, and recomputes the fold end from indentation via `resolveFoldableLine`
+    - restoring waits for a later syntax tree when a line is not parsed yet; once resolved, folds that no longer fit are dropped and the cleaned list saved, which is how stale folds clean themselves up
+    - saves are delayed, skipped when unchanged, and never sent before the note's saved folds have loaded; replies for a note that is no longer open are ignored
+- `src/contentScripts/codemirror/foldSerialization.ts`
+    - the saved fold type with validation and comparison helpers, shared by the editor and the main process without depending on CodeMirror
 - `src/contentScripts/codemirror/types.ts`
     - shared content-script message and command types
 
@@ -128,6 +147,7 @@ src/
 6. The viewer content script reads its independent setting from Joplin's renderer options and injects buttons only for enabled Markdown-it fence tokens.
 7. Copy actions from either content script use the main process's clipboard helper and success toast.
 8. Editor setting changes are pushed into the active editor; viewer setting changes are applied through Joplin's normal Markdown rerender lifecycle.
+9. With code block folding enabled, the editor requests the open note's saved folds when the note is shown and sends its folds back to the main process when they change or the note is left.
 
 ## Notes
 
