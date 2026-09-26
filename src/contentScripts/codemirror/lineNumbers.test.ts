@@ -1,4 +1,6 @@
 import { markdown } from '@codemirror/lang-markdown';
+import { Compartment } from '@codemirror/state';
+import { EditorView } from '@codemirror/view';
 import { createEditorHarness, type EditorHarness } from '../../testUtils/editorHarness';
 import { createLineNumbersPlugin, lineNumbersTheme } from './lineNumbers';
 import { applyPluginSettings, createSettingsExtension } from './pluginSettings';
@@ -15,6 +17,12 @@ function createHarness(doc: string, enableLineNumbers = true): EditorHarness {
     });
     setLineNumbersEnabled(harness, enableLineNumbers);
     return harness;
+}
+
+function getNumbers(harness: EditorHarness): string[] {
+    return getRenderedLines(harness)
+        .map((line) => line.number)
+        .filter((number) => number !== null);
 }
 
 function setLineNumbersEnabled(harness: EditorHarness, enableLineNumbers: boolean): void {
@@ -57,10 +65,7 @@ describe('createLineNumbersPlugin', () => {
         const harness = createHarness('```\na\nb\n```\n\n```\nc\n```');
 
         try {
-            const numbers = getRenderedLines(harness)
-                .map((line) => line.number)
-                .filter((number) => number !== null);
-            expect(numbers).toEqual(['1', '2', '1']);
+            expect(getNumbers(harness)).toEqual(['1', '2', '1']);
         } finally {
             harness.destroy();
         }
@@ -123,6 +128,45 @@ describe('createLineNumbersPlugin', () => {
 
             setLineNumbersEnabled(harness, false);
             expect(harness.view.contentDOM.querySelector('.cm-codeblock-line-numbers')).toBeNull();
+        } finally {
+            harness.destroy();
+        }
+    });
+
+    it('numbers newly visible lines by their position in the block when scrolled', () => {
+        const content = Array.from({ length: 5000 }, (_, index) => `line ${index + 1}`).join('\n');
+        const harness = createHarness(`\`\`\`\n${content}\n\`\`\``);
+
+        try {
+            expect(getNumbers(harness)).not.toContain('3999');
+
+            // Scrolling only changes the viewport, so the rebuild must not depend on a doc change.
+            const target = harness.view.state.doc.line(4000).from;
+            harness.view.dispatch({ effects: EditorView.scrollIntoView(target, { y: 'start' }) });
+
+            const numbers = getNumbers(harness);
+            expect(numbers).toContain('3999');
+            expect(numbers).not.toContain('1');
+            expect(numbers.map(Number)).toEqual(numbers.map((_, index) => Number(numbers[0]) + index));
+        } finally {
+            harness.destroy();
+        }
+    });
+
+    it('renumbers when the syntax tree is replaced without a doc change', () => {
+        // Swapping in the language replaces the tree without editing the doc, the same
+        // condition a background parse catching up produces.
+        const language = new Compartment();
+        const harness = createEditorHarness('```\na\n```', {
+            extensions: [language.of([]), createSettingsExtension(), lineNumbersTheme, createLineNumbersPlugin()],
+        });
+
+        try {
+            setLineNumbersEnabled(harness, true);
+            expect(getNumbers(harness)).toEqual([]);
+
+            harness.view.dispatch({ effects: language.reconfigure(markdown()) });
+            expect(getNumbers(harness)).toEqual(['1']);
         } finally {
             harness.destroy();
         }
