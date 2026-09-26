@@ -17,6 +17,7 @@ This plugin adds fenced-code-block utilities to Joplin's CodeMirror 6 editor and
     - provides fenced code block autocomplete behavior
     - provides the insert-code-block editor command
     - provides the optional copy widget decoration layer
+    - provides the optional code block line-number decoration layer
 - Markdown viewer content script:
     - extends only Markdown-it's fenced-code renderer while preserving Joplin's existing rendered HTML
     - reads the viewer setting through Joplin's renderer options and injects the optional icon-only copy button into Joplin's fenced-code container
@@ -38,6 +39,7 @@ src/
     │   ├── fencedCodeBlock.ts
     │   ├── insertCodeBlock.ts
     │   ├── copyWidget.ts
+    │   ├── lineNumbers.ts
     │   └── types.ts
     └── viewer/
         ├── index.ts
@@ -83,6 +85,12 @@ src/
     - tracks visible fenced code blocks for the optional copy button
     - separates structural block discovery from selection-driven presentation updates
     - resolves copied text from the current editor state when the button is clicked
+- `src/contentScripts/codemirror/lineNumbers.ts`
+    - decorates the visible lines of fenced code blocks with a line class; content lines also carry their 1-based number in a data attribute that a `::before` pseudo-element renders
+    - numbers come from the block's geometry, so a block starting above the viewport still shows its true numbers; only lines inside the visible ranges are decorated
+    - reserves the number column with a transparent `border-left`, never `padding-left`: CodeMirror's selection layer reads `padding-left` (and negative `text-indent`) from the first rendered `.cm-line` and applies it to every full-line selection rectangle, and other extensions (wrapped-line hanging indents) own those properties
+    - the gutter width follows the block's widest number through a per-line CSS custom property
+    - rebuilds on doc, viewport, and setting changes, and when a background parse replaces the syntax tree
 - `src/contentScripts/codemirror/types.ts`
     - shared content-script message and command types
 

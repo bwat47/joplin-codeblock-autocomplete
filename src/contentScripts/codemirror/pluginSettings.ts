@@ -7,6 +7,7 @@ import type { PluginSettingsResponse, PostMessageContext } from './types';
 const DEFAULT_SETTINGS: PluginSettingsResponse = {
     enableLanguageAutocomplete: true,
     enableCopyWidget: false,
+    enableLineNumbers: false,
     languages: [],
 };
 
@@ -26,11 +27,13 @@ function normalizeSettings(value: unknown): PluginSettingsResponse {
         typeof value === 'object' &&
         typeof (value as PluginSettingsResponse).enableLanguageAutocomplete === 'boolean' &&
         typeof (value as PluginSettingsResponse).enableCopyWidget === 'boolean' &&
+        typeof (value as PluginSettingsResponse).enableLineNumbers === 'boolean' &&
         Array.isArray((value as PluginSettingsResponse).languages)
     ) {
         return {
             enableLanguageAutocomplete: (value as PluginSettingsResponse).enableLanguageAutocomplete,
             enableCopyWidget: (value as PluginSettingsResponse).enableCopyWidget,
+            enableLineNumbers: (value as PluginSettingsResponse).enableLineNumbers,
             languages: (value as PluginSettingsResponse).languages
                 .filter((language): language is string => typeof language === 'string')
                 .map((language) => language.trim())
@@ -45,6 +48,7 @@ export function areSettingsEqual(a: PluginSettingsResponse, b: PluginSettingsRes
     return (
         a.enableLanguageAutocomplete === b.enableLanguageAutocomplete &&
         a.enableCopyWidget === b.enableCopyWidget &&
+        a.enableLineNumbers === b.enableLineNumbers &&
         a.languages.length === b.languages.length &&
         a.languages.every((language, index) => language === b.languages[index])
     );

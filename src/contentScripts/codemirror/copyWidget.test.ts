@@ -60,6 +60,7 @@ describe('createCopyWidgetPlugin', () => {
             applyPluginSettings(harness.view, {
                 enableLanguageAutocomplete: true,
                 enableCopyWidget: true,
+                enableLineNumbers: false,
                 languages: [],
             });
 
@@ -84,6 +85,7 @@ describe('createCopyWidgetPlugin', () => {
             applyPluginSettings(harness.view, {
                 enableLanguageAutocomplete: true,
                 enableCopyWidget: true,
+                enableLineNumbers: false,
                 languages: [],
             });
 
@@ -115,6 +117,7 @@ describe('createCopyWidgetPlugin', () => {
             applyPluginSettings(harness.view, {
                 enableLanguageAutocomplete: true,
                 enableCopyWidget: true,
+                enableLineNumbers: false,
                 languages: [],
             });
 
@@ -145,6 +148,7 @@ describe('createCopyWidgetPlugin', () => {
             applyPluginSettings(harness.view, {
                 enableLanguageAutocomplete: true,
                 enableCopyWidget: true,
+                enableLineNumbers: false,
                 languages: [],
             });
 
@@ -177,6 +181,7 @@ describe('createCopyWidgetPlugin', () => {
             applyPluginSettings(harness.view, {
                 enableLanguageAutocomplete: true,
                 enableCopyWidget: true,
+                enableLineNumbers: false,
                 languages: [],
             });
 
@@ -224,6 +229,7 @@ describe('createCopyWidgetPlugin', () => {
             applyPluginSettings(harness.view, {
                 enableLanguageAutocomplete: true,
                 enableCopyWidget: true,
+                enableLineNumbers: false,
                 languages: [],
             });
 
