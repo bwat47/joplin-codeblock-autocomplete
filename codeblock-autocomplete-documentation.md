@@ -62,6 +62,7 @@ src/
 - `src/settings.ts`
     - defines and registers plugin settings
     - each setting has a target: `editor` settings are pushed to the open editor on change, `viewer` settings are read by the renderer, and `internal` settings are hidden storage that change handlers ignore
+    - `desktopOnly` settings (code block folding) are hidden on mobile and reported to the editor as off there, even if a value was stored before they were hidden; the platform comes from `joplin.versionInfo()` and is looked up once
     - returns the settings payload for the editor content script
 - `src/foldStateStore.ts`
     - holds each note's saved code block folds in memory and writes them, after a short delay, to the hidden `foldState` setting as JSON (local to the device, works on mobile)

@@ -6,10 +6,13 @@ const joplinMock = vi.hoisted(() => ({
         registerSection: vi.fn(async () => {}),
         registerSettings: vi.fn<(spec: Record<string, SettingItem>) => Promise<void>>(async () => {}),
         value: vi.fn(async () => ''),
+        values: vi.fn<(keys: string[]) => Promise<Record<string, unknown>>>(async () => ({})),
     },
+    versionInfo: vi.fn(async () => ({ platform: 'desktop' })),
 }));
 
 vi.mock('api', () => ({ default: joplinMock }));
+vi.mock('./logger', () => ({ logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() } }));
 
 import { areCodeMirrorSettingsChanged, registerSettings } from './settings';
 import { SETTING_KEYS, SETTINGS_SECTION_ID } from './settingsKeys';
@@ -92,5 +95,47 @@ describe('registerSettings', () => {
         expect(spec[SETTING_KEYS.enableViewerCopyWidget]).toMatchObject({ type: SettingItemType.Bool, value: false });
         expect(spec[SETTING_KEYS.languages]).toMatchObject({ type: SettingItemType.String });
         expect(spec[SETTING_KEYS.languages].value).toContain('typescript');
+    });
+});
+
+describe('desktop-only settings', () => {
+    /** The platform is looked up once per module, so each platform needs a freshly loaded module. */
+    async function loadSettingsFor(platform: 'desktop' | 'mobile'): Promise<typeof import('./settings')> {
+        vi.resetModules();
+        joplinMock.versionInfo.mockResolvedValue({ platform });
+        return import('./settings');
+    }
+
+    async function registeredFoldingSetting(platform: 'desktop' | 'mobile'): Promise<SettingItem> {
+        const settings = await loadSettingsFor(platform);
+        joplinMock.settings.registerSettings.mockClear();
+        await settings.registerSettings();
+        const spec = joplinMock.settings.registerSettings.mock.calls[0]?.[0];
+        if (!spec) throw new Error('Expected registerSettings to receive a settings spec.');
+        return spec[SETTING_KEYS.enableCodeFolding];
+    }
+
+    async function codeFoldingEnabledOn(platform: 'desktop' | 'mobile'): Promise<boolean> {
+        const settings = await loadSettingsFor(platform);
+        joplinMock.settings.values.mockResolvedValue({
+            [SETTING_KEYS.enableLanguageAutocomplete]: true,
+            [SETTING_KEYS.enableCopyWidget]: false,
+            [SETTING_KEYS.enableCodeFolding]: true,
+            [SETTING_KEYS.languages]: 'js',
+        });
+        return (await settings.getContentScriptSettings()).enableCodeFolding;
+    }
+
+    it('shows code block folding on desktop', async () => {
+        expect((await registeredFoldingSetting('desktop')).public).toBe(true);
+    });
+
+    it('hides code block folding on mobile', async () => {
+        expect((await registeredFoldingSetting('mobile')).public).toBe(false);
+    });
+
+    it('keeps code block folding off on mobile even when it was enabled before', async () => {
+        expect(await codeFoldingEnabledOn('desktop')).toBe(true);
+        expect(await codeFoldingEnabledOn('mobile')).toBe(false);
     });
 });

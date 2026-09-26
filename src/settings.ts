@@ -3,6 +3,7 @@
  */
 import joplin from 'api';
 import { SettingItem, SettingItemType } from 'api/types';
+import { logger } from './logger';
 import { SETTING_KEYS, SETTINGS_SECTION_ID } from './settingsKeys';
 
 const DEFAULT_LANGUAGES =
@@ -22,6 +23,8 @@ type SettingDefinition = {
     label: string;
     description: string;
     target: SettingTarget;
+    /** Hidden and treated as off on mobile, where the feature does not work reliably. */
+    desktopOnly?: boolean;
 };
 
 const SETTINGS_CONFIG = {
@@ -47,6 +50,7 @@ const SETTINGS_CONFIG = {
         description:
             'Show a fold arrow at the indentation of a line inside a fenced code block when hovering it, to fold the lines indented beneath it.',
         target: 'editor',
+        desktopOnly: true,
     },
     enableViewerCopyWidget: {
         key: SETTING_KEYS.enableViewerCopyWidget,
@@ -92,12 +96,27 @@ function parseLanguageList(languages: string): string[] {
         .filter((lang) => lang.length > 0);
 }
 
+let mobilePlatform: Promise<boolean> | null = null;
+
+/** Whether the plugin is running in Joplin mobile. Looked up once, since the platform cannot change. */
+function isMobilePlatform(): Promise<boolean> {
+    mobilePlatform ??= joplin
+        .versionInfo()
+        .then((info) => info.platform === 'mobile')
+        .catch((error: unknown) => {
+            logger.warn('Could not determine the Joplin platform; assuming desktop.', error);
+            return false;
+        });
+    return mobilePlatform;
+}
+
 /**
  * Returns the current content-script settings directly from Joplin's settings
  * store. Joplin recommends `values()` over repeated `value()` calls: it reads
  * the whole batch over a single IPC round trip.
  */
 export async function getContentScriptSettings(): Promise<ContentScriptSettings> {
+    const isMobile = await isMobilePlatform();
     const values = await joplin.settings.values([
         SETTINGS_CONFIG.enableLanguageAutocomplete.key,
         SETTINGS_CONFIG.enableCopyWidget.key,
@@ -108,7 +127,8 @@ export async function getContentScriptSettings(): Promise<ContentScriptSettings>
     return {
         enableLanguageAutocomplete: values[SETTINGS_CONFIG.enableLanguageAutocomplete.key] as boolean,
         enableCopyWidget: values[SETTINGS_CONFIG.enableCopyWidget.key] as boolean,
-        enableCodeFolding: values[SETTINGS_CONFIG.enableCodeFolding.key] as boolean,
+        // A value stored before the setting was hidden on mobile must not keep folding enabled there.
+        enableCodeFolding: !isMobile && (values[SETTINGS_CONFIG.enableCodeFolding.key] as boolean),
         languages: parseLanguageList(values[SETTINGS_CONFIG.languages.key] as string),
     };
 }
@@ -144,6 +164,10 @@ export async function registerSettings(): Promise<void> {
         iconName: 'fas fa-code',
     });
 
+    const isMobile = await isMobilePlatform();
+    const isPublic = (setting: SettingDefinition): boolean =>
+        setting.target !== 'internal' && !(isMobile && setting.desktopOnly);
+
     const settingsSpec: Record<string, SettingItem> = Object.fromEntries(
         Object.values(SETTINGS_CONFIG).map((setting) => [
             setting.key,
@@ -151,7 +175,7 @@ export async function registerSettings(): Promise<void> {
                 value: setting.defaultValue,
                 type: settingItemType(setting.defaultValue),
                 section: SETTINGS_SECTION_ID,
-                public: setting.target !== 'internal',
+                public: isPublic(setting),
                 label: setting.label,
                 description: setting.description,
             },

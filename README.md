@@ -40,7 +40,7 @@ Clicking the copy button will copy the code block contents to your clipboard. If
 
 If code block folding is enabled, hovering a line inside a fenced code block that has lines indented beneath it shows a fold arrow just before the line's first character, at its indentation level. Clicking the arrow folds the lines indented beneath that line (for example a function body), leaving the closing line such as `}` visible. Click the arrow or the `…` placeholder to unfold.
 
-Folding is based on indentation, so it works for any language but only folds code that is indented. It applies only inside fenced code blocks. On touch devices the arrows are always visible.
+Folding is based on indentation, so it works for any language but only folds code that is indented. It applies only inside fenced code blocks. Code block folding is available in Joplin desktop only.
 
 Folds are remembered per note on this device and restored when you reopen the note. A fold is dropped if the line it started on has since been changed or removed.
 
