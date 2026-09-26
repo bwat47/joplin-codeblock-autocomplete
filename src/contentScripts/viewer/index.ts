@@ -1,13 +1,14 @@
 /**
- * Markdown viewer integration for fenced-code copy buttons.
+ * Markdown viewer integration for fenced-code copy buttons and line numbers.
  *
  * The existing fence renderer remains responsible for all code rendering and
- * Rich Text metadata. This plugin only inserts a button into the outer
+ * Rich Text metadata. This plugin adds optional decorations to the outer
  * `joplin-editable` container produced for fenced blocks that actually render
  * code, leaving Joplin's other `fence` overrides (mermaid, ABC, Fountain)
  * untouched.
  */
 import type { MarkdownItContentScriptModule } from 'api/types';
+import { markLineNumberContainer } from './viewerLineNumbers';
 import { SETTING_KEYS } from '../../settingsKeys';
 
 type MarkdownItToken = {
@@ -41,7 +42,7 @@ type MarkdownItLike = {
 };
 
 type InstalledRendererRule = MarkdownItRendererRule & {
-    codeblockAutocompleteViewerCopy?: boolean;
+    codeblockAutocompleteViewerFeatures?: boolean;
 };
 
 type MarkdownItPluginOptions = {
@@ -98,12 +99,13 @@ function injectCopyButton(renderedHtml: string): string {
     );
 }
 
-export function installViewerCopyButtonRenderer(
+export function installViewerCodeBlockRenderer(
     markdownIt: MarkdownItLike,
-    isCopyWidgetEnabled: IsViewerCopyWidgetEnabled
+    isCopyWidgetEnabled: IsViewerCopyWidgetEnabled,
+    isLineNumbersEnabled: () => boolean = () => false
 ): void {
     const currentRenderer = markdownIt.renderer.rules.fence as InstalledRendererRule | undefined;
-    if (currentRenderer?.codeblockAutocompleteViewerCopy) {
+    if (currentRenderer?.codeblockAutocompleteViewerFeatures) {
         return;
     }
 
@@ -112,27 +114,34 @@ export function installViewerCopyButtonRenderer(
         ((tokens, index, options, environment, renderer) =>
             renderer.renderToken(tokens, index, options, environment, renderer));
 
-    const viewerCopyRenderer: InstalledRendererRule = (tokens, index, options, environment, renderer) => {
+    const viewerRenderer: InstalledRendererRule = (tokens, index, options, environment, renderer) => {
         const renderedHtml = defaultRenderer(tokens, index, options, environment, renderer);
-        if (tokens[index]?.tag !== 'code' || !isCopyWidgetEnabled()) {
+        if (tokens[index]?.tag !== 'code') {
             return renderedHtml;
         }
 
-        return injectCopyButton(renderedHtml);
+        const withNumbers = isLineNumbersEnabled() ? markLineNumberContainer(renderedHtml) : renderedHtml;
+        return isCopyWidgetEnabled() ? injectCopyButton(withNumbers) : withNumbers;
     };
-    viewerCopyRenderer.codeblockAutocompleteViewerCopy = true;
+    viewerRenderer.codeblockAutocompleteViewerFeatures = true;
 
-    markdownIt.renderer.rules.fence = viewerCopyRenderer;
+    markdownIt.renderer.rules.fence = viewerRenderer;
 }
 
 export default function (): MarkdownItContentScriptModule {
     return {
         plugin: (markdownIt: MarkdownItLike, pluginOptions: MarkdownItPluginOptions) => {
-            installViewerCopyButtonRenderer(
+            installViewerCodeBlockRenderer(
                 markdownIt,
-                () => pluginOptions.settingValue(SETTING_KEYS.enableViewerCopyWidget) === true
+                () => pluginOptions.settingValue(SETTING_KEYS.enableViewerCopyWidget) === true,
+                () => pluginOptions.settingValue(SETTING_KEYS.enableViewerLineNumbers) === true
             );
         },
-        assets: () => [{ name: 'copyWidget.css' }, { name: 'copyWidget.js' }],
+        assets: () => [
+            { name: 'copyWidget.css' },
+            { name: 'copyWidget.js' },
+            { name: 'lineNumbers.css' },
+            { name: 'lineNumbers.js' },
+        ],
     };
 }

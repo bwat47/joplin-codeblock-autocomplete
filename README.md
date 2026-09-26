@@ -39,6 +39,10 @@ Clicking the copy button will copy the code block contents to your clipboard. If
 
 If line numbers are enabled, each line inside a fenced code block in the Markdown editor is numbered, starting from 1 on the line after the opening fence. The fence lines are shifted to stay aligned with the code but are not numbered.
 
+### Markdown viewer line numbers
+
+Enable the viewer line-number setting to number each logical line of fenced code, starting from 1 for each block. Highlighting is preserved, and copying code excludes the numbers. This setting is independent of editor line numbers and viewer copy buttons. Diagram blocks are not numbered.
+
 ### Markdown viewer copy button
 
 The Markdown viewer has a separate copy-widget setting. When enabled, hovering over a rendered fenced code block shows an icon-only copy button in its top-right corner. The button remains visible on touch devices and can also be reached with the keyboard.
@@ -61,3 +65,5 @@ Enable Markdown editor copy widget - Show a copy button on fenced code blocks in
 Show line numbers in Markdown editor code blocks - Number the lines inside fenced code blocks in the Markdown editor.
 
 Enable Markdown viewer copy widget - Show a copy button when hovering over fenced code blocks in the Markdown viewer.
+
+Show line numbers in Markdown viewer code blocks - Number the lines inside fenced code blocks in the Markdown viewer.
