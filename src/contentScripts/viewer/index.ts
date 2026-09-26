@@ -50,7 +50,7 @@ type MarkdownItPluginOptions = {
     settingValue(key: string): unknown;
 };
 
-type IsViewerCopyWidgetEnabled = () => boolean;
+type IsViewerFeatureEnabled = () => boolean;
 
 const COPY_BUTTON_CLASS = 'codeblock-autocomplete-viewer-copy-button';
 /**
@@ -87,8 +87,8 @@ function injectCopyButton(renderedHtml: string): string {
 
 export function installViewerCodeBlockRenderer(
     markdownIt: MarkdownItLike,
-    isCopyWidgetEnabled: IsViewerCopyWidgetEnabled,
-    isLineNumbersEnabled: () => boolean = () => false
+    isCopyWidgetEnabled: IsViewerFeatureEnabled,
+    isLineNumbersEnabled: IsViewerFeatureEnabled
 ): void {
     const currentRenderer = markdownIt.renderer.rules.fence as InstalledRendererRule | undefined;
     if (currentRenderer?.codeblockAutocompleteViewerFeatures) {

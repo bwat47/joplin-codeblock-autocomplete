@@ -45,7 +45,7 @@ describe('installViewerCodeBlockRenderer', () => {
         ['outer fence containing a shorter fence', { markup: '````', info: 'markdown' }],
     ])('adds one accessible copy button to a %s', (_name, token) => {
         const { markdownIt } = createMarkdownIt(JOPLIN_FENCE_HTML);
-        installViewerCodeBlockRenderer(markdownIt, COPY_WIDGET_ENABLED);
+        installViewerCodeBlockRenderer(markdownIt, COPY_WIDGET_ENABLED, () => false);
 
         const renderedHtml = renderFence(markdownIt, token);
         const document = new DOMParser().parseFromString(renderedHtml, 'text/html');
@@ -67,7 +67,7 @@ describe('installViewerCodeBlockRenderer', () => {
         ['a container using single quotes', "<div class='joplin-editable'>", 'joplin-editable'],
     ])('marks %s without dropping its existing classes', (_name, openingTag, existingClasses) => {
         const { markdownIt } = createMarkdownIt(`${openingTag}<pre class="hljs"><code>x</code></pre></div>\n`);
-        installViewerCodeBlockRenderer(markdownIt, COPY_WIDGET_ENABLED);
+        installViewerCodeBlockRenderer(markdownIt, COPY_WIDGET_ENABLED, () => false);
 
         const renderedHtml = renderFence(markdownIt);
         const container = new DOMParser()
@@ -80,7 +80,7 @@ describe('installViewerCodeBlockRenderer', () => {
 
     it('preserves the existing rendered HTML and Rich Text source metadata', () => {
         const { markdownIt, defaultFenceRenderer } = createMarkdownIt(JOPLIN_FENCE_HTML);
-        installViewerCodeBlockRenderer(markdownIt, COPY_WIDGET_ENABLED);
+        installViewerCodeBlockRenderer(markdownIt, COPY_WIDGET_ENABLED, () => false);
 
         const renderedHtml = renderFence(markdownIt);
 
@@ -91,7 +91,11 @@ describe('installViewerCodeBlockRenderer', () => {
 
     it('returns the original fence HTML while the viewer copy widget is disabled', () => {
         const { markdownIt } = createMarkdownIt(JOPLIN_FENCE_HTML);
-        installViewerCodeBlockRenderer(markdownIt, () => false);
+        installViewerCodeBlockRenderer(
+            markdownIt,
+            () => false,
+            () => false
+        );
 
         expect(renderFence(markdownIt)).toBe(JOPLIN_FENCE_HTML);
     });
@@ -99,7 +103,11 @@ describe('installViewerCodeBlockRenderer', () => {
     it('reads the current setting on each render', () => {
         const { markdownIt } = createMarkdownIt(JOPLIN_FENCE_HTML);
         let enabled = false;
-        installViewerCodeBlockRenderer(markdownIt, () => enabled);
+        installViewerCodeBlockRenderer(
+            markdownIt,
+            () => enabled,
+            () => false
+        );
 
         expect(renderFence(markdownIt)).toBe(JOPLIN_FENCE_HTML);
 
@@ -121,7 +129,7 @@ describe('installViewerCodeBlockRenderer', () => {
         rules.code_inline = codeInlineRenderer;
         rules.html_block = htmlBlockRenderer;
 
-        installViewerCodeBlockRenderer(markdownIt, COPY_WIDGET_ENABLED);
+        installViewerCodeBlockRenderer(markdownIt, COPY_WIDGET_ENABLED, () => false);
 
         const renderer = { renderToken: vi.fn(() => '') };
         const fenceRenderer = markdownIt.renderer.rules.fence;
@@ -134,7 +142,7 @@ describe('installViewerCodeBlockRenderer', () => {
     it('returns the original fence HTML when the expected editable container is unavailable', () => {
         const unsupportedHtml = '<pre><code>plain renderer output</code></pre>\n';
         const { markdownIt } = createMarkdownIt(unsupportedHtml);
-        installViewerCodeBlockRenderer(markdownIt, COPY_WIDGET_ENABLED);
+        installViewerCodeBlockRenderer(markdownIt, COPY_WIDGET_ENABLED, () => false);
 
         expect(renderFence(markdownIt)).toBe(unsupportedHtml);
     });
@@ -163,7 +171,7 @@ describe('installViewerCodeBlockRenderer', () => {
         ],
     ])('returns the original fence HTML for a %s', (_name, diagramHtml) => {
         const { markdownIt } = createMarkdownIt(diagramHtml);
-        installViewerCodeBlockRenderer(markdownIt, COPY_WIDGET_ENABLED);
+        installViewerCodeBlockRenderer(markdownIt, COPY_WIDGET_ENABLED, () => false);
 
         expect(renderFence(markdownIt, { markup: '```', info: 'mermaid' })).toBe(diagramHtml);
         const numbered = createMarkdownIt(diagramHtml).markdownIt;
@@ -173,7 +181,11 @@ describe('installViewerCodeBlockRenderer', () => {
 
     it('leaves the container unmarked when no button is injected', () => {
         const { markdownIt } = createMarkdownIt(JOPLIN_FENCE_HTML);
-        installViewerCodeBlockRenderer(markdownIt, () => false);
+        installViewerCodeBlockRenderer(
+            markdownIt,
+            () => false,
+            () => false
+        );
 
         expect(renderFence(markdownIt)).not.toContain('codeblock-autocomplete-viewer-copy-container');
     });
@@ -181,8 +193,8 @@ describe('installViewerCodeBlockRenderer', () => {
     it('does not stack renderer wrappers when installed more than once', () => {
         const { markdownIt, defaultFenceRenderer } = createMarkdownIt(JOPLIN_FENCE_HTML);
 
-        installViewerCodeBlockRenderer(markdownIt, COPY_WIDGET_ENABLED);
-        installViewerCodeBlockRenderer(markdownIt, COPY_WIDGET_ENABLED);
+        installViewerCodeBlockRenderer(markdownIt, COPY_WIDGET_ENABLED, () => false);
+        installViewerCodeBlockRenderer(markdownIt, COPY_WIDGET_ENABLED, () => false);
 
         const renderedHtml = renderFence(markdownIt);
         expect(defaultFenceRenderer).toHaveBeenCalledOnce();
