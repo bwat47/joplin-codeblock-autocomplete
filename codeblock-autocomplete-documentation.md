@@ -45,6 +45,7 @@ src/
         ├── index.ts
         ├── copyWidget.js
         ├── copyWidget.css
+        ├── codeContainer.ts
         ├── viewerLineNumbers.ts
         ├── lineNumbers.js
         └── lineNumbers.css
@@ -103,9 +104,12 @@ src/
     - wraps the existing Markdown-it `fence` renderer and leaves all other renderer rules unchanged
     - reads the viewer settings through Markdown-it's `pluginOptions.settingValue()` callback
     - injects one accessible copy button only when enabled and the rendered output is a Joplin fenced-code container
-    - Joplin's own `fence` overrides (Mermaid, ABC, Fountain) also emit a `joplin-editable` container and are installed before content-script rules, so container detection alone is not enough; the renderer additionally requires a rendered `<code>` element, which only Joplin's code renderer emits
     - appends a marker class to the container it injects into, so the stylesheet can scope its rules without `:has()`
     - exposes the viewer JavaScript and CSS assets
+- `src/contentScripts/viewer/codeContainer.ts`
+    - the single check for whether fence output is a rendered code container, shared by copy buttons and line numbers
+    - Joplin's own `fence` overrides (Mermaid, ABC, Fountain) also emit a `joplin-editable` container and are installed before content-script rules, so container detection alone is not enough; the check additionally requires a rendered `<code>` element, which only Joplin's code renderer emits
+    - appends marker classes to the outer container's existing class list
 - `src/contentScripts/viewer/viewerLineNumbers.ts`
     - marks eligible rendered code containers when the independent viewer line-number setting is enabled
 - `src/contentScripts/viewer/lineNumbers.js`
