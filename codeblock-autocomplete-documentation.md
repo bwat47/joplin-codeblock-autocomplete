@@ -17,6 +17,7 @@ This plugin adds fenced-code-block utilities to Joplin's CodeMirror 6 editor and
     - provides fenced code block autocomplete behavior
     - provides the insert-code-block editor command
     - provides the optional copy widget decoration layer
+    - provides optional indentation folding inside fenced code blocks
 - Markdown viewer content script:
     - extends only Markdown-it's fenced-code renderer while preserving Joplin's existing rendered HTML
     - reads the viewer setting through Joplin's renderer options and injects the optional icon-only copy button into Joplin's fenced-code container
@@ -38,6 +39,8 @@ src/
     │   ├── fencedCodeBlock.ts
     │   ├── insertCodeBlock.ts
     │   ├── copyWidget.ts
+    │   ├── codeFolding.ts
+    │   ├── indentFold.ts
     │   └── types.ts
     └── viewer/
         ├── index.ts
@@ -83,6 +86,16 @@ src/
     - tracks visible fenced code blocks for the optional copy button
     - separates structural block discovery from selection-driven presentation updates
     - resolves copied text from the current editor state when the button is clicked
+- `src/contentScripts/codemirror/codeFolding.ts`
+    - folds indented lines inside fenced code blocks only; headings, lists, and whole fences are never made foldable
+    - the whole feature (CodeMirror's `codeFolding()` fold state, marker plugin, theme) lives in one compartment; `pluginSettings.ts` reconfigures it in the same transaction that applies settings, so disabling drops existing folds along with the fold state
+    - `codeFolding()` is installed without config so it cannot conflict with another fold configuration in the editor; the placeholder keeps CodeMirror's default style
+    - arrows are zero-width inline widgets placed just before each foldable line's first character (after blockquote markers and indent), with the icon positioned absolutely to the left so line text never shifts; unindented lines put the icon in the code block's left padding
+    - a marker `ViewPlugin` caches fold ranges for the viewport's code blocks (rebuilt on doc, viewport, or syntax tree changes) and rebuilds its widget decorations from that cache when fold state changes
+    - hover visibility is pure CSS (`.cm-line:hover`) because the widget sits inside the line; arrows always show on folded lines and on devices without hover
+    - inside a blockquote, exactly as many `>` markers as the block's blockquote depth are stripped before measuring indent, so code that starts with `>` in an ordinary block is left alone
+- `src/contentScripts/codemirror/indentFold.ts`
+    - pure indentation fold-range function with no editor dependency; reads lines through an accessor so large blocks are not copied
 - `src/contentScripts/codemirror/types.ts`
     - shared content-script message and command types
 
@@ -111,7 +124,7 @@ src/
 2. The plugin registers settings, the CodeMirror and Markdown viewer content scripts, the Edit menu item, and the toolbar button.
 3. The CodeMirror content script loads `src/contentScripts/codemirror/codeMirror6Plugin.ts` for CodeMirror 6 editors.
 4. The CodeMirror content script requests current settings from the main process and stores them in editor state.
-5. Editor features read from that shared state for autocomplete, code block insertion, and the optional editor copy widget.
+5. Editor features read from that shared state for autocomplete, code block insertion, and the optional editor copy widget; code block folding is switched on and off through its own compartment when settings are applied.
 6. The viewer content script reads its independent setting from Joplin's renderer options and injects buttons only for enabled Markdown-it fence tokens.
 7. Copy actions from either content script use the main process's clipboard helper and success toast.
 8. Editor setting changes are pushed into the active editor; viewer setting changes are applied through Joplin's normal Markdown rerender lifecycle.

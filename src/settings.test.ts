@@ -61,6 +61,7 @@ describe('registerSettings', () => {
         expect(Object.keys(spec)).toEqual([
             SETTING_KEYS.enableLanguageAutocomplete,
             SETTING_KEYS.enableCopyWidget,
+            SETTING_KEYS.enableCodeFolding,
             SETTING_KEYS.enableViewerCopyWidget,
             SETTING_KEYS.languages,
         ]);
@@ -82,6 +83,7 @@ describe('registerSettings', () => {
             value: true,
         });
         expect(spec[SETTING_KEYS.enableCopyWidget]).toMatchObject({ type: SettingItemType.Bool, value: false });
+        expect(spec[SETTING_KEYS.enableCodeFolding]).toMatchObject({ type: SettingItemType.Bool, value: false });
         expect(spec[SETTING_KEYS.enableViewerCopyWidget]).toMatchObject({ type: SettingItemType.Bool, value: false });
         expect(spec[SETTING_KEYS.languages]).toMatchObject({ type: SettingItemType.String });
         expect(spec[SETTING_KEYS.languages].value).toContain('typescript');

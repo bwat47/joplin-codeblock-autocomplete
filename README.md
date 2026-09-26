@@ -6,6 +6,7 @@
 Provides auto-complete when creating fenced code blocks by typing backticks/tildes in the Markdown editor, plus a few additional code block features:
 
 - Copy button for fenced code blocks in the Markdown editor
+- Indentation-based folding inside fenced code blocks in the Markdown editor
 - Copy button for fenced code blocks in the Markdown viewer (and Rich Text editor)
 - Toolbar button/Editor command to insert new code block or wrap existing text in a code block in the Markdown Editor
 
@@ -34,6 +35,12 @@ The command supports multiple cursors and selections, and is line-aware (e.g. cu
 If the copy widget is enabled, you will see the code fence language rendered as a clickable copy button on the top-right of the code block (when the cursor isn't on the opening fence line).
 
 Clicking the copy button will copy the code block contents to your clipboard. If the code fence doesn't have a language specified, it will display a generic "Copy" label instead of the language.
+
+### Markdown editor code block folding
+
+If code block folding is enabled, hovering a line inside a fenced code block that has lines indented beneath it shows a fold arrow just before the line's first character, at its indentation level. Clicking the arrow folds the lines indented beneath that line (for example a function body), leaving the closing line such as `}` visible. Click the arrow or the `…` placeholder to unfold.
+
+Folding is based on indentation, so it works for any language but only folds code that is indented. It applies only inside fenced code blocks. On touch devices the arrows are always visible.
 
 ### Markdown viewer copy button
 

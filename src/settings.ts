@@ -39,6 +39,14 @@ const SETTINGS_CONFIG = {
             'Show a copy button on fenced code blocks in the Markdown editor and hide the opening-fence language text when the cursor is not on that line.',
         target: 'editor',
     },
+    enableCodeFolding: {
+        key: SETTING_KEYS.enableCodeFolding,
+        defaultValue: false,
+        label: 'Enable Markdown editor code block folding',
+        description:
+            'Show a fold arrow at the indentation of a line inside a fenced code block when hovering it, to fold the lines indented beneath it.',
+        target: 'editor',
+    },
     enableViewerCopyWidget: {
         key: SETTING_KEYS.enableViewerCopyWidget,
         defaultValue: false,
@@ -59,6 +67,7 @@ const SETTINGS_CONFIG = {
 export type ContentScriptSettings = {
     enableLanguageAutocomplete: boolean;
     enableCopyWidget: boolean;
+    enableCodeFolding: boolean;
     languages: string[];
 };
 
@@ -84,12 +93,14 @@ export async function getContentScriptSettings(): Promise<ContentScriptSettings>
     const values = await joplin.settings.values([
         SETTINGS_CONFIG.enableLanguageAutocomplete.key,
         SETTINGS_CONFIG.enableCopyWidget.key,
+        SETTINGS_CONFIG.enableCodeFolding.key,
         SETTINGS_CONFIG.languages.key,
     ]);
 
     return {
         enableLanguageAutocomplete: values[SETTINGS_CONFIG.enableLanguageAutocomplete.key] as boolean,
         enableCopyWidget: values[SETTINGS_CONFIG.enableCopyWidget.key] as boolean,
+        enableCodeFolding: values[SETTINGS_CONFIG.enableCodeFolding.key] as boolean,
         languages: parseLanguageList(values[SETTINGS_CONFIG.languages.key] as string),
     };
 }
