@@ -1,6 +1,6 @@
 /**
- * Codeblock Autocomplete plugin entry point.
- * Provides language autocompletion when typing ``` in the markdown editor.
+ * Codeblock Utils plugin entry point.
+ * Adds fenced code block autocomplete, insertion, copying, and line numbers.
  */
 import joplin from 'api';
 import { ContentScriptType, MenuItemLocation, ToastType, ToolbarButtonLocation } from 'api/types';

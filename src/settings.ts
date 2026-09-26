@@ -138,7 +138,7 @@ function settingItemType(defaultValue: SettingDefinition['defaultValue']): Setti
 /** Registers plugin settings with Joplin */
 export async function registerSettings(): Promise<void> {
     await joplin.settings.registerSection(SETTINGS_SECTION_ID, {
-        label: 'Codeblock Autocomplete',
+        label: 'Codeblock Utils',
         iconName: 'fas fa-code',
     });
 

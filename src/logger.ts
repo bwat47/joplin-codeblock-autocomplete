@@ -5,7 +5,7 @@
  * `setDebug` method to enable verbose output.
  */
 
-const PREFIX = '[Codeblock Autocomplete]';
+const PREFIX = '[Codeblock Utils]';
 
 let debugEnabled = false;
 

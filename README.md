@@ -1,13 +1,15 @@
 > [!note]
 > This plugin was created entirely with AI tools
 
-# Codeblock Autocomplete
+# Codeblock Utils
 
-Provides auto-complete when creating fenced code blocks by typing backticks/tildes in the Markdown editor, plus a few additional code block features:
+Codeblock Utils adds tools for working with fenced code blocks in Joplin:
 
+- Language autocomplete when typing backticks or tildes in the Markdown editor
 - Copy button for fenced code blocks in the Markdown editor
 - Copy button for fenced code blocks in the Markdown viewer (and Rich Text editor)
-- Toolbar button/Editor command to insert new code block or wrap existing text in a code block in the Markdown Editor
+- Optional line numbers for fenced code blocks in the Markdown editor and viewer
+- Toolbar button, Edit menu command, and keyboard shortcut to insert, wrap, or unwrap code blocks in the Markdown editor
 
 ![ex](https://github.com/bwat47/joplin-codeblock-autocomplete/blob/main/images/example.gif)
 

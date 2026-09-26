@@ -1,8 +1,10 @@
-# Codeblock Autocomplete Architecture
+# Codeblock Utils Architecture
 
 ## Purpose
 
 This plugin adds fenced-code-block utilities to Joplin's CodeMirror 6 editor and Markdown viewer. The feature set is split between the main plugin process and editor/viewer content scripts.
+
+The display name is Codeblock Utils. The package name (`joplin-plugin-codeblock-autocomplete`) and manifest ID (`com.bwat47.codeblock-autocomplete`) remain unchanged to preserve plugin updates. Existing settings keys and runtime identifiers also retain their original names for compatibility.
 
 ## Runtime Layout
 
