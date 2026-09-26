@@ -1,13 +1,15 @@
 /**
- * Markdown viewer integration for fenced-code copy buttons.
+ * Markdown viewer integration for fenced-code copy buttons and line numbers.
  *
  * The existing fence renderer remains responsible for all code rendering and
- * Rich Text metadata. This plugin only inserts a button into the outer
+ * Rich Text metadata. This plugin adds optional decorations to the outer
  * `joplin-editable` container produced for fenced blocks that actually render
  * code, leaving Joplin's other `fence` overrides (mermaid, ABC, Fountain)
  * untouched.
  */
 import type { MarkdownItContentScriptModule } from 'api/types';
+import { addContainerClass, isRenderedCodeContainer } from './codeContainer';
+import { markLineNumberContainer } from './viewerLineNumbers';
 import { SETTING_KEYS } from '../../settingsKeys';
 
 type MarkdownItToken = {
@@ -41,14 +43,14 @@ type MarkdownItLike = {
 };
 
 type InstalledRendererRule = MarkdownItRendererRule & {
-    codeblockAutocompleteViewerCopy?: boolean;
+    codeblockAutocompleteViewerFeatures?: boolean;
 };
 
 type MarkdownItPluginOptions = {
     settingValue(key: string): unknown;
 };
 
-type IsViewerCopyWidgetEnabled = () => boolean;
+type IsViewerFeatureEnabled = () => boolean;
 
 const COPY_BUTTON_CLASS = 'codeblock-autocomplete-viewer-copy-button';
 /**
@@ -59,15 +61,6 @@ const COPY_BUTTON_CLASS = 'codeblock-autocomplete-viewer-copy-button';
  * which is the newest thing the viewer would otherwise depend on.
  */
 const COPY_CONTAINER_CLASS = 'codeblock-autocomplete-viewer-copy-container';
-const EDITABLE_CLASS_PATTERN = /class=(['"])[^'"]*\bjoplin-editable\b[^'"]*\1/;
-/**
- * Joplin's own `fence` overrides (mermaid, ABC, Fountain) also emit a
- * `joplin-editable` container, so the container alone does not identify a code
- * block. Only Joplin's code renderer wraps its output in `<code>`, and none of
- * the diagram renderers do, so require a rendered `<code>` element as well.
- * Matches `<code>` and `<code class="...">` but not `<codesomething>`.
- */
-const RENDERED_CODE_PATTERN = /<code[\s/>]/;
 const OUTER_CONTAINER_CLOSE = '</div>';
 
 const COPY_BUTTON_HTML = `<button type="button" class="${COPY_BUTTON_CLASS}" title="Copy code block" aria-label="Copy code block">
@@ -78,7 +71,7 @@ const COPY_BUTTON_HTML = `<button type="button" class="${COPY_BUTTON_CLASS}" tit
 </button>`;
 
 function injectCopyButton(renderedHtml: string): string {
-    if (!EDITABLE_CLASS_PATTERN.test(renderedHtml) || !RENDERED_CODE_PATTERN.test(renderedHtml)) {
+    if (!isRenderedCodeContainer(renderedHtml)) {
         return renderedHtml;
     }
 
@@ -89,21 +82,16 @@ function injectCopyButton(renderedHtml: string): string {
 
     const withButton = `${renderedHtml.slice(0, closingTagIndex)}${COPY_BUTTON_HTML}${renderedHtml.slice(closingTagIndex)}`;
 
-    // Append to the existing class list rather than rewriting it, so Joplin's
-    // own classes on the container survive. The pattern is not global, so only
-    // the outer container is marked.
-    return withButton.replace(
-        EDITABLE_CLASS_PATTERN,
-        (attribute) => `${attribute.slice(0, -1)} ${COPY_CONTAINER_CLASS}${attribute.slice(-1)}`
-    );
+    return addContainerClass(withButton, COPY_CONTAINER_CLASS);
 }
 
-export function installViewerCopyButtonRenderer(
+export function installViewerCodeBlockRenderer(
     markdownIt: MarkdownItLike,
-    isCopyWidgetEnabled: IsViewerCopyWidgetEnabled
+    isCopyWidgetEnabled: IsViewerFeatureEnabled,
+    isLineNumbersEnabled: IsViewerFeatureEnabled
 ): void {
     const currentRenderer = markdownIt.renderer.rules.fence as InstalledRendererRule | undefined;
-    if (currentRenderer?.codeblockAutocompleteViewerCopy) {
+    if (currentRenderer?.codeblockAutocompleteViewerFeatures) {
         return;
     }
 
@@ -112,27 +100,34 @@ export function installViewerCopyButtonRenderer(
         ((tokens, index, options, environment, renderer) =>
             renderer.renderToken(tokens, index, options, environment, renderer));
 
-    const viewerCopyRenderer: InstalledRendererRule = (tokens, index, options, environment, renderer) => {
+    const viewerRenderer: InstalledRendererRule = (tokens, index, options, environment, renderer) => {
         const renderedHtml = defaultRenderer(tokens, index, options, environment, renderer);
-        if (tokens[index]?.tag !== 'code' || !isCopyWidgetEnabled()) {
+        if (tokens[index]?.tag !== 'code') {
             return renderedHtml;
         }
 
-        return injectCopyButton(renderedHtml);
+        const withNumbers = isLineNumbersEnabled() ? markLineNumberContainer(renderedHtml) : renderedHtml;
+        return isCopyWidgetEnabled() ? injectCopyButton(withNumbers) : withNumbers;
     };
-    viewerCopyRenderer.codeblockAutocompleteViewerCopy = true;
+    viewerRenderer.codeblockAutocompleteViewerFeatures = true;
 
-    markdownIt.renderer.rules.fence = viewerCopyRenderer;
+    markdownIt.renderer.rules.fence = viewerRenderer;
 }
 
 export default function (): MarkdownItContentScriptModule {
     return {
         plugin: (markdownIt: MarkdownItLike, pluginOptions: MarkdownItPluginOptions) => {
-            installViewerCopyButtonRenderer(
+            installViewerCodeBlockRenderer(
                 markdownIt,
-                () => pluginOptions.settingValue(SETTING_KEYS.enableViewerCopyWidget) === true
+                () => pluginOptions.settingValue(SETTING_KEYS.enableViewerCopyWidget) === true,
+                () => pluginOptions.settingValue(SETTING_KEYS.enableViewerLineNumbers) === true
             );
         },
-        assets: () => [{ name: 'copyWidget.css' }, { name: 'copyWidget.js' }],
+        assets: () => [
+            { name: 'copyWidget.css' },
+            { name: 'copyWidget.js' },
+            { name: 'lineNumbers.css' },
+            { name: 'lineNumbers.js' },
+        ],
     };
 }

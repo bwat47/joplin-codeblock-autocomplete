@@ -35,6 +35,10 @@ If the copy widget is enabled, you will see the code fence language rendered as 
 
 Clicking the copy button will copy the code block contents to your clipboard. If the code fence doesn't have a language specified, it will display a generic "Copy" label instead of the language.
 
+### Markdown editor line numbers
+
+If line numbers are enabled, each line inside a fenced code block in the Markdown editor is numbered, starting from 1 on the line after the opening fence. The fence lines are shifted to stay aligned with the code but are not numbered.
+
 ### Markdown viewer copy button
 
 The Markdown viewer has a separate copy-widget setting. When enabled, hovering over a rendered fenced code block shows an icon-only copy button in its top-right corner. The button remains visible on touch devices and can also be reached with the keyboard.
@@ -46,12 +50,20 @@ Clicking the button copies the fenced code contents and displays a success toast
 >
 > It technically works in the mobile (prosemirror) rich text editor as well, however, the prosemirror editor places its own "edit" button on the top right, so the two buttons overlap.
 
+### Markdown viewer line numbers
+
+Enable the viewer line-number setting to number each logical line of fenced code, starting from 1 for each block. Highlighting is preserved, and copying code excludes the numbers. This setting is independent of editor line numbers and viewer copy buttons. Diagram blocks are not numbered.
+
 ## Settings
 
 Enable language auto-complete - Toggle the language dropdown for code fences. When disabled, typing exactly three backticks or tildes inserts a closing fence immediately without opening the dropdown.
 
-Autocomplete languages - Comma-separated list of language identifiers to show in the autocomplete menu.
-
 Enable Markdown editor copy widget - Show a copy button on fenced code blocks in the Markdown editor and hide the opening-fence language text when the cursor is not on that line.
 
+Show line numbers in Markdown editor code blocks - Number the lines inside fenced code blocks in the Markdown editor.
+
 Enable Markdown viewer copy widget - Show a copy button when hovering over fenced code blocks in the Markdown viewer.
+
+Show line numbers in Markdown viewer code blocks - Number the lines inside fenced code blocks in the Markdown viewer.
+
+Autocomplete languages - Comma-separated list of language identifiers to show in the autocomplete menu.

@@ -6,6 +6,7 @@ export interface PostMessageContext {
 export interface PluginSettingsResponse {
     enableLanguageAutocomplete: boolean;
     enableCopyWidget: boolean;
+    enableLineNumbers: boolean;
     languages: string[];
 }
 

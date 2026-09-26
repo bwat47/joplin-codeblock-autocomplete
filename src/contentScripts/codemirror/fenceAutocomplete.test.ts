@@ -83,6 +83,7 @@ describe('createCodeBlockCompleter', () => {
             applyPluginSettings(harness.view, {
                 enableLanguageAutocomplete: true,
                 enableCopyWidget: false,
+                enableLineNumbers: false,
                 languages: ['python', 'javascript'],
             });
 
@@ -105,6 +106,7 @@ describe('createCodeBlockCompleter', () => {
             applyPluginSettings(harness.view, {
                 enableLanguageAutocomplete: true,
                 enableCopyWidget: false,
+                enableLineNumbers: false,
                 languages: ['python', 'javascript'],
             });
 
@@ -127,6 +129,7 @@ describe('createCodeBlockCompleter', () => {
             applyPluginSettings(harness.view, {
                 enableLanguageAutocomplete: true,
                 enableCopyWidget: false,
+                enableLineNumbers: false,
                 languages: ['json'],
             });
 
@@ -156,6 +159,7 @@ describe('createCodeBlockCompleter', () => {
             applyPluginSettings(harness.view, {
                 enableLanguageAutocomplete: true,
                 enableCopyWidget: false,
+                enableLineNumbers: false,
                 languages: ['json'],
             });
 
@@ -187,6 +191,7 @@ describe('createCodeBlockCompleter', () => {
             applyPluginSettings(harness.view, {
                 enableLanguageAutocomplete: true,
                 enableCopyWidget: false,
+                enableLineNumbers: false,
                 languages: ['json'],
             });
 
@@ -219,6 +224,7 @@ describe('createCodeBlockCompleter', () => {
             applyPluginSettings(harness.view, {
                 enableLanguageAutocomplete: false,
                 enableCopyWidget: false,
+                enableLineNumbers: false,
                 languages: ['python'],
             });
 
@@ -248,6 +254,7 @@ describe('createFenceTriggerExtension', () => {
             applyPluginSettings(harness.view, {
                 enableLanguageAutocomplete: true,
                 enableCopyWidget: false,
+                enableLineNumbers: false,
                 languages: ['python', 'javascript'],
             });
 
@@ -280,6 +287,7 @@ describe('createFenceTriggerExtension', () => {
             applyPluginSettings(harness.view, {
                 enableLanguageAutocomplete: false,
                 enableCopyWidget: false,
+                enableLineNumbers: false,
                 languages: ['python'],
             });
 
@@ -310,6 +318,7 @@ describe('createFenceTriggerExtension', () => {
             applyPluginSettings(harness.view, {
                 enableLanguageAutocomplete: false,
                 enableCopyWidget: false,
+                enableLineNumbers: false,
                 languages: ['python'],
             });
 

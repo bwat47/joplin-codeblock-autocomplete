@@ -176,3 +176,31 @@ describe('viewer copy widget asset', () => {
         await Promise.resolve();
     });
 });
+
+it.each([true, false])('copies numbered code verbatim with source metadata=%s', async (withSource) => {
+    const button = setViewerHtml('first &amp; second\n\n', '<span class="comment">first &amp; second\n\n</span>');
+    button.parentElement!.classList.add('codeblock-autocomplete-viewer-line-numbers');
+    if (!withSource) document.querySelector('.joplin-source')!.remove();
+    vi.resetModules();
+    const postMessage = vi.fn(async () => ({ ok: true }));
+    Object.assign(globalThis, { webviewApi: { postMessage } });
+    // @ts-expect-error The viewer asset is a classic browser script.
+    await import('./lineNumbers.js');
+    const copyController = await loadViewerAsset();
+    try {
+        button.click();
+        expect(document.querySelectorAll('.codeblock-autocomplete-viewer-code-line')).toHaveLength(3);
+        expect(postMessage).toHaveBeenCalledWith('codeblockAutocompleteViewer', {
+            command: 'copyCodeBlock',
+            text: 'first & second\n\n',
+        });
+    } finally {
+        copyController.destroy();
+        (
+            window as Window &
+                typeof globalThis & { __codeblockAutocompleteViewerLineNumbersController?: ViewerController }
+        ).__codeblockAutocompleteViewerLineNumbersController?.destroy();
+        delete (globalThis as { webviewApi?: unknown }).webviewApi;
+        document.body.innerHTML = '';
+    }
+});

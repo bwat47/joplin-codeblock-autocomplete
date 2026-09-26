@@ -39,11 +39,25 @@ const SETTINGS_CONFIG = {
             'Show a copy button on fenced code blocks in the Markdown editor and hide the opening-fence language text when the cursor is not on that line.',
         target: 'editor',
     },
+    enableLineNumbers: {
+        key: SETTING_KEYS.enableLineNumbers,
+        defaultValue: false,
+        label: 'Show line numbers in Markdown editor code blocks',
+        description: 'Number the lines inside fenced code blocks in the Markdown editor.',
+        target: 'editor',
+    },
     enableViewerCopyWidget: {
         key: SETTING_KEYS.enableViewerCopyWidget,
         defaultValue: false,
         label: 'Enable Markdown viewer copy widget',
         description: 'Show a copy button when hovering over fenced code blocks in the Markdown viewer.',
+        target: 'viewer',
+    },
+    enableViewerLineNumbers: {
+        key: SETTING_KEYS.enableViewerLineNumbers,
+        defaultValue: false,
+        label: 'Show line numbers in Markdown viewer code blocks',
+        description: 'Number the lines inside fenced code blocks in the Markdown viewer.',
         target: 'viewer',
     },
     languages: {
@@ -59,6 +73,7 @@ const SETTINGS_CONFIG = {
 export type ContentScriptSettings = {
     enableLanguageAutocomplete: boolean;
     enableCopyWidget: boolean;
+    enableLineNumbers: boolean;
     languages: string[];
 };
 
@@ -84,12 +99,14 @@ export async function getContentScriptSettings(): Promise<ContentScriptSettings>
     const values = await joplin.settings.values([
         SETTINGS_CONFIG.enableLanguageAutocomplete.key,
         SETTINGS_CONFIG.enableCopyWidget.key,
+        SETTINGS_CONFIG.enableLineNumbers.key,
         SETTINGS_CONFIG.languages.key,
     ]);
 
     return {
         enableLanguageAutocomplete: values[SETTINGS_CONFIG.enableLanguageAutocomplete.key] as boolean,
         enableCopyWidget: values[SETTINGS_CONFIG.enableCopyWidget.key] as boolean,
+        enableLineNumbers: values[SETTINGS_CONFIG.enableLineNumbers.key] as boolean,
         languages: parseLanguageList(values[SETTINGS_CONFIG.languages.key] as string),
     };
 }

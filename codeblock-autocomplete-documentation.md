@@ -17,9 +17,10 @@ This plugin adds fenced-code-block utilities to Joplin's CodeMirror 6 editor and
     - provides fenced code block autocomplete behavior
     - provides the insert-code-block editor command
     - provides the optional copy widget decoration layer
+    - provides the optional code block line-number decoration layer
 - Markdown viewer content script:
     - extends only Markdown-it's fenced-code renderer while preserving Joplin's existing rendered HTML
-    - reads the viewer setting through Joplin's renderer options and injects the optional icon-only copy button into Joplin's fenced-code container
+    - reads the viewer settings through Joplin's renderer options and adds optional copy buttons and line numbering to Joplin's fenced-code container
     - loads viewer JavaScript and CSS for hover/focus presentation and delegated copy actions
 
 ## Source Layout
@@ -38,11 +39,16 @@ src/
     │   ├── fencedCodeBlock.ts
     │   ├── insertCodeBlock.ts
     │   ├── copyWidget.ts
+    │   ├── lineNumbers.ts
     │   └── types.ts
     └── viewer/
         ├── index.ts
         ├── copyWidget.js
-        └── copyWidget.css
+        ├── copyWidget.css
+        ├── codeContainer.ts
+        ├── viewerLineNumbers.ts
+        ├── lineNumbers.js
+        └── lineNumbers.css
 ```
 
 ## Module Responsibilities
@@ -83,6 +89,12 @@ src/
     - tracks visible fenced code blocks for the optional copy button
     - separates structural block discovery from selection-driven presentation updates
     - resolves copied text from the current editor state when the button is clicked
+- `src/contentScripts/codemirror/lineNumbers.ts`
+    - decorates the visible lines of fenced code blocks with a line class; content lines also carry their 1-based number in a data attribute that a `::before` pseudo-element renders
+    - numbers come from the block's geometry, so a block starting above the viewport still shows its true numbers; only lines inside the visible ranges are decorated
+    - reserves the number column with a transparent `border-left`, never `padding-left`: CodeMirror's selection layer reads `padding-left` (and negative `text-indent`) from the first rendered `.cm-line` and applies it to every full-line selection rectangle, and other extensions (wrapped-line hanging indents) own those properties
+    - the gutter width follows the block's widest number through a per-line CSS custom property
+    - rebuilds on doc, viewport, and setting changes, and when a background parse replaces the syntax tree
 - `src/contentScripts/codemirror/types.ts`
     - shared content-script message and command types
 
@@ -90,11 +102,21 @@ src/
 
 - `src/contentScripts/viewer/index.ts`
     - wraps the existing Markdown-it `fence` renderer and leaves all other renderer rules unchanged
-    - reads the viewer setting through Markdown-it's `pluginOptions.settingValue()` callback
+    - reads the viewer settings through Markdown-it's `pluginOptions.settingValue()` callback
     - injects one accessible copy button only when enabled and the rendered output is a Joplin fenced-code container
-    - Joplin's own `fence` overrides (Mermaid, ABC, Fountain) also emit a `joplin-editable` container and are installed before content-script rules, so container detection alone is not enough; the renderer additionally requires a rendered `<code>` element, which only Joplin's code renderer emits
     - appends a marker class to the container it injects into, so the stylesheet can scope its rules without `:has()`
     - exposes the viewer JavaScript and CSS assets
+- `src/contentScripts/viewer/codeContainer.ts`
+    - the single check for whether fence output is a rendered code container, shared by copy buttons and line numbers
+    - Joplin's own `fence` overrides (Mermaid, ABC, Fountain) also emit a `joplin-editable` container and are installed before content-script rules, so container detection alone is not enough; the check additionally requires a rendered `<code>` element, which only Joplin's code renderer emits
+    - appends marker classes to the outer container's existing class list
+- `src/contentScripts/viewer/viewerLineNumbers.ts`
+    - marks eligible rendered code containers when the independent viewer line-number setting is enabled
+- `src/contentScripts/viewer/lineNumbers.js`
+    - splits highlighted DOM into logical line wrappers, cloning highlight ancestors across newlines while preserving code text and source metadata
+    - observes replacement note content and processes each marked code element once; tears down its observer on script reload
+- `src/contentScripts/viewer/lineNumbers.css`
+    - displays logical lines with a gutter sized for the widest number, using non-selectable CSS-generated numbers
 - `src/contentScripts/viewer/copyWidget.js`
     - delegates button clicks through the viewer content-script message channel
     - reads the original `.joplin-source` text, with rendered code as a fallback
@@ -112,7 +134,7 @@ src/
 3. The CodeMirror content script loads `src/contentScripts/codemirror/codeMirror6Plugin.ts` for CodeMirror 6 editors.
 4. The CodeMirror content script requests current settings from the main process and stores them in editor state.
 5. Editor features read from that shared state for autocomplete, code block insertion, and the optional editor copy widget.
-6. The viewer content script reads its independent setting from Joplin's renderer options and injects buttons only for enabled Markdown-it fence tokens.
+6. The viewer content script reads its independent settings from Joplin's renderer options and injects optional copy buttons and marks ordinary fenced code for optional line numbering.
 7. Copy actions from either content script use the main process's clipboard helper and success toast.
 8. Editor setting changes are pushed into the active editor; viewer setting changes are applied through Joplin's normal Markdown rerender lifecycle.
 

@@ -8,6 +8,7 @@ import type { CodeMirrorControl } from 'api/types';
 import { copyWidgetTheme, createCopyWidgetPlugin } from './copyWidget';
 import { createCodeBlockCompleter, createFenceTriggerExtension, fenceAutocompleteTheme } from './fenceAutocomplete';
 import { insertCodeBlockAtCursor } from './insertCodeBlock';
+import { createLineNumbersPlugin, lineNumbersTheme } from './lineNumbers';
 import { applyPluginSettings, createSettingsExtension, syncInitialSettings } from './pluginSettings';
 import type { PostMessageContext } from './types';
 import { INSERT_CODE_BLOCK_COMMAND, UPDATE_SETTINGS_COMMAND } from './types';
@@ -37,6 +38,8 @@ export default function codeMirror6Plugin(context: PostMessageContext, CodeMirro
         copyWidgetTheme,
         fenceAutocompleteTheme,
         createCopyWidgetPlugin(context),
+        lineNumbersTheme,
+        createLineNumbersPlugin(),
     ]);
 
     void syncInitialSettings(context, CodeMirror);

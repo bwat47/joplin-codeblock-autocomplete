@@ -1,0 +1,21 @@
+/* Each logical line keeps its highlighted children and original newline. */
+.codeblock-autocomplete-viewer-line-numbers .codeblock-autocomplete-viewer-code-line {
+    display: block;
+    position: relative;
+    min-height: 1em;
+    min-height: 1lh;
+    padding-left: calc(var(--codeblock-line-number-digits, 1) * 1ch + 1.25em);
+}
+
+.codeblock-autocomplete-viewer-line-numbers .codeblock-autocomplete-viewer-code-line::before {
+    content: attr(data-line-number);
+    position: absolute;
+    top: 0;
+    left: 0.5em;
+    width: calc(var(--codeblock-line-number-digits, 1) * 1ch);
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+    opacity: 0.5;
+    pointer-events: none;
+    user-select: none;
+}
