@@ -123,6 +123,16 @@ describe('code block folding', () => {
         expect(getMarkers(view)).toHaveLength(0);
     });
 
+    it('pads every line of a fenced code block, fences included, and nothing outside it', () => {
+        const doc = ['text', '```js', 'a();', '```', '', '```', '```', 'more text'].join('\n');
+        const view = createFoldingEditor(doc);
+
+        const paddedLines = Array.from(view.dom.querySelectorAll<HTMLElement>('.cm-line.cm-codeblock-fold-line')).map(
+            (line) => view.state.doc.lineAt(view.posAtDOM(line)).number
+        );
+        expect(paddedLines).toEqual([2, 3, 4, 6, 7]);
+    });
+
     it('removes the markers and clears folds when the setting is turned off', () => {
         const view = createFoldingEditor(JS_BLOCK);
         clickMarker(view, 4);
@@ -130,6 +140,7 @@ describe('code block folding', () => {
 
         setCodeFolding(view, false);
         expect(getMarkers(view)).toHaveLength(0);
+        expect(view.dom.querySelector('.cm-codeblock-fold-line')).toBeNull();
         expect(getFolds(view)).toEqual([]);
     });
 });

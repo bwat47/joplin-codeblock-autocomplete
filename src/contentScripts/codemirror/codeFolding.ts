@@ -26,6 +26,12 @@ type FoldRange = {
     to: number;
 };
 
+type ViewportCodeBlocks = {
+    /** Start offsets of every visible line of a fenced code block, fence lines included. */
+    blockLineFroms: number[];
+    foldableLines: Map<number, FoldableLine>;
+};
+
 type FoldableLine = FoldRange & {
     /** Where the arrow goes: the line's first character after any blockquote markers and indent. */
     markerPos: number;
@@ -82,14 +88,17 @@ function getIndentLength(text: string): number {
 }
 
 /**
- * Finds every foldable content line in the fenced code blocks within the viewport, keyed by the
- * line's start offset. A fold runs from the end of its first line to the end of its last line, so
- * the first line stays visible.
+ * Finds the visible lines of the fenced code blocks within the viewport, and every foldable
+ * content line among them keyed by the line's start offset. A fold runs from the end of its first
+ * line to the end of its last line, so the first line stays visible.
  */
-function findViewportFoldableLines(view: EditorView): Map<number, FoldableLine> {
+function findViewportCodeBlocks(view: EditorView): ViewportCodeBlocks {
     const { state } = view;
     const { doc } = state;
     const { from: viewportFrom, to: viewportTo } = view.viewport;
+    const viewportFirstLine = doc.lineAt(viewportFrom).number;
+    const viewportLastLine = doc.lineAt(viewportTo).number;
+    const blockLineFroms: number[] = [];
     const foldableLines = new Map<number, FoldableLine>();
     const { tree } = getFencedCodeSyntaxTree(state, viewportTo);
 
@@ -101,7 +110,12 @@ function findViewportFoldableLines(view: EditorView): Map<number, FoldableLine> 
                 return undefined;
             }
 
-            const { contentFrom, contentTo } = getFencedCodeBlockGeometry(state, node.node);
+            const { blockTo, contentFrom, contentTo, openingLineFrom } = getFencedCodeBlockGeometry(state, node.node);
+            const blockLast = Math.min(doc.lineAt(blockTo).number, viewportLastLine);
+            for (let n = Math.max(doc.lineAt(openingLineFrom).number, viewportFirstLine); n <= blockLast; n++) {
+                blockLineFroms.push(doc.line(n).from);
+            }
+
             if (contentTo <= contentFrom) {
                 return false;
             }
@@ -116,8 +130,8 @@ function findViewportFoldableLines(view: EditorView): Map<number, FoldableLine> 
                     : undefined;
             };
 
-            const visibleFirst = Math.max(firstLine, doc.lineAt(viewportFrom).number);
-            const visibleLast = Math.min(lastLine, doc.lineAt(viewportTo).number);
+            const visibleFirst = Math.max(firstLine, viewportFirstLine);
+            const visibleLast = Math.min(lastLine, viewportLastLine);
             for (let lineNumber = visibleFirst; lineNumber <= visibleLast; lineNumber++) {
                 const end = findIndentFoldEnd(getLine, lineNumber - firstLine, state.tabSize);
                 if (end !== null) {
@@ -135,7 +149,7 @@ function findViewportFoldableLines(view: EditorView): Map<number, FoldableLine> 
         },
     });
 
-    return foldableLines;
+    return { blockLineFroms, foldableLines };
 }
 
 /** Returns the folded range that starts at the end of the given line, if any. */
@@ -163,7 +177,7 @@ class FoldMarkerWidget extends WidgetType {
 
     /**
      * The widget itself is zero-width so the line's text does not move; the icon is positioned
-     * absolutely to its left, over the indentation or the code block's left padding.
+     * absolutely to its left, over the indentation or the left padding given to code block lines.
      */
     public toDOM(view: EditorView): HTMLElement {
         const ownerDocument = view.dom.ownerDocument;
@@ -196,13 +210,14 @@ class FoldMarkerWidget extends WidgetType {
 
 const OPEN_MARKER = Decoration.widget({ widget: new FoldMarkerWidget(false), side: -1 });
 const FOLDED_MARKER = Decoration.widget({ widget: new FoldMarkerWidget(true), side: -1 });
+const CODE_BLOCK_LINE = Decoration.line({ class: 'cm-codeblock-fold-line' });
 
 class FoldMarkerPlugin implements PluginValue {
-    public foldableLines: Map<number, FoldableLine>;
+    public codeBlocks: ViewportCodeBlocks;
     public decorations: DecorationSet;
 
     public constructor(view: EditorView) {
-        this.foldableLines = findViewportFoldableLines(view);
+        this.codeBlocks = findViewportCodeBlocks(view);
         this.decorations = this.buildDecorations(view.state);
     }
 
@@ -210,7 +225,7 @@ class FoldMarkerPlugin implements PluginValue {
         const structureChanged =
             update.docChanged || update.viewportChanged || syntaxTree(update.startState) !== syntaxTree(update.state);
         if (structureChanged) {
-            this.foldableLines = findViewportFoldableLines(update.view);
+            this.codeBlocks = findViewportCodeBlocks(update.view);
         }
 
         if (structureChanged || foldedRanges(update.startState) !== foldedRanges(update.state)) {
@@ -225,18 +240,20 @@ class FoldMarkerPlugin implements PluginValue {
      */
     private buildDecorations(state: EditorState): DecorationSet {
         const { doc } = state;
+        const { blockLineFroms, foldableLines } = this.codeBlocks;
         const markers = new Map<number, Range<Decoration>>();
 
-        for (const [lineFrom, line] of this.foldableLines) {
+        for (const [lineFrom, line] of foldableLines) {
             markers.set(lineFrom, OPEN_MARKER.range(line.markerPos));
         }
         foldedRanges(state).between(0, doc.length, (from) => {
             const line = doc.lineAt(from);
-            const markerPos = this.foldableLines.get(line.from)?.markerPos ?? line.from + getIndentLength(line.text);
+            const markerPos = foldableLines.get(line.from)?.markerPos ?? line.from + getIndentLength(line.text);
             markers.set(line.from, FOLDED_MARKER.range(markerPos));
         });
 
-        return Decoration.set([...markers.values()], true);
+        const lines = blockLineFroms.map((lineFrom) => CODE_BLOCK_LINE.range(lineFrom));
+        return Decoration.set([...lines, ...markers.values()], true);
     }
 }
 
@@ -251,13 +268,20 @@ function toggleFoldAtLine(view: EditorView, lineFrom: number): void {
         return;
     }
 
-    const line = view.plugin(foldMarkerPlugin)?.foldableLines.get(lineFrom);
+    const line = view.plugin(foldMarkerPlugin)?.codeBlocks.foldableLines.get(lineFrom);
     if (line) {
         view.dispatch({ effects: foldEffect.of({ from: line.from, to: line.to }) });
     }
 }
 
 const codeFoldingTheme = EditorView.baseTheme({
+    // Room inside the code block's background for the arrows of unindented lines. Joplin sets
+    // `padding-left: 1px` on lines of gutterless editors with
+    // `&:not(:has(> .cm-scroller > .cm-gutters)) .cm-line`, which counts as four classes, so this
+    // selector is anchored to the editor and content to outrank it.
+    '&.cm-editor .cm-content > .cm-line.cm-codeblock-fold-line': {
+        paddingLeft: '1.5em',
+    },
     '.cm-codeblock-fold-marker': {
         position: 'relative',
         display: 'inline-block',
