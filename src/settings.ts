@@ -46,18 +46,18 @@ const SETTINGS_CONFIG = {
         description: 'Number the lines inside fenced code blocks in the Markdown editor.',
         target: 'editor',
     },
-    enableViewerLineNumbers: {
-        key: SETTING_KEYS.enableViewerLineNumbers,
-        defaultValue: false,
-        label: 'Show line numbers in Markdown viewer code blocks',
-        description: 'Number the lines inside fenced code blocks in the Markdown viewer.',
-        target: 'viewer',
-    },
     enableViewerCopyWidget: {
         key: SETTING_KEYS.enableViewerCopyWidget,
         defaultValue: false,
         label: 'Enable Markdown viewer copy widget',
         description: 'Show a copy button when hovering over fenced code blocks in the Markdown viewer.',
+        target: 'viewer',
+    },
+    enableViewerLineNumbers: {
+        key: SETTING_KEYS.enableViewerLineNumbers,
+        defaultValue: false,
+        label: 'Show line numbers in Markdown viewer code blocks',
+        description: 'Number the lines inside fenced code blocks in the Markdown viewer.',
         target: 'viewer',
     },
     languages: {

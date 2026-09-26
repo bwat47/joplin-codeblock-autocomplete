@@ -63,8 +63,8 @@ describe('registerSettings', () => {
             SETTING_KEYS.enableLanguageAutocomplete,
             SETTING_KEYS.enableCopyWidget,
             SETTING_KEYS.enableLineNumbers,
-            SETTING_KEYS.enableViewerLineNumbers,
             SETTING_KEYS.enableViewerCopyWidget,
+            SETTING_KEYS.enableViewerLineNumbers,
             SETTING_KEYS.languages,
         ]);
         for (const item of Object.values(spec)) {
@@ -86,8 +86,8 @@ describe('registerSettings', () => {
         });
         expect(spec[SETTING_KEYS.enableCopyWidget]).toMatchObject({ type: SettingItemType.Bool, value: false });
         expect(spec[SETTING_KEYS.enableLineNumbers]).toMatchObject({ type: SettingItemType.Bool, value: false });
-        expect(spec[SETTING_KEYS.enableViewerLineNumbers]).toMatchObject({ type: SettingItemType.Bool, value: false });
         expect(spec[SETTING_KEYS.enableViewerCopyWidget]).toMatchObject({ type: SettingItemType.Bool, value: false });
+        expect(spec[SETTING_KEYS.enableViewerLineNumbers]).toMatchObject({ type: SettingItemType.Bool, value: false });
         expect(spec[SETTING_KEYS.languages]).toMatchObject({ type: SettingItemType.String });
         expect(spec[SETTING_KEYS.languages].value).toContain('typescript');
     });
