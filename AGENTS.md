@@ -1,9 +1,9 @@
 ## Project Documentation
 
-codeblock-autocomplete-documentation.md
+ARCHITECTURE.md
 
 - Internal documentation about project architecture, intended for LLMs to reference for context
-- Keep up to date with architecture changes when applicable
+- Keep up to date with architecture changes when applicable, keep it focused on high level architecture rather than random implementation details.
 
 ## Build, Test, and Development Commands
 
