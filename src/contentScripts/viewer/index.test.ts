@@ -220,19 +220,19 @@ describe('viewer settings combinations', () => {
         expect(html.includes('codeblock-autocomplete-viewer-line-numbers')).toBe(numbers);
         expect(html).toContain('<pre class="joplin-source" data-joplin-language="ts">const value = 1;</pre>');
     });
-});
 
-it('reads line-number setting changes on each render', () => {
-    const { markdownIt } = createMarkdownIt(JOPLIN_FENCE_HTML);
-    let enabled = false;
-    installViewerCodeBlockRenderer(
-        markdownIt,
-        () => false,
-        () => enabled
-    );
-    expect(renderFence(markdownIt)).toBe(JOPLIN_FENCE_HTML);
-    enabled = true;
-    expect(renderFence(markdownIt)).toContain('codeblock-autocomplete-viewer-line-numbers');
-    enabled = false;
-    expect(renderFence(markdownIt)).toBe(JOPLIN_FENCE_HTML);
+    it('reads line-number setting changes on each render', () => {
+        const { markdownIt } = createMarkdownIt(JOPLIN_FENCE_HTML);
+        let enabled = false;
+        installViewerCodeBlockRenderer(
+            markdownIt,
+            () => false,
+            () => enabled
+        );
+        expect(renderFence(markdownIt)).toBe(JOPLIN_FENCE_HTML);
+        enabled = true;
+        expect(renderFence(markdownIt)).toContain('codeblock-autocomplete-viewer-line-numbers');
+        enabled = false;
+        expect(renderFence(markdownIt)).toBe(JOPLIN_FENCE_HTML);
+    });
 });
