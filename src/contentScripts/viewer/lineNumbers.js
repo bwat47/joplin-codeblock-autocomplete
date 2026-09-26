@@ -3,6 +3,10 @@
 
     var CONTAINER_CLASS = 'codeblock-autocomplete-viewer-line-numbers';
     var LINE_CLASS = 'codeblock-autocomplete-viewer-code-line';
+    var NUMBERED_ATTRIBUTE = 'data-codeblock-numbered';
+    /** Excludes numbered code so observer passes triggered by any DOM change stay cheap. */
+    var UNNUMBERED_CODE_SELECTOR =
+        '.' + CONTAINER_CLASS + ' > pre:not(.joplin-source) > code:not([' + NUMBERED_ATTRIBUTE + '])';
     var CONTROLLER_KEY = '__codeblockAutocompleteViewerLineNumbersController';
     var observer = null;
 
@@ -12,8 +16,6 @@
      * would produce broken markup. Newlines stay in the code's textContent.
      */
     function numberCode(code) {
-        if (code.hasAttribute('data-codeblock-numbered')) return;
-
         var ownerDocument = code.ownerDocument;
         var fragment = ownerDocument.createDocumentFragment();
         var ancestors = [];
@@ -58,11 +60,11 @@
         Array.from(code.childNodes).forEach(visit);
         code.replaceChildren(fragment);
         code.style.setProperty('--codeblock-line-number-digits', String(String(count).length));
-        code.setAttribute('data-codeblock-numbered', 'true');
+        code.setAttribute(NUMBERED_ATTRIBUTE, 'true');
     }
 
     function update() {
-        document.querySelectorAll('.' + CONTAINER_CLASS + ' > pre:not(.joplin-source) > code').forEach(numberCode);
+        document.querySelectorAll(UNNUMBERED_CODE_SELECTOR).forEach(numberCode);
     }
 
     function start() {
