@@ -344,12 +344,13 @@ function toggleFoldAtLine(view: EditorView, lineFrom: number): void {
 }
 
 const codeFoldingTheme = EditorView.baseTheme({
-    // Room inside the code block's background for the arrows of unindented lines. Joplin sets
-    // `padding-left: 1px` on lines of gutterless editors with
-    // `&:not(:has(> .cm-scroller > .cm-gutters)) .cm-line`, which counts as four classes, so this
-    // selector is anchored to the editor and content to outrank it.
-    '&.cm-editor .cm-content > .cm-line.cm-codeblock-fold-line': {
-        paddingLeft: '1.5em',
+    // Room inside the code block's background for the arrows of unindented lines. It is a
+    // transparent border rather than padding because CodeMirror's selection layer takes the left
+    // edge of full-line selections from the first rendered line's padding, so padding shifted every
+    // selection right whenever the viewport started inside a code block. The line's background
+    // still paints under the border.
+    '.cm-line.cm-codeblock-fold-line': {
+        borderLeft: '1.5em solid transparent',
     },
     '.cm-codeblock-fold-marker': {
         position: 'relative',
