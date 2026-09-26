@@ -58,8 +58,6 @@ Enable the viewer line-number setting to number each logical line of fenced code
 
 Enable language auto-complete - Toggle the language dropdown for code fences. When disabled, typing exactly three backticks or tildes inserts a closing fence immediately without opening the dropdown.
 
-Autocomplete languages - Comma-separated list of language identifiers to show in the autocomplete menu.
-
 Enable Markdown editor copy widget - Show a copy button on fenced code blocks in the Markdown editor and hide the opening-fence language text when the cursor is not on that line.
 
 Show line numbers in Markdown editor code blocks - Number the lines inside fenced code blocks in the Markdown editor.
@@ -67,3 +65,5 @@ Show line numbers in Markdown editor code blocks - Number the lines inside fence
 Enable Markdown viewer copy widget - Show a copy button when hovering over fenced code blocks in the Markdown viewer.
 
 Show line numbers in Markdown viewer code blocks - Number the lines inside fenced code blocks in the Markdown viewer.
+
+Autocomplete languages - Comma-separated list of language identifiers to show in the autocomplete menu.
