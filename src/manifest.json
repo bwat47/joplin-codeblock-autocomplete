@@ -23,7 +23,8 @@
     "screenshots": [
         { "src": "images/screenshot1.png", "label": "Code autocomplete example" },
         { "src": "images/screenshot2.png", "label": "Markdown editor copy widget example" },
-        { "src": "images/screenshot3.png", "label": "Markdown viewer copy widget example" }
+        { "src": "images/screenshot3.png", "label": "Markdown viewer copy widget example" },
+        { "src": "images/line_numbers_both.png", "label": "Split view line numbers example" }
     ],
     "icons": {
         "16": "images/16.png",
