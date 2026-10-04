@@ -66,6 +66,7 @@ export default [
             vitest,
         },
         rules: {
+            ...vitest.configs.recommended.rules,
             // Vitest assertions inspect method references without calling them.
             '@typescript-eslint/unbound-method': 'off',
             'vitest/unbound-method': 'error',
