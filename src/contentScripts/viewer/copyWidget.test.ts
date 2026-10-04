@@ -1,11 +1,6 @@
-type WebviewMessage = {
-    command: string;
-    text?: string;
-};
+import type { ViewerAssetController, ViewerWebviewApi, ViewerWindow } from './viewerTypes';
 
-type ViewerController = {
-    destroy(): void;
-};
+const viewerWindow = window as ViewerWindow;
 
 const BUTTON_HTML =
     '<button type="button" class="codeblock-autocomplete-viewer-copy-button" title="Copy code block" aria-label="Copy code block">' +
@@ -39,7 +34,7 @@ function setViewerHtml(sourceText: string, renderedCode = sourceText, language =
     return button;
 }
 
-async function loadViewerAsset(): Promise<ViewerController> {
+async function loadViewerAsset(): Promise<ViewerAssetController> {
     vi.resetModules();
     // @ts-expect-error The viewer asset is intentionally a classic browser script, not a module.
     await import('./copyWidget.js');
@@ -49,7 +44,7 @@ async function loadViewerAsset(): Promise<ViewerController> {
     }
     await Promise.resolve();
 
-    const controller = window.__codeblockAutocompleteViewerCopyController;
+    const controller = viewerWindow.__codeblockAutocompleteViewerCopyController;
     if (!controller) {
         throw new Error('Expected the viewer copy controller to start.');
     }
@@ -57,22 +52,20 @@ async function loadViewerAsset(): Promise<ViewerController> {
 }
 
 describe('viewer copy widget asset', () => {
-    let postMessage: ReturnType<typeof vi.fn<(contentScriptId: string, message: WebviewMessage) => Promise<unknown>>>;
-    let controller: ViewerController | undefined;
+    let postMessage: ReturnType<typeof vi.fn<ViewerWebviewApi['postMessage']>>;
+    let controller: ViewerAssetController | undefined;
 
     beforeEach(() => {
         document.body.innerHTML = '';
 
-        postMessage = vi
-            .fn<(contentScriptId: string, message: WebviewMessage) => Promise<unknown>>()
-            .mockResolvedValue({ ok: true });
+        postMessage = vi.fn<ViewerWebviewApi['postMessage']>().mockResolvedValue({ ok: true });
         Object.assign(globalThis, { webviewApi: { postMessage } });
     });
 
     afterEach(() => {
         controller?.destroy();
         controller = undefined;
-        delete (globalThis as { webviewApi?: unknown }).webviewApi;
+        delete (globalThis as { webviewApi?: ViewerWebviewApi }).webviewApi;
     });
 
     it('does not request settings or react to note updates', async () => {
@@ -179,9 +172,7 @@ it.each([true, false])('copies numbered code verbatim with source metadata=%s', 
     button.parentElement!.classList.add('codeblock-autocomplete-viewer-line-numbers');
     if (!withSource) document.querySelector('.joplin-source')!.remove();
     vi.resetModules();
-    const postMessage = vi
-        .fn<(contentScriptId: string, message: WebviewMessage) => Promise<unknown>>()
-        .mockResolvedValue({ ok: true });
+    const postMessage = vi.fn<ViewerWebviewApi['postMessage']>().mockResolvedValue({ ok: true });
     Object.assign(globalThis, { webviewApi: { postMessage } });
     // @ts-expect-error The viewer asset is a classic browser script.
     await import('./lineNumbers.js');
@@ -195,8 +186,8 @@ it.each([true, false])('copies numbered code verbatim with source metadata=%s', 
         });
     } finally {
         copyController.destroy();
-        window.__codeblockAutocompleteViewerLineNumbersController?.destroy();
-        delete (globalThis as { webviewApi?: unknown }).webviewApi;
+        viewerWindow.__codeblockAutocompleteViewerLineNumbersController?.destroy();
+        delete (globalThis as { webviewApi?: ViewerWebviewApi }).webviewApi;
         document.body.innerHTML = '';
     }
 });

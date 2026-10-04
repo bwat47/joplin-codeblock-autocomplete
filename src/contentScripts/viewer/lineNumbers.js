@@ -1,3 +1,4 @@
+// @ts-check
 (function () {
     'use strict';
 
@@ -85,9 +86,10 @@
         observer = null;
     }
 
-    var previousController = window.__codeblockAutocompleteViewerLineNumbersController;
+    var viewerWindow = /** @type {import('./viewerTypes').ViewerWindow} */ (window);
+    var previousController = viewerWindow.__codeblockAutocompleteViewerLineNumbersController;
     if (previousController) previousController.destroy();
-    window.__codeblockAutocompleteViewerLineNumbersController = { destroy: destroy };
+    viewerWindow.__codeblockAutocompleteViewerLineNumbersController = { destroy: destroy };
 
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', start);

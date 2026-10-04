@@ -1,6 +1,7 @@
 import { markLineNumberContainer } from './viewerLineNumbers';
+import type { ViewerAssetController, ViewerWindow } from './viewerTypes';
 
-type ViewerController = { destroy(): void };
+const viewerWindow = window as ViewerWindow;
 
 function setCode(html: string): HTMLElement {
     document.body.innerHTML =
@@ -10,12 +11,12 @@ function setCode(html: string): HTMLElement {
     return document.querySelector('code')!;
 }
 
-async function loadAsset(): Promise<ViewerController> {
+async function loadAsset(): Promise<ViewerAssetController> {
     vi.resetModules();
     // @ts-expect-error The viewer asset is a classic browser script.
     await import('./lineNumbers.js');
     if (document.readyState === 'loading') document.dispatchEvent(new Event('DOMContentLoaded'));
-    return window.__codeblockAutocompleteViewerLineNumbersController!;
+    return viewerWindow.__codeblockAutocompleteViewerLineNumbersController!;
 }
 
 function lines(code: HTMLElement): Element[] {
@@ -23,7 +24,7 @@ function lines(code: HTMLElement): Element[] {
 }
 
 describe('viewer line numbers', () => {
-    let controller: ViewerController | undefined;
+    let controller: ViewerAssetController | undefined;
     afterEach(() => {
         controller?.destroy();
         controller = undefined;

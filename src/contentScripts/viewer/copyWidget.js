@@ -1,3 +1,4 @@
+// @ts-check
 (function () {
     'use strict';
 
@@ -26,11 +27,17 @@
     /** @param {Element} button */
     function copyCodeBlock(button) {
         var text = getCopyText(button);
-        if (text === null || typeof webviewApi === 'undefined' || typeof webviewApi.postMessage !== 'function') {
+        // Joplin exposes a lexical global, which need not be a property of window.
+        /** @type {unknown} */
+        var hostApi =
+            // @ts-expect-error Joplin injects this name only in the viewer runtime.
+            typeof webviewApi === 'undefined' ? undefined : webviewApi;
+        var viewerApi = /** @type {import('./viewerTypes').ViewerWebviewApi | undefined} */ (hostApi);
+        if (text === null || !viewerApi || typeof viewerApi.postMessage !== 'function') {
             return;
         }
 
-        webviewApi.postMessage(CONTENT_SCRIPT_ID, { command: 'copyCodeBlock', text: text }).catch(function () {
+        viewerApi.postMessage(CONTENT_SCRIPT_ID, { command: 'copyCodeBlock', text: text }).catch(function () {
             // The main plugin process logs clipboard failures.
         });
     }
@@ -60,12 +67,13 @@
         started = false;
     }
 
-    var previousController = window.__codeblockAutocompleteViewerCopyController;
+    var viewerWindow = /** @type {import('./viewerTypes').ViewerWindow} */ (window);
+    var previousController = viewerWindow.__codeblockAutocompleteViewerCopyController;
     if (previousController && typeof previousController.destroy === 'function') {
         previousController.destroy();
     }
 
-    window.__codeblockAutocompleteViewerCopyController = {
+    viewerWindow.__codeblockAutocompleteViewerCopyController = {
         destroy: destroy,
     };
 
