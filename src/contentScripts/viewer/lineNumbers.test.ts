@@ -1,10 +1,6 @@
 import { markLineNumberContainer } from './viewerLineNumbers';
 
 type ViewerController = { destroy(): void };
-type ViewerWindow = Window &
-    typeof globalThis & {
-        __codeblockAutocompleteViewerLineNumbersController?: ViewerController;
-    };
 
 function setCode(html: string): HTMLElement {
     document.body.innerHTML =
@@ -19,7 +15,7 @@ async function loadAsset(): Promise<ViewerController> {
     // @ts-expect-error The viewer asset is a classic browser script.
     await import('./lineNumbers.js');
     if (document.readyState === 'loading') document.dispatchEvent(new Event('DOMContentLoaded'));
-    return (window as ViewerWindow).__codeblockAutocompleteViewerLineNumbersController!;
+    return window.__codeblockAutocompleteViewerLineNumbersController!;
 }
 
 function lines(code: HTMLElement): Element[] {

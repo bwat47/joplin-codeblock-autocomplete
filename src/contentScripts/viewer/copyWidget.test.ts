@@ -7,11 +7,6 @@ type ViewerController = {
     destroy(): void;
 };
 
-type ViewerWindow = Window &
-    typeof globalThis & {
-        __codeblockAutocompleteViewerCopyController?: ViewerController;
-    };
-
 const BUTTON_HTML =
     '<button type="button" class="codeblock-autocomplete-viewer-copy-button" title="Copy code block" aria-label="Copy code block">' +
     '<svg><path></path></svg></button>';
@@ -54,7 +49,7 @@ async function loadViewerAsset(): Promise<ViewerController> {
     }
     await Promise.resolve();
 
-    const controller = (window as ViewerWindow).__codeblockAutocompleteViewerCopyController;
+    const controller = window.__codeblockAutocompleteViewerCopyController;
     if (!controller) {
         throw new Error('Expected the viewer copy controller to start.');
     }
@@ -200,10 +195,7 @@ it.each([true, false])('copies numbered code verbatim with source metadata=%s', 
         });
     } finally {
         copyController.destroy();
-        (
-            window as Window &
-                typeof globalThis & { __codeblockAutocompleteViewerLineNumbersController?: ViewerController }
-        ).__codeblockAutocompleteViewerLineNumbersController?.destroy();
+        window.__codeblockAutocompleteViewerLineNumbersController?.destroy();
         delete (globalThis as { webviewApi?: unknown }).webviewApi;
         document.body.innerHTML = '';
     }
