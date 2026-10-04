@@ -26,7 +26,7 @@ function parseOpeningFence(state: CompletionContext['state'], pos: number): Open
     // Match: optional indent + (3+ backticks OR 3+ tildes) + optional language
     // Backticks: language cannot contain backticks
     // Tildes: language cannot contain spaces (per CommonMark)
-    const match = lineText.match(/^(\s*)(`{3,}|~{3,})([^\s`]*)/);
+    const match = /^(\s*)(`{3,}|~{3,})([^\s`]*)/.exec(lineText);
     if (!match) return undefined;
 
     const indent = match[1];
