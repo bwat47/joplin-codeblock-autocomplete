@@ -90,7 +90,7 @@ export function installViewerCodeBlockRenderer(
     isCopyWidgetEnabled: IsViewerFeatureEnabled,
     isLineNumbersEnabled: IsViewerFeatureEnabled
 ): void {
-    const currentRenderer = markdownIt.renderer.rules.fence as InstalledRendererRule | undefined;
+    const currentRenderer: InstalledRendererRule | undefined = markdownIt.renderer.rules.fence;
     if (currentRenderer?.codeblockAutocompleteViewerFeatures) {
         return;
     }

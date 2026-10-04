@@ -7,6 +7,7 @@ import importPlugin from 'eslint-plugin-import-x';
 import sonarjs from 'eslint-plugin-sonarjs';
 import prettier from 'eslint-config-prettier';
 import globals from 'globals';
+import vitest from '@vitest/eslint-plugin';
 
 export default [
     {
@@ -23,6 +24,10 @@ export default [
             parser: tsParser,
             ecmaVersion: 2020,
             sourceType: 'module',
+            parserOptions: {
+                projectService: true,
+                tsconfigRootDir: import.meta.dirname,
+            },
             globals: {
                 ...globals.node,
             },
@@ -34,7 +39,7 @@ export default [
         rules: {
             // Turn off rules TypeScript handles (prevents NodeJS / type-only false positives)
             'no-undef': 'off',
-            ...tsPlugin.configs.recommended.rules,
+            ...tsPlugin.configs['recommended-type-checked'].rules,
             // report an error if any circular dependency is found
             'import/no-cycle': ['error', { maxDepth: Infinity }],
             'no-useless-escape': 'off',
@@ -57,8 +62,13 @@ export default [
                 ...globals.vitest,
             },
         },
+        plugins: {
+            vitest,
+        },
         rules: {
-            // You can add test-specific overrides here later
+            // Vitest assertions inspect method references without calling them.
+            '@typescript-eslint/unbound-method': 'off',
+            'vitest/unbound-method': 'error',
         },
     },
 

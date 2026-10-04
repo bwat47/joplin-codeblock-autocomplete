@@ -2,7 +2,6 @@ import {
     autocompletion,
     completionStatus,
     currentCompletions,
-    type Completion,
     type CompletionContext,
     type CompletionResult,
 } from '@codemirror/autocomplete';
@@ -70,7 +69,7 @@ function applyCompletion(
         throw new Error(`Completion "${label}" does not provide a function apply handler.`);
     }
 
-    completion.apply(view, completion as Completion, result.from, view.state.selection.main.head);
+    completion.apply(view, completion, result.from, view.state.selection.main.head);
 }
 
 describe('createCodeBlockCompleter', () => {
