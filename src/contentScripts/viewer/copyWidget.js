@@ -3,9 +3,9 @@
 
     var CONTENT_SCRIPT_ID = 'codeblockAutocompleteViewer';
     var BUTTON_CLASS = 'codeblock-autocomplete-viewer-copy-button';
-    var CONTROLLER_KEY = '__codeblockAutocompleteViewerCopyController';
     var started = false;
 
+    /** @param {Element} button */
     function getCopyText(button) {
         var container = button.closest('.joplin-editable');
         if (!container) return null;
@@ -23,6 +23,7 @@
         return text;
     }
 
+    /** @param {Element} button */
     function copyCodeBlock(button) {
         var text = getCopyText(button);
         if (text === null || typeof webviewApi === 'undefined' || typeof webviewApi.postMessage !== 'function') {
@@ -34,6 +35,7 @@
         });
     }
 
+    /** @param {MouseEvent} event */
     function handleClick(event) {
         if (!(event.target instanceof Element)) return;
 
@@ -58,12 +60,12 @@
         started = false;
     }
 
-    var previousController = window[CONTROLLER_KEY];
+    var previousController = window.__codeblockAutocompleteViewerCopyController;
     if (previousController && typeof previousController.destroy === 'function') {
         previousController.destroy();
     }
 
-    window[CONTROLLER_KEY] = {
+    window.__codeblockAutocompleteViewerCopyController = {
         destroy: destroy,
     };
 

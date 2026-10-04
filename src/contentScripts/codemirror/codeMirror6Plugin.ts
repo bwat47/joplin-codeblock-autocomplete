@@ -26,7 +26,8 @@ export default function codeMirror6Plugin(context: PostMessageContext, CodeMirro
 
     let completionExt: Extension;
     if (CodeMirror.joplinExtensions) {
-        completionExt = CodeMirror.joplinExtensions.completionSource(codeBlockCompleter);
+        // Joplin's API declares this as `any` to avoid depending on CodeMirror types.
+        completionExt = CodeMirror.joplinExtensions.completionSource(codeBlockCompleter) as Extension;
     } else {
         completionExt = autocompletion({ override: [codeBlockCompleter] });
     }

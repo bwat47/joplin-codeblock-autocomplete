@@ -7,24 +7,26 @@
     /** Excludes numbered code so observer passes triggered by any DOM change stay cheap. */
     var UNNUMBERED_CODE_SELECTOR =
         '.' + CONTAINER_CLASS + ' > pre:not(.joplin-source) > code:not([' + NUMBERED_ATTRIBUTE + '])';
-    var CONTROLLER_KEY = '__codeblockAutocompleteViewerLineNumbersController';
+    /** @type {MutationObserver | null} */
     var observer = null;
 
     /**
      * Split text nodes while cloning their highlight ancestors for each new line.
      * A highlight span can cross several newlines, so splitting HTML strings
      * would produce broken markup. Newlines stay in the code's textContent.
+     * @param {HTMLElement} code
      */
     function numberCode(code) {
         var ownerDocument = code.ownerDocument;
         var fragment = ownerDocument.createDocumentFragment();
+        /** @type {Node[]} */
         var ancestors = [];
+        /** @type {Node[]} */
         var parents = [];
-        var line;
         var count = 0;
 
         function newLine() {
-            line = ownerDocument.createElement('span');
+            var line = ownerDocument.createElement('span');
             line.className = LINE_CLASS;
             line.setAttribute('data-line-number', String(++count));
             fragment.appendChild(line);
@@ -36,9 +38,10 @@
             });
         }
 
+        /** @param {Node} node */
         function visit(node) {
             if (node.nodeType === 3) {
-                var parts = node.nodeValue.split('\n');
+                var parts = (node.nodeValue || '').split('\n');
                 parts.forEach(function (part, index) {
                     if (index) newLine();
                     parents[parents.length - 1].appendChild(
@@ -64,7 +67,9 @@
     }
 
     function update() {
-        document.querySelectorAll(UNNUMBERED_CODE_SELECTOR).forEach(numberCode);
+        document.querySelectorAll(UNNUMBERED_CODE_SELECTOR).forEach(function (code) {
+            if (code instanceof HTMLElement) numberCode(code);
+        });
     }
 
     function start() {
@@ -80,9 +85,9 @@
         observer = null;
     }
 
-    var previousController = window[CONTROLLER_KEY];
+    var previousController = window.__codeblockAutocompleteViewerLineNumbersController;
     if (previousController) previousController.destroy();
-    window[CONTROLLER_KEY] = { destroy: destroy };
+    window.__codeblockAutocompleteViewerLineNumbersController = { destroy: destroy };
 
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', start);
