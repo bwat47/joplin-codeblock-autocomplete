@@ -11,7 +11,8 @@ import vitest from '@vitest/eslint-plugin';
 
 export default [
     {
-        ignores: ['api/**', 'dist/**'],
+        // webpack.config.js is generator-managed; tool configs aren't project sources
+        ignores: ['api/**', 'dist/**', 'webpack.config.js', '.prettierrc.js'],
     },
 
     js.configs.recommended,
