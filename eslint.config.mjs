@@ -7,6 +7,7 @@ import importPlugin from 'eslint-plugin-import-x';
 import sonarjs from 'eslint-plugin-sonarjs';
 import prettier from 'eslint-config-prettier';
 import globals from 'globals';
+import vitest from '@vitest/eslint-plugin';
 
 export default [
     {
@@ -61,8 +62,13 @@ export default [
                 ...globals.vitest,
             },
         },
+        plugins: {
+            vitest,
+        },
         rules: {
-            // You can add test-specific overrides here later
+            // Vitest assertions inspect method references without calling them.
+            '@typescript-eslint/unbound-method': 'off',
+            'vitest/unbound-method': 'error',
         },
     },
 
