@@ -5,7 +5,7 @@ const joplinMock = vi.hoisted(() => ({
     settings: {
         registerSection: vi.fn(async () => {}),
         registerSettings: vi.fn<(spec: Record<string, SettingItem>) => Promise<void>>(async () => {}),
-        value: vi.fn(async () => ''),
+        value: vi.fn<() => Promise<string>>().mockResolvedValue(''),
     },
 }));
 

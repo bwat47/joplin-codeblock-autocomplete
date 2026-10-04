@@ -68,7 +68,9 @@ describe('viewer copy widget asset', () => {
     beforeEach(() => {
         document.body.innerHTML = '';
 
-        postMessage = vi.fn(async () => ({ ok: true }));
+        postMessage = vi
+            .fn<(contentScriptId: string, message: WebviewMessage) => Promise<unknown>>()
+            .mockResolvedValue({ ok: true });
         Object.assign(globalThis, { webviewApi: { postMessage } });
     });
 
@@ -182,7 +184,9 @@ it.each([true, false])('copies numbered code verbatim with source metadata=%s', 
     button.parentElement!.classList.add('codeblock-autocomplete-viewer-line-numbers');
     if (!withSource) document.querySelector('.joplin-source')!.remove();
     vi.resetModules();
-    const postMessage = vi.fn(async () => ({ ok: true }));
+    const postMessage = vi
+        .fn<(contentScriptId: string, message: WebviewMessage) => Promise<unknown>>()
+        .mockResolvedValue({ ok: true });
     Object.assign(globalThis, { webviewApi: { postMessage } });
     // @ts-expect-error The viewer asset is a classic browser script.
     await import('./lineNumbers.js');
