@@ -1,4 +1,4 @@
-import { type Extension, type Range } from '@codemirror/state';
+import type { Extension, Range } from '@codemirror/state';
 import { Decoration, type DecorationSet, EditorView, type ViewUpdate, ViewPlugin, WidgetType } from '@codemirror/view';
 import type { SyntaxNode } from '@lezer/common';
 import { logger } from '../../logger';

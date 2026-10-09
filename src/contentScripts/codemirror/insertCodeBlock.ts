@@ -1,5 +1,5 @@
 import { EditorSelection, type EditorState, type SelectionRange } from '@codemirror/state';
-import { EditorView } from '@codemirror/view';
+import type { EditorView } from '@codemirror/view';
 import { type FencedCodeBlockGeometry, getFencedCodeBlockGeometry, getFencedCodeSyntaxTree } from './fencedCodeBlock';
 
 const CODE_FENCE_CHAR = '`';

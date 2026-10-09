@@ -3,7 +3,7 @@
  */
 import { autocompletion } from '@codemirror/autocomplete';
 import type { Extension } from '@codemirror/state';
-import { EditorView } from '@codemirror/view';
+import type { EditorView } from '@codemirror/view';
 import type { CodeMirrorControl } from 'api/types';
 import { copyWidgetTheme, createCopyWidgetPlugin } from './copyWidget';
 import { createCodeBlockCompleter, createFenceTriggerExtension, fenceAutocompleteTheme } from './fenceAutocomplete';

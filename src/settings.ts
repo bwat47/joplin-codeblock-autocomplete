@@ -2,7 +2,7 @@
  * Plugin settings registration and access helpers.
  */
 import joplin from 'api';
-import { SettingItem, SettingItemType } from 'api/types';
+import { type SettingItem, SettingItemType } from 'api/types';
 import { SETTING_KEYS, SETTINGS_SECTION_ID } from './settingsKeys';
 
 const DEFAULT_LANGUAGES =
