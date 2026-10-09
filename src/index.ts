@@ -101,56 +101,52 @@ async function pushUpdatedSettingsToEditor(): Promise<void> {
     }
 }
 
-joplin.plugins
-    .register({
-        onStart: async function () {
-            await registerSettings();
+void joplin.plugins.register({
+    onStart: async function () {
+        await registerSettings();
 
-            await joplin.contentScripts.register(
-                ContentScriptType.CodeMirrorPlugin,
-                CODE_MIRROR_CONTENT_SCRIPT_ID,
-                './contentScripts/codemirror/index.js'
-            );
-            await joplin.contentScripts.register(
-                ContentScriptType.MarkdownItPlugin,
-                VIEWER_CONTENT_SCRIPT_ID,
-                './contentScripts/viewer/index.js'
-            );
+        await joplin.contentScripts.register(
+            ContentScriptType.CodeMirrorPlugin,
+            CODE_MIRROR_CONTENT_SCRIPT_ID,
+            './contentScripts/codemirror/index.js'
+        );
+        await joplin.contentScripts.register(
+            ContentScriptType.MarkdownItPlugin,
+            VIEWER_CONTENT_SCRIPT_ID,
+            './contentScripts/viewer/index.js'
+        );
 
-            await joplin.contentScripts.onMessage(CODE_MIRROR_CONTENT_SCRIPT_ID, handleCodeMirrorMessage);
-            await joplin.contentScripts.onMessage(VIEWER_CONTENT_SCRIPT_ID, handleViewerMessage);
+        await joplin.contentScripts.onMessage(CODE_MIRROR_CONTENT_SCRIPT_ID, handleCodeMirrorMessage);
+        await joplin.contentScripts.onMessage(VIEWER_CONTENT_SCRIPT_ID, handleViewerMessage);
 
-            await joplin.commands.register({
-                name: INSERT_CODE_BLOCK_TOOLBAR_COMMAND,
-                label: 'Insert code block',
-                iconName: 'fas fa-code',
-                execute: async () => {
-                    await insertCodeBlockInEditor();
-                },
-            });
+        await joplin.commands.register({
+            name: INSERT_CODE_BLOCK_TOOLBAR_COMMAND,
+            label: 'Insert code block',
+            iconName: 'fas fa-code',
+            execute: async () => {
+                await insertCodeBlockInEditor();
+            },
+        });
 
-            await joplin.views.menuItems.create(
-                INSERT_CODE_BLOCK_MENU_ITEM_ID,
-                INSERT_CODE_BLOCK_TOOLBAR_COMMAND,
-                MenuItemLocation.Edit,
-                { accelerator: 'CmdOrCtrl+Alt+`' }
-            );
+        await joplin.views.menuItems.create(
+            INSERT_CODE_BLOCK_MENU_ITEM_ID,
+            INSERT_CODE_BLOCK_TOOLBAR_COMMAND,
+            MenuItemLocation.Edit,
+            { accelerator: 'CmdOrCtrl+Alt+`' }
+        );
 
-            await joplin.views.toolbarButtons.create(
-                INSERT_CODE_BLOCK_TOOLBAR_BUTTON_ID,
-                INSERT_CODE_BLOCK_TOOLBAR_COMMAND,
-                ToolbarButtonLocation.EditorToolbar
-            );
+        await joplin.views.toolbarButtons.create(
+            INSERT_CODE_BLOCK_TOOLBAR_BUTTON_ID,
+            INSERT_CODE_BLOCK_TOOLBAR_COMMAND,
+            ToolbarButtonLocation.EditorToolbar
+        );
 
-            await joplin.settings.onChange((event) => {
-                if (!areCodeMirrorSettingsChanged(event.keys)) {
-                    return;
-                }
+        await joplin.settings.onChange((event) => {
+            if (!areCodeMirrorSettingsChanged(event.keys)) {
+                return;
+            }
 
-                void pushUpdatedSettingsToEditor();
-            });
-        },
-    })
-    .catch((error: unknown) => {
-        logger.error('Failed to register the Codeblock Utils plugin.', error);
-    });
+            void pushUpdatedSettingsToEditor();
+        });
+    },
+});
