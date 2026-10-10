@@ -10,8 +10,7 @@ import { createCodeBlockCompleter, createFenceTriggerExtension, fenceAutocomplet
 import { insertCodeBlockAtCursor } from './insertCodeBlock';
 import { createLineNumbersPlugin, lineNumbersTheme } from './lineNumbers';
 import { applyPluginSettings, createSettingsExtension, syncInitialSettings } from './pluginSettings';
-import type { PostMessageContext } from './types';
-import { INSERT_CODE_BLOCK_COMMAND, UPDATE_SETTINGS_COMMAND } from './types';
+import { type PostMessageContext, INSERT_CODE_BLOCK_COMMAND, UPDATE_SETTINGS_COMMAND } from './types';
 
 export default function codeMirror6Plugin(context: PostMessageContext, CodeMirror: CodeMirrorControl): void {
     const codeBlockCompleter = createCodeBlockCompleter();

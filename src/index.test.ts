@@ -1,6 +1,5 @@
 import { ToastType } from 'api/types';
-import type { PluginSettingsResponse } from './contentScripts/codemirror/types';
-import { UPDATE_SETTINGS_COMMAND } from './contentScripts/codemirror/types';
+import { type PluginSettingsResponse, UPDATE_SETTINGS_COMMAND } from './contentScripts/codemirror/types';
 
 type MessageHandler = (message: unknown) => Promise<unknown>;
 type SettingsChangeHandler = (event: { keys: string[] }) => void;

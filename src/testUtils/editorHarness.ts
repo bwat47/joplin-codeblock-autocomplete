@@ -1,5 +1,4 @@
-import type { Extension } from '@codemirror/state';
-import { EditorState } from '@codemirror/state';
+import { type Extension, EditorState } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
 
 type SelectionSpec = {
