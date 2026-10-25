@@ -221,7 +221,7 @@ class CopyCodeBlockWidget extends WidgetType {
         super();
     }
 
-    public eq(other: WidgetType): boolean {
+    public override eq(other: WidgetType): boolean {
         return (
             other instanceof CopyCodeBlockWidget &&
             other.interactionSelectionAnchor === this.interactionSelectionAnchor &&
@@ -273,7 +273,7 @@ class CopyCodeBlockWidget extends WidgetType {
         return button;
     }
 
-    public ignoreEvent(): boolean {
+    public override ignoreEvent(): boolean {
         return true;
     }
 
