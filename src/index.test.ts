@@ -44,7 +44,9 @@ const SETTINGS: PluginSettingsResponse = {
 
 async function startPlugin(): Promise<void> {
     await import('./index');
-    await mocks.joplin.plugins.register.mock.calls[0][0].onStart();
+    const call = mocks.joplin.plugins.register.mock.calls[0];
+    assert(call, 'Expected plugin registration.');
+    await call[0].onStart();
 }
 
 function getMessageHandler(scriptId: string): MessageHandler {
@@ -54,7 +56,9 @@ function getMessageHandler(scriptId: string): MessageHandler {
 }
 
 function getSettingsChangeHandler(): SettingsChangeHandler {
-    return mocks.joplin.settings.onChange.mock.calls[0][0];
+    const call = mocks.joplin.settings.onChange.mock.calls[0];
+    assert(call, 'Expected settings change handler registration.');
+    return call[0];
 }
 
 beforeEach(async () => {
