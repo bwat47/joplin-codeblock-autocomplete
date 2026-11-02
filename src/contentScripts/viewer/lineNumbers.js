@@ -26,6 +26,12 @@
         var parents = [];
         var count = 0;
 
+        function currentParent() {
+            var parent = parents[parents.length - 1];
+            if (!parent) throw new Error('Expected a parent while numbering code lines.');
+            return parent;
+        }
+
         function newLine() {
             var line = ownerDocument.createElement('span');
             line.className = LINE_CLASS;
@@ -34,7 +40,7 @@
             parents = [line];
             ancestors.forEach(function (ancestor) {
                 var clone = ancestor.cloneNode(false);
-                parents[parents.length - 1].appendChild(clone);
+                currentParent().appendChild(clone);
                 parents.push(clone);
             });
         }
@@ -45,13 +51,13 @@
                 var parts = (node.nodeValue || '').split('\n');
                 parts.forEach(function (part, index) {
                     if (index) newLine();
-                    parents[parents.length - 1].appendChild(
+                    currentParent().appendChild(
                         ownerDocument.createTextNode(part + (index < parts.length - 1 ? '\n' : ''))
                     );
                 });
             } else if (node.nodeType === 1) {
                 var clone = node.cloneNode(false);
-                parents[parents.length - 1].appendChild(clone);
+                currentParent().appendChild(clone);
                 ancestors.push(node);
                 parents.push(clone);
                 Array.from(node.childNodes).forEach(visit);

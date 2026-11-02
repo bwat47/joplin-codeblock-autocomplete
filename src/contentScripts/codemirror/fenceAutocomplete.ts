@@ -30,10 +30,11 @@ function parseOpeningFence(state: CompletionContext['state'], pos: number): Open
     const match = /^(\s*)(`{3,}|~{3,})([^\s`]*)/.exec(lineText);
     if (!match) return undefined;
 
-    const indent = match[1];
-    const fence = match[2];
-    const fenceChar = fence[0];
-    const typedLang = match[3];
+    // Every capture participates in a successful match, including empty indent/language.
+    const indent = match[1]!;
+    const fence = match[2]!;
+    const fenceChar = fence.charAt(0);
+    const typedLang = match[3]!;
 
     const fenceStart = lineStartPos + indent.length;
     if (pos < fenceStart + fence.length) return undefined;
@@ -58,11 +59,10 @@ function createApplyFunction(desiredLang: string) {
     return (view: EditorView) => {
         const lineBreak = view.state.lineBreak || '\n';
 
-        const changes: { from: number; to: number; insert: string }[] = [];
         // Offset (relative to the start of each insertion) where the cursor should land,
         // i.e. on the blank line between the opening and closing fences. A document line break is
         // one position whatever `state.lineBreak` holds, so it counts as 1 rather than its length.
-        const cursorOffsets: number[] = [];
+        const changes: { from: number; to: number; insert: string; cursorOffset: number }[] = [];
 
         for (const range of view.state.selection.ranges) {
             const openingFence = parseOpeningFence(view.state, range.head);
@@ -74,15 +74,15 @@ function createApplyFunction(desiredLang: string) {
                 from: openingFence.languageStartPos,
                 to: range.head,
                 insert: `${desiredLang}${lineBreak}${indent}${lineBreak}${indent}${fence}`,
+                cursorOffset: desiredLang.length + 1 + indent.length,
             });
-            cursorOffsets.push(desiredLang.length + 1 + indent.length);
         }
 
         if (changes.length === 0) return;
 
         const changeSet = view.state.changes(changes);
         const selection = EditorSelection.create(
-            changes.map((change, i) => EditorSelection.cursor(changeSet.mapPos(change.from, -1) + cursorOffsets[i]))
+            changes.map((change) => EditorSelection.cursor(changeSet.mapPos(change.from, -1) + change.cursorOffset))
         );
 
         view.dispatch(view.state.update({ changes: changeSet, selection }));
