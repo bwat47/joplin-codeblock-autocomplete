@@ -39,7 +39,7 @@ function getRenderedLines(harness: EditorHarness): RenderedLine[] {
     return Array.from(harness.view.contentDOM.querySelectorAll('.cm-line')).map((line) => ({
         number: line.getAttribute('data-codeblock-line-number'),
         numbered: line.classList.contains('cm-codeblock-line-numbers'),
-        text: line.textContent ?? '',
+        text: line.textContent,
     }));
 }
 

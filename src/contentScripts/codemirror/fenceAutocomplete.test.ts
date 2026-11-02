@@ -31,12 +31,10 @@ const ZERO_RECT = {
 beforeAll(() => {
     if (typeof Range === 'undefined') return;
 
-    if (!Range.prototype.getClientRects) {
-        Range.prototype.getClientRects = () => EMPTY_CLIENT_RECTS;
-    }
-    if (!Range.prototype.getBoundingClientRect) {
-        Range.prototype.getBoundingClientRect = () => ZERO_RECT;
-    }
+    // jsdom doesn't implement these, even though lib.dom types them as always present.
+    const rangePrototype: Partial<Range> = Range.prototype;
+    rangePrototype.getClientRects ??= () => EMPTY_CLIENT_RECTS;
+    rangePrototype.getBoundingClientRect ??= () => ZERO_RECT;
 });
 
 function createCompletionContext(view: ReturnType<typeof createEditorHarness>['view']): CompletionContext {
