@@ -1,6 +1,7 @@
 import { syntaxTree } from '@codemirror/language';
 import type { Extension, Range } from '@codemirror/state';
-import { Decoration, type DecorationSet, EditorView, type ViewUpdate, ViewPlugin } from '@codemirror/view';
+import { Decoration, EditorView, ViewPlugin, type DecorationSet, type ViewUpdate } from '@codemirror/view';
+
 import { getFencedCodeBlockGeometry, getFencedCodeSyntaxTree } from './fencedCodeBlock';
 import { getPluginSettings } from './pluginSettings';
 

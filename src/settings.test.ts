@@ -1,5 +1,8 @@
 import { vi } from 'vitest';
+
 import { SettingItemType, type SettingItem } from 'api/types';
+import { areCodeMirrorSettingsChanged, registerSettings } from './settings';
+import { SETTING_KEYS, SETTINGS_SECTION_ID } from './settingsKeys';
 
 const joplinMock = vi.hoisted(() => ({
     settings: {
@@ -10,9 +13,6 @@ const joplinMock = vi.hoisted(() => ({
 }));
 
 vi.mock('api', () => ({ default: joplinMock }));
-
-import { areCodeMirrorSettingsChanged, registerSettings } from './settings';
-import { SETTING_KEYS, SETTINGS_SECTION_ID } from './settingsKeys';
 
 async function getRegisteredSettingsSpec(): Promise<Record<string, SettingItem>> {
     joplinMock.settings.registerSettings.mockClear();

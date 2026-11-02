@@ -27,6 +27,7 @@
         "@codemirror/state": "^6.5.4",
         "@codemirror/view": "^6.35.0",
         "@eslint/js": "^10.0.1",
+        "@ianvs/prettier-plugin-sort-imports": "^4.7.1",
         "@lezer/common": "^1.5.2",
         "@types/node": "^24.13.2",
         "@vitest/eslint-plugin": "^1.6.27",

@@ -1,6 +1,7 @@
 import { markdown } from '@codemirror/lang-markdown';
 import { Compartment } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
+
 import { createEditorHarness, type EditorHarness } from '../../testUtils/editorHarness';
 import { createLineNumbersPlugin, lineNumbersTheme } from './lineNumbers';
 import { applyPluginSettings, createSettingsExtension } from './pluginSettings';

@@ -1,9 +1,10 @@
+import { markdown } from '@codemirror/lang-markdown';
 import { ensureSyntaxTree } from '@codemirror/language';
 import type * as CodeMirrorLanguage from '@codemirror/language';
-import { markdown } from '@codemirror/lang-markdown';
 import { EditorSelection, EditorState } from '@codemirror/state';
-import { insertCodeBlockAtCursor } from './insertCodeBlock';
+
 import { createEditorHarness } from '../../testUtils/editorHarness';
+import { insertCodeBlockAtCursor } from './insertCodeBlock';
 
 vi.mock('@codemirror/language', async () => {
     const actual = await vi.importActual<typeof CodeMirrorLanguage>('@codemirror/language');

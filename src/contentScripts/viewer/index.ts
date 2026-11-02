@@ -8,9 +8,9 @@
  * untouched.
  */
 import type { MarkdownItContentScriptModule } from 'api/types';
+import { SETTING_KEYS } from '../../settingsKeys';
 import { addContainerClass, isRenderedCodeContainer } from './codeContainer';
 import { markLineNumberContainer } from './viewerLineNumbers';
-import { SETTING_KEYS } from '../../settingsKeys';
 
 type MarkdownItToken = {
     tag?: string;

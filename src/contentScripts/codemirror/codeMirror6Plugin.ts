@@ -4,13 +4,14 @@
 import { autocompletion } from '@codemirror/autocomplete';
 import type { Extension } from '@codemirror/state';
 import type { EditorView } from '@codemirror/view';
+
 import type { CodeMirrorControl } from 'api/types';
 import { copyWidgetTheme, createCopyWidgetPlugin } from './copyWidget';
 import { createCodeBlockCompleter, createFenceTriggerExtension, fenceAutocompleteTheme } from './fenceAutocomplete';
 import { insertCodeBlockAtCursor } from './insertCodeBlock';
 import { createLineNumbersPlugin, lineNumbersTheme } from './lineNumbers';
 import { applyPluginSettings, createSettingsExtension, syncInitialSettings } from './pluginSettings';
-import { type PostMessageContext, INSERT_CODE_BLOCK_COMMAND, UPDATE_SETTINGS_COMMAND } from './types';
+import { INSERT_CODE_BLOCK_COMMAND, UPDATE_SETTINGS_COMMAND, type PostMessageContext } from './types';
 
 export default function codeMirror6Plugin(context: PostMessageContext, CodeMirror: CodeMirrorControl): void {
     const codeBlockCompleter = createCodeBlockCompleter();
