@@ -20,7 +20,8 @@ function chooseCodeFence(state: EditorState, from: number, to: number): string {
     for (let lineNumber = doc.lineAt(from).number; lineNumber <= lastLineNumber; lineNumber++) {
         // Leading whitespace is allowed before a fence, so match past it: `  ```js`.
         const enclosedFence = /^\s*(`{3,})/.exec(doc.line(lineNumber).text);
-        if (enclosedFence) longestEnclosedFence = Math.max(longestEnclosedFence, enclosedFence[1].length);
+        // The required capture contains at least three backticks whenever the pattern matches.
+        if (enclosedFence) longestEnclosedFence = Math.max(longestEnclosedFence, enclosedFence[1]!.length);
     }
 
     return CODE_FENCE_CHAR.repeat(Math.max(MIN_CODE_FENCE_LENGTH, longestEnclosedFence + 1));

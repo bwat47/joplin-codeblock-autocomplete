@@ -187,6 +187,7 @@ describe('createCopyWidgetPlugin', () => {
             });
 
             const [firstButton] = getCopyWidgetButtons();
+            assert(firstButton, 'Expected the first copy widget button.');
 
             dispatchPointerDown(firstButton, 'touch');
             dispatchPointerUp(firstButton, 'touch');
@@ -199,6 +200,7 @@ describe('createCopyWidgetPlugin', () => {
             expect(harness.getCursor()).toBe(harness.view.state.doc.line(2).from);
 
             const [, updatedSecondButton] = getCopyWidgetButtons();
+            assert(updatedSecondButton, 'Expected the second copy widget button after the update.');
 
             dispatchPointerDown(updatedSecondButton, 'touch');
             dispatchPointerUp(updatedSecondButton, 'touch');
@@ -252,7 +254,7 @@ describe('createCopyWidgetPlugin', () => {
 
             const buttons = getCopyWidgetButtons();
             expect(buttons).toHaveLength(1);
-            expect(buttons[0].textContent).toBe('js');
+            expect(buttons[0]).toHaveProperty('textContent', 'js');
         } finally {
             harness.destroy();
         }

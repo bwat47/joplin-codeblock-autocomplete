@@ -89,6 +89,8 @@ describe('registerSettings', () => {
         expect(spec[SETTING_KEYS.enableViewerCopyWidget]).toMatchObject({ type: SettingItemType.Bool, value: false });
         expect(spec[SETTING_KEYS.enableViewerLineNumbers]).toMatchObject({ type: SettingItemType.Bool, value: false });
         expect(spec[SETTING_KEYS.languages]).toMatchObject({ type: SettingItemType.String });
-        expect(spec[SETTING_KEYS.languages].value).toContain('typescript');
+        const languageSetting = spec[SETTING_KEYS.languages];
+        assert(languageSetting, 'Expected the language setting to be registered.');
+        expect(languageSetting.value).toContain('typescript');
     });
 });
