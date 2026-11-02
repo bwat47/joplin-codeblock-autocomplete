@@ -15,7 +15,7 @@ const IMMEDIATE_FENCE_LENGTH = 3;
 
 /**
  * Parse the opening fence at the current cursor position.
- * Supports both backtick (```) and tilde (~~~) style fences.
+ * Supports both backtick and tilde (~~~) style fences.
  * Returns fence details or undefined if not at a valid fence position.
  */
 function parseOpeningFence(state: CompletionContext['state'], pos: number): OpeningFence | undefined {

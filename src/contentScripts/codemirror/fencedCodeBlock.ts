@@ -79,7 +79,7 @@ function findFenceChildNodes(fencedCodeNode: SyntaxNode, openingLine: Line): Fen
 }
 
 /**
- * Finds a list marker that sits on the opening fence line, before the fence itself (`- ```js`).
+ * Finds a list marker that sits on the opening fence line, before the fence itself (e.g. `- ` in a list item).
  *
  * A list marker is written once, on the item's first line, so removing the whole opening line
  * would destroy the list item. Blockquote markers need no such care: they are repeated on every
