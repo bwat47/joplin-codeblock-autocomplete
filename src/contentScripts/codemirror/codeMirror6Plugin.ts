@@ -1,7 +1,6 @@
 /**
  * CodeMirror 6 content-script composition root for code block features.
  */
-import { autocompletion } from '@codemirror/autocomplete';
 import type { Extension } from '@codemirror/state';
 import type { EditorView } from '@codemirror/view';
 
@@ -24,13 +23,8 @@ export default function codeMirror6Plugin(context: PostMessageContext, CodeMirro
         insertCodeBlockAtCursor(CodeMirror.editor as EditorView);
     });
 
-    let completionExt: Extension;
-    if (CodeMirror.joplinExtensions) {
-        // Joplin's API declares this as `any` to avoid depending on CodeMirror types.
-        completionExt = CodeMirror.joplinExtensions.completionSource(codeBlockCompleter) as Extension;
-    } else {
-        completionExt = autocompletion({ override: [codeBlockCompleter] });
-    }
+    // Joplin's API declares this as `any` to avoid depending on CodeMirror types.
+    const completionExt = CodeMirror.joplinExtensions.completionSource(codeBlockCompleter) as Extension;
 
     CodeMirror.addExtension([
         settingsExtension,
