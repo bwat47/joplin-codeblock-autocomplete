@@ -49,12 +49,12 @@ Paths below are relative to `src/contentScripts/viewer/`.
 | ----------------------------------- | ------------------------------------------------------------------------ |
 | `index.ts`                          | Wraps the existing Markdown-it fence renderer and exposes viewer assets. |
 | `codeContainer.ts`                  | Shared identification and marking of eligible rendered code containers.  |
-| `viewerLineNumbers.ts`              | Marks containers for line numbering and highlighting during rendering.   |
+| `viewerLineNumbers.ts`              | Marks rendered code for line numbering and highlighting.                 |
 | `fenceSource.ts`                    | Keeps fence options in the Rich Text editor's source metadata.           |
 | `copyWidget.js`, `copyWidget.css`   | Copy interaction and header (button and title) presentation.             |
 | `lineNumbers.js`, `lineNumbers.css` | Splitting code into lines, and number and highlight presentation.        |
 
-The viewer preserves Joplin's existing rendered HTML. Its one change to source metadata restores the full info string, which Joplin's code renderer shortens to the language, so the Rich Text editors do not drop fence options when they convert back to Markdown. It decorates ordinary rendered code containers, leaving specialized fence renderers such as diagrams untouched. Viewer decorations preserve the code text used for copying.
+The viewer preserves Joplin's existing rendered HTML. Its one change to source metadata restores the full info string, which Joplin's code renderer shortens to the language, so the Rich Text editors do not drop fence options when they convert back to Markdown. It decorates ordinary rendered code containers, leaving specialized fence renderers such as diagrams untouched. Viewer decorations preserve the code text used for copying. Joplin's mobile Rich Text editor rebuilds each container from its inner HTML, so markup and markers that must work there belong inside the container rather than on it.
 
 ## Compatibility and Maintenance
 

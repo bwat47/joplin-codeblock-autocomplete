@@ -1,4 +1,4 @@
-import { addContainerAttribute, addContainerClass, isRenderedCodeContainer } from './codeContainer';
+import { isRenderedCodeContainer, markRenderedCodePre } from './codeContainer';
 
 /** Asks `lineNumbers.js` to split the code into one element per line. */
 const LINES_CONTAINER_CLASS = 'codeblock-autocomplete-viewer-lines';
@@ -17,25 +17,29 @@ export type CodeLineMarks = {
 };
 
 /**
- * Marks a rendered code container for `lineNumbers.js` to number and highlight its lines. Only
- * rendered code is marked, since diagram renderers also use editable containers, and only when
- * there is something to show.
+ * Marks rendered code for `lineNumbers.js` to number and highlight its lines. Only rendered code
+ * is marked, since diagram renderers also use editable containers, and only when there is
+ * something to show.
+ *
+ * The marks go on the `<pre>` holding the code rather than the outer container, because Joplin's
+ * mobile Rich Text editor rebuilds the container from its inner HTML alone.
  */
 export function markCodeLineContainer(renderedHtml: string, marks: CodeLineMarks): string {
     if ((!marks.numbered && marks.highlightedLines.length === 0) || !isRenderedCodeContainer(renderedHtml)) {
         return renderedHtml;
     }
 
-    let marked = addContainerClass(renderedHtml, LINES_CONTAINER_CLASS);
+    const classes = [LINES_CONTAINER_CLASS];
+    const attributes: Record<string, string> = {};
     if (marks.numbered) {
-        marked = addContainerClass(marked, LINE_NUMBER_CONTAINER_CLASS);
+        classes.push(LINE_NUMBER_CONTAINER_CLASS);
         if (marks.start !== 1) {
-            marked = addContainerAttribute(marked, LINE_NUMBER_START_ATTRIBUTE, String(marks.start));
+            attributes[LINE_NUMBER_START_ATTRIBUTE] = String(marks.start);
         }
     }
     if (marks.highlightedLines.length > 0) {
-        marked = addContainerAttribute(marked, HIGHLIGHT_ATTRIBUTE, marks.highlightedLines.join(' '));
+        attributes[HIGHLIGHT_ATTRIBUTE] = marks.highlightedLines.join(' ');
     }
 
-    return marked;
+    return markRenderedCodePre(renderedHtml, classes.join(' '), attributes);
 }

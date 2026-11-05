@@ -2,7 +2,7 @@
 (function () {
     'use strict';
 
-    /** Set by the renderer on containers whose code is split into lines. */
+    /** Set by the renderer on the `<pre>` of code that is split into lines. */
     var LINES_CLASS = 'codeblock-autocomplete-viewer-lines';
     /** Set alongside it when the lines are numbered. */
     var NUMBERS_CLASS = 'codeblock-autocomplete-viewer-line-numbers';
@@ -15,7 +15,7 @@
     var HIGHLIGHT_ATTRIBUTE = 'data-codeblock-highlight-lines';
     /** Excludes split code so observer passes triggered by any DOM change stay cheap. */
     var UNNUMBERED_CODE_SELECTOR =
-        '.' + LINES_CLASS + ' > pre:not(.joplin-source) > code:not([' + NUMBERED_ATTRIBUTE + '])';
+        'pre.' + LINES_CLASS + ':not(.joplin-source) > code:not([' + NUMBERED_ATTRIBUTE + '])';
     /** @type {MutationObserver | null} */
     var observer = null;
 
@@ -32,7 +32,7 @@
         var ancestors = [];
         /** @type {Node[]} */
         var parents = [];
-        var container = code.closest('.' + LINES_CLASS);
+        var container = code.parentElement;
         var numbered = !!container && container.classList.contains(NUMBERS_CLASS);
         var start = Number((container && container.getAttribute(START_ATTRIBUTE)) || 1);
         /** @type {Record<string, boolean>} */

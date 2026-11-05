@@ -273,12 +273,12 @@ describe('viewer settings combinations', () => {
             () => false,
             () => setting
         );
-        const container = new DOMParser()
+        const pre = new DOMParser()
             .parseFromString(renderFence(markdownIt, { info }), 'text/html')
-            .querySelector('.joplin-editable');
+            .querySelector('pre.hljs');
 
-        expect(container?.classList.contains('codeblock-autocomplete-viewer-line-numbers')).toBe(numbered);
-        expect(container?.getAttribute('data-codeblock-line-start')).toBe(start);
+        expect(pre?.classList.contains('codeblock-autocomplete-viewer-line-numbers')).toBe(numbered);
+        expect(pre?.getAttribute('data-codeblock-line-start')).toBe(start);
     });
 
     it.each([
@@ -292,15 +292,13 @@ describe('viewer settings combinations', () => {
             () => false,
             () => false
         );
-        const container = new DOMParser()
+        const pre = new DOMParser()
             .parseFromString(renderFence(markdownIt, { info, content }), 'text/html')
-            .querySelector('.joplin-editable');
+            .querySelector('pre.hljs');
 
-        expect(container?.getAttribute('data-codeblock-highlight-lines')).toBe(positions);
-        expect(container?.classList.contains('codeblock-autocomplete-viewer-lines')).toBe(
-            positions !== null || numbered
-        );
-        expect(container?.classList.contains('codeblock-autocomplete-viewer-line-numbers')).toBe(numbered);
+        expect(pre?.getAttribute('data-codeblock-highlight-lines')).toBe(positions);
+        expect(pre?.classList.contains('codeblock-autocomplete-viewer-lines')).toBe(positions !== null || numbered);
+        expect(pre?.classList.contains('codeblock-autocomplete-viewer-line-numbers')).toBe(numbered);
     });
 
     it('preserves fence options in the source metadata while every viewer feature is off', () => {

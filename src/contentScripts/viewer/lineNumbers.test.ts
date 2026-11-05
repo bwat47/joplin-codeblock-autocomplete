@@ -3,12 +3,12 @@ import type { ViewerAssetController, ViewerWindow } from './viewerTypes';
 
 const viewerWindow = window as ViewerWindow;
 
-function setCode(html: string, containerAttributes = ''): HTMLElement {
+function setCode(html: string, preAttributes = ''): HTMLElement {
     document.body.innerHTML =
-        '<div class="joplin-editable codeblock-autocomplete-viewer-lines codeblock-autocomplete-viewer-line-numbers"' +
-        `${containerAttributes}>` +
+        '<div class="joplin-editable">' +
         '<pre class="joplin-source" hidden data-joplin-language="ts">original source</pre>' +
-        `<pre class="hljs"><code>${html}</code></pre></div>`;
+        '<pre class="hljs codeblock-autocomplete-viewer-lines codeblock-autocomplete-viewer-line-numbers"' +
+        `${preAttributes}><code>${html}</code></pre></div>`;
     return document.querySelector('code')!;
 }
 
@@ -73,17 +73,18 @@ describe('viewer line numbers', () => {
         expect(lines(replacement)).toHaveLength(2);
     });
 
-    it('starts numbering from the container start attribute', async () => {
+    it('starts numbering from the start attribute', async () => {
         const code = setCode('a\nb', ' data-codeblock-line-start="9"');
         controller = await loadAsset();
         expect(lines(code).map((line) => line.getAttribute('data-line-number'))).toEqual(['9', '10']);
         expect(code.style.getPropertyValue('--codeblock-line-number-digits')).toBe('2');
     });
 
-    it('highlights lines by position without numbering them in unnumbered containers', async () => {
+    it('highlights lines by position without numbering them in unnumbered code', async () => {
         document.body.innerHTML =
-            '<div class="joplin-editable codeblock-autocomplete-viewer-lines" data-codeblock-highlight-lines="1 3">' +
-            '<pre class="hljs"><code>a\nb\nc</code></pre></div>';
+            '<div class="joplin-editable">' +
+            '<pre class="hljs codeblock-autocomplete-viewer-lines" data-codeblock-highlight-lines="1 3">' +
+            '<code>a\nb\nc</code></pre></div>';
         const code = document.querySelector('code')!;
         controller = await loadAsset();
 
@@ -98,36 +99,33 @@ describe('viewer line numbers', () => {
     it('leaves unmarked code and diagram containers alone', async () => {
         document.body.innerHTML =
             '<div class="joplin-editable"><pre><code>plain</code></pre></div>' +
-            '<div class="joplin-editable codeblock-autocomplete-viewer-lines"><pre class="mermaid">graph</pre></div>';
+            '<div class="joplin-editable"><pre class="mermaid codeblock-autocomplete-viewer-lines">graph</pre></div>';
         const original = document.body.innerHTML;
         controller = await loadAsset();
         expect(document.body.innerHTML).toBe(original);
     });
 
-    it('marks eligible renderer output without changing source metadata', () => {
+    it('marks the rendered code pre without changing the container or source metadata', () => {
         const html =
-            '<div class="other joplin-editable"><pre class="joplin-source">source</pre><pre><code>x</code></pre></div>';
+            '<div class="other joplin-editable"><pre class="joplin-source">source</pre>' +
+            '<pre class="hljs"><code>x</code></pre></div>';
         const lines = 'codeblock-autocomplete-viewer-lines';
         const numbers = 'codeblock-autocomplete-viewer-line-numbers';
         const mark = (numbered: boolean, start: number, highlightedLines: number[]): string =>
             markCodeLineContainer(html, { numbered, start, highlightedLines });
 
-        expect(mark(true, 1, [])).toBe(
-            html.replace('other joplin-editable', `other joplin-editable ${lines} ${numbers}`)
-        );
+        expect(mark(true, 1, [])).toBe(html.replace('<pre class="hljs">', `<pre class="hljs ${lines} ${numbers}">`));
         expect(mark(true, 0, [])).toBe(
-            html.replace(
-                'class="other joplin-editable"',
-                `class="other joplin-editable ${lines} ${numbers}" data-codeblock-line-start="0"`
-            )
+            html.replace('<pre class="hljs">', `<pre class="hljs ${lines} ${numbers}" data-codeblock-line-start="0">`)
         );
         expect(mark(false, 5, [1, 3])).toBe(
-            html.replace(
-                'class="other joplin-editable"',
-                `class="other joplin-editable ${lines}" data-codeblock-highlight-lines="1 3"`
-            )
+            html.replace('<pre class="hljs">', `<pre class="hljs ${lines}" data-codeblock-highlight-lines="1 3">`)
         );
         expect(mark(false, 1, [])).toBe(html);
+        const withoutClass = '<div class="joplin-editable"><pre><code>x</code></pre></div>';
+        expect(markCodeLineContainer(withoutClass, { numbered: false, start: 1, highlightedLines: [1] })).toBe(
+            `<div class="joplin-editable"><pre class="${lines}" data-codeblock-highlight-lines="1"><code>x</code></pre></div>`
+        );
         const diagram = '<div class="joplin-editable"><pre class="mermaid">graph</pre></div>';
         expect(markCodeLineContainer(diagram, { numbered: true, start: 5, highlightedLines: [1] })).toBe(diagram);
     });

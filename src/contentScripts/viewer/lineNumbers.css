@@ -3,7 +3,7 @@
  * highlights reach the end of code that scrolls sideways. `fit-content` still
  * follows the available width when the code wraps.
  */
-.codeblock-autocomplete-viewer-lines > pre:not(.joplin-source) > code {
+pre.codeblock-autocomplete-viewer-lines > code {
     display: block;
     box-sizing: border-box;
     width: fit-content;

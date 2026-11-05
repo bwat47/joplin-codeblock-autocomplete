@@ -29,11 +29,37 @@ export function addContainerClass(renderedHtml: string, className: string): stri
 }
 
 /**
- * Adds an attribute to the outer `joplin-editable` container, next to its class attribute. The
- * value is written as given, so callers must pass attribute-safe values.
+ * Matches the opening tag of the `<pre>` holding the rendered code, for example
+ * `<pre class="hljs">` directly before `<code>`. The hidden source `<pre>` holds escaped text, so
+ * it never matches.
  */
-export function addContainerAttribute(renderedHtml: string, name: string, value: string): string {
-    return renderedHtml.replace(EDITABLE_CLASS_PATTERN, (attribute) => `${attribute} ${name}="${value}"`);
+const RENDERED_CODE_PRE_PATTERN = /<pre\b([^>]*)>(?=<code[\s/>])/;
+/** Matches a class attribute and captures its quote and class list, for example `class="hljs"`. */
+const CLASS_ATTRIBUTE_PATTERN = /\bclass=(['"])([^'"]*)\1/;
+
+/**
+ * Adds classes and attributes to the `<pre>` holding the rendered code. Unlike the outer
+ * container, it survives Joplin's mobile Rich Text editor, which keeps only the container's inner
+ * HTML. Attribute values are written as given, so callers must pass attribute-safe values.
+ */
+export function markRenderedCodePre(
+    renderedHtml: string,
+    className: string,
+    attributes: Readonly<Record<string, string>>
+): string {
+    return renderedHtml.replace(RENDERED_CODE_PRE_PATTERN, (_tag, existingAttributes: string) => {
+        const withClass = CLASS_ATTRIBUTE_PATTERN.test(existingAttributes)
+            ? existingAttributes.replace(
+                  CLASS_ATTRIBUTE_PATTERN,
+                  (_attribute, quote: string, classes: string) => `class=${quote}${classes} ${className}${quote}`
+              )
+            : `${existingAttributes} class="${className}"`;
+        const extraAttributes = Object.entries(attributes)
+            .map(([name, value]) => ` ${name}="${value}"`)
+            .join('');
+
+        return `<pre${withClass}${extraAttributes}>`;
+    });
 }
 
 /** Inserts HTML as the first child of the outer `joplin-editable` container. */
