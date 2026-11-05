@@ -13,6 +13,10 @@
  *
  * Unknown or malformed options are ignored so that info strings written for other tools keep
  * rendering normally.
+ *
+ * Syntax is adapted from Code Block Numbers (https://github.com/haderlka/obsidian-code-block-numbers),
+ * MIT License, Copyright (c) 2026 haderlka.
+ *
  */
 
 /** An inclusive range of displayed line numbers. */
