@@ -11,8 +11,13 @@
  * Joplin renders fenced code blocks with no padding, so a single-line block is
  * only one line tall. Reserve room at the end of the line so code never runs
  * underneath the icon.
+ *
+ * Code split into lines (for numbers or highlights) reserves the room on each
+ * line instead, inside the line's own background, so highlights reach the
+ * block's right edge.
  */
-.codeblock-autocomplete-viewer-copy-container > pre:not(.joplin-source) {
+.codeblock-autocomplete-viewer-copy-container:not(.codeblock-autocomplete-viewer-lines) > pre:not(.joplin-source),
+.codeblock-autocomplete-viewer-copy-container .codeblock-autocomplete-viewer-code-line {
     padding-right: 2em;
 }
 
