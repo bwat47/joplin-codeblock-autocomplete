@@ -1,75 +1,55 @@
-> [!note]
-> This plugin was created entirely with AI tools
-
 # Codeblock Utils
 
-Codeblock Utils adds tools for working with fenced code blocks in Joplin:
+Codeblock Utils adds tools for fenced code blocks in Joplin:
 
-- Language autocomplete when typing backticks or tildes in the Markdown editor
-- Code block header with a copy button and optional title in the Markdown editor
-- Code block header with a copy button and optional title in the Markdown viewer (and Rich Text editor)
-- Optional line numbers for fenced code blocks in the Markdown editor and viewer, which individual blocks can turn on or off
-- Highlighted lines in fenced code blocks, chosen per block
-- Toolbar button, Edit menu command, and keyboard shortcut to insert, wrap, or unwrap code blocks in the Markdown editor
+- Language autocomplete and a command to insert, wrap, or unwrap code blocks in the Markdown editor.
+- A copy button and optional title in the Markdown editor, Markdown viewer, and Rich Text Editor.
+- Optional line numbers and per-block line highlighting.
 
-![ex](https://github.com/bwat47/joplin-codeblock-autocomplete/blob/main/images/example.gif)
+![Codeblock Utils example](https://github.com/bwat47/joplin-codeblock-autocomplete/blob/main/images/example.gif)
+
+> [!note]
+> This plugin was created entirely with AI tools.
 
 ## Usage
 
-### Autocomplete
+### Create a code block
 
-Typing an opening fence (three+ backticks or three+ tildes) will trigger the auto-complete list by default. Selecting a language will complete the code block (adding the language and closing fence).
+In the Markdown editor, type an opening fence of three or more backticks or tildes to open the language list. Selecting a language adds it and a matching closing fence. If the language has no matches, choose **Custom language** to use what you typed. For nested blocks, use more than three fence characters; the closing fence will have the same length.
 
-- Specifying a lanauge that's not in the list (and has no matches) will show "Custom language" and will use the specified language as-is.
+If you disable language autocomplete, typing exactly three backticks or tildes immediately inserts a closing fence. The cursor stays at the end of the opening fence so you can type a language or press Enter.
 
-- Supports nested code blocks (when the autocomplete languages dropdown is enabled): enter more than three fence characters will close the block with the same number of fence characters as the opening block.
+You can also use the formatting toolbar button, Edit menu command, or keyboard shortcut (by default <kbd>CmdOrCtrl + Alt + `</kbd>). The command supports multiple cursors and selections. With no selection, it wraps the current line; inside an existing fenced block, it removes the surrounding fence lines.
 
-- If language auto-complete is disabled, typing exactly three backticks or tildes immediately inserts the closing fence and leaves the cursor at the end of the opening fence so you can type a language or press Enter.
+### Copy and title a block
 
-### Insert code block command
+Enable the code block header for the Markdown editor or Markdown viewer to show a button that copies the block's code to the clipboard. The viewer setting also applies to the Rich Text editors. A block can show a title in its header with the [`title` option](#per-block-options).
 
-An insert code block command is available via a formatting toolbar icon, Edit menu entry, and keyboard shortcut (by default CmdOrCtrl + Alt + `).
+| Where            | Header behavior                                                                                                                                                                                                                                     |
+| ---------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Markdown editor  | The language appears as a copy button at the top right, or **Copy** if no language is set. The title appears at the top left. The header replaces the opening fence while the cursor is elsewhere; click the title to reveal the fence for editing. |
+| Markdown viewer  | An icon-only copy button appears on hover, stays visible on touch devices, and is keyboard accessible. The title appears above the code. Copying shows a success toast.                                                                             |
+| Rich Text Editor | Uses the viewer setting. The mobile rich text editor hides the copy button because it has an **Edit** button in the same corner.                                                                                                                    |
 
-The command supports multiple cursors and selections, and is line-aware (e.g. cursor on line with no selection > invoke command > wraps entire line in code block). Invoking it with a cursor or selection inside an existing fenced code block removes the surrounding fence lines.
+The viewer header applies to rendered fenced code. It does not change indented or inline code, raw HTML code blocks, or fences Joplin renders as diagrams or other content (Mermaid, ABC notation, Fountain).
 
-### Markdown editor code block header
+### Number and highlight lines
 
-If the code block header is enabled, you will see the code fence language rendered as a clickable copy button on the top-right of the code block (when the cursor isn't on the opening fence line).
+The Markdown editor and Markdown viewer have independent line-number settings; the viewer setting also applies to the Rich Text editors. Numbering starts at 1 for each fenced block. Use [per-block options](#per-block-options) to turn numbering on or off, change the starting number, or highlight chosen lines for specific code blocks. Highlighting works even when numbers are hidden.
 
-Clicking the copy button will copy the code block contents to your clipboard. If the code fence doesn't have a language specified, it will display a generic "Copy" label instead of the language.
-
-If the block sets a [title](#per-block-options), the title is shown on the top-left in place of the opening fence. Clicking the title places the cursor on the opening fence line, which reveals the Markdown.
-
-### Markdown editor line numbers
-
-If line numbers are enabled, each line inside a fenced code block in the Markdown editor is numbered, starting from 1 on the line after the opening fence. The fence lines are not numbered or indented, so they extend over the numbers above and below the code. Individual blocks can override this setting with [per-block options](#per-block-options).
-
-### Markdown viewer code block header
-
-The Markdown viewer has a separate code block header setting. When enabled, hovering over a rendered fenced code block shows an icon-only copy button in its top-right corner. The button remains visible on touch devices and can also be reached with the keyboard. If the block sets a [title](#per-block-options), the title is shown above the code on the top-left.
-
-Clicking the button copies the fenced code contents and displays a success toast. Indented code blocks, inline code, raw HTML code blocks, and fences that Joplin renders as something other than code (Mermaid, ABC notation, Fountain) are not changed.
-
-> [!note]
-> This setting also enables a working copy button and titles in the desktop rich text editor (TinyMCE).
->
-> The copy button is hidden in the mobile (ProseMirror) rich text editor, which shows its own "Edit" button in the same corner of a selected code block. Titles are still shown there.
-
-### Markdown viewer line numbers
-
-Enable the viewer line-number setting to number each logical line of fenced code, starting from 1 for each block. Highlighting is preserved, and copying code excludes the numbers. This setting is independent of editor line numbers and the viewer code block header. Diagram blocks are not numbered. Individual blocks can override this setting with [per-block options](#per-block-options).
+Viewer line numbers preserve highlighting, are excluded when copying code, and do not apply to diagram blocks.
 
 ### Per-block options
 
-Options written after the language on the opening fence apply to that block, in both the Markdown editor and the viewer:
+Settings can be adjusted per code block by adding the following options after the language in the opening fence:
 
-| Option         | Effect                                                                                                                                                                                                                   |
-| -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `ln`           | Number this block, even when the line-number setting is off.                                                                                                                                                             |
-| `ln=false`     | Never number this block, even when the line-number setting is on.                                                                                                                                                        |
-| `start=N`      | Start numbering at `N` (a whole number, 0 or more). Also numbers the block, unless `ln=false` is set.                                                                                                                    |
-| `title="text"` | Show a title in the block's header. Quotes are needed only when the title contains spaces; use single quotes for a title containing `"`. Shown only when the code block header setting is enabled.                       |
-| `hl=LINES`     | Highlight lines, as a comma-separated list of line numbers and ranges such as `hl=2,5-7`. The numbers are the displayed ones, so with `start=10`, `hl=10` is the first line. Works whether or not the block is numbered. |
+| Option            | Effect                                                                                                                       |
+| ----------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| `ln` or `ln=true` | Show line numbers for this block.                                                                                            |
+| `ln=false`        | Hide line numbers for this block.                                                                                            |
+| `start=N`         | Start at the whole number `N` (0 or greater) and show line numbers, unless `ln=false` is set.                                |
+| `title="text"`    | Show a header title when the header is enabled. Quote titles containing spaces; use single quotes if the title contains `"`. |
+| `hl=LINES`        | Highlight displayed line numbers, such as `hl=2,5-7`. With `start=10`, `hl=10` highlights the first line.                    |
 
 For example:
 
@@ -80,22 +60,20 @@ def greet(name):
 ```
 ````
 
-- The language must come first, since Joplin uses the first word for syntax highlighting. To number a block that has no language, use a placeholder such as `text ln`.
-- Options can be written in any order. Unknown or invalid options are ignored.
-- The editor copy button shows only the language, not the options.
-- Other Markdown apps ignore the extra words and use the first one as the language.
-- The rich text editor keeps the options when saving, copying, or editing a code block. In the desktop editor's code block dialog, the options appear in the Language field.
+The language must come first because Joplin uses the first word for syntax highlighting. To number a block without a language, use a placeholder such as `txt ln`. Options can appear in any order; unknown or invalid options are ignored. The editor's copy button shows only the language.
+
+Other Markdown apps usually ignore the extra words and use the first one as the language. The Rich Text Editor preserves options when saving, copying, or editing a block; in the desktop editor's code block dialog, they appear in the Language field.
+
+> [!warning]
+> Adding options after `mermaid` or `abc` prevents those blocks from rendering as diagrams/abc notation in the Markdown viewer.
 
 ## Settings
 
-Enable language auto-complete - Toggle the language dropdown for code fences. When disabled, typing exactly three backticks or tildes inserts a closing fence immediately without opening the dropdown.
-
-Show Markdown editor code block header (title and copy button) - Show a header on fenced code blocks in the Markdown editor, with a copy button and the block's title, when the cursor is not on the opening fence line. The header hides the opening-fence text it replaces.
-
-Show line numbers in Markdown editor code blocks - Number the lines inside fenced code blocks in the Markdown editor. Blocks can override this with `ln` or `ln=false`.
-
-Show Markdown viewer code block header (title and copy button) - Show a copy button when hovering over fenced code blocks in the Markdown viewer, and the block's title above the code.
-
-Show line numbers in Markdown viewer code blocks - Number the lines inside fenced code blocks in the Markdown viewer. Blocks can override this with `ln` or `ln=false`.
-
-Autocomplete languages - Comma-separated list of language identifiers to show in the autocomplete menu.
+| Setting                                                        | Controls                                                    |
+| -------------------------------------------------------------- | ----------------------------------------------------------- |
+| Enable language auto-complete                                  | Language dropdown for code fences.                          |
+| Show Markdown editor code block header (title and copy button) | Header in the Markdown editor.                              |
+| Show line numbers in Markdown editor code blocks               | Editor line numbers.                                        |
+| Show Markdown viewer code block header (title and copy button) | Header in the Markdown viewer and Rich Text editors.        |
+| Show line numbers in Markdown viewer code blocks               | Line numbers in the Markdown viewer and Rich Text editors.  |
+| Autocomplete languages                                         | Comma-separated language identifiers shown in the dropdown. |
