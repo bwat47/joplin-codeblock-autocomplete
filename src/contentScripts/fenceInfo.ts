@@ -8,6 +8,7 @@
  * - `ts ln start=10`: numbered, starting at 10.
  * - `text ln`: numbered even when line numbers are off by default.
  * - `ts ln=false`: never numbered.
+ * - `py title="utils/math.py"`: shows "utils/math.py" in the block's header.
  *
  * Unknown or malformed options are ignored so that info strings written for other tools keep
  * rendering normally.
@@ -20,6 +21,8 @@ export type FenceInfo = {
     lineNumbers: boolean | null;
     /** The `start=N` option, or `null` when absent or not a non-negative integer. */
     lineNumberStart: number | null;
+    /** The `title=...` option without its quotes, or `null` when absent or empty. */
+    title: string | null;
 };
 
 export type LineNumbering = {
@@ -49,6 +52,7 @@ export function parseFenceInfo(info: string): FenceInfo {
 
     let lineNumbers: boolean | null = null;
     let lineNumberStart: number | null = null;
+    let title: string | null = null;
 
     for (const match of options.matchAll(OPTION_PATTERN)) {
         const key = match[1];
@@ -62,10 +66,12 @@ export function parseFenceInfo(info: string): FenceInfo {
             }
         } else if (key === 'start' && value !== undefined && START_VALUE_PATTERN.test(value)) {
             lineNumberStart = Number(value);
+        } else if (key === 'title' && value) {
+            title = value;
         }
     }
 
-    return { language, lineNumbers, lineNumberStart };
+    return { language, lineNumbers, lineNumberStart, title };
 }
 
 /**

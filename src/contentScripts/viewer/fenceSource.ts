@@ -1,4 +1,5 @@
 import { isRenderedCodeContainer } from './codeContainer';
+import { escapeHtml } from './escapeHtml';
 
 /**
  * Matches the opening tag of Joplin's hidden source element, for example
@@ -15,10 +16,6 @@ const FENCE_PATTERN = /^`{3,}/;
 const ENCODED_NEWLINE = '&#10;';
 /** Matches Joplin's language attribute, for example `data-joplin-language="ts"`. */
 const LANGUAGE_PATTERN = /\bdata-joplin-language="[^"]*"/;
-
-function escapeAttribute(value: string): string {
-    return value.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-}
 
 /**
  * Keeps options written after the language in the Rich Text editor's copy of the fence.
@@ -41,7 +38,7 @@ export function preserveFenceInfo(renderedHtml: string, rawInfo: string): string
         return renderedHtml;
     }
 
-    const escapedInfo = escapeAttribute(info);
+    const escapedInfo = escapeHtml(info);
 
     return renderedHtml.replace(SOURCE_TAG_PATTERN, (sourceTag) => {
         const openValue = SOURCE_OPEN_PATTERN.exec(sourceTag)?.[1];

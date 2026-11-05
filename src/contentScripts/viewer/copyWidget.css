@@ -85,6 +85,20 @@
     pointer-events: none;
 }
 
+/*
+ * The title sits above the code in the same row as the button, so it reserves
+ * the same room on the right and cuts off long titles instead of wrapping.
+ */
+.codeblock-autocomplete-viewer-title {
+    padding: 0.25em 2em 0.25em 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 0.9em;
+    font-weight: 600;
+    opacity: 0.8;
+}
+
 @media (any-hover: none) {
     .codeblock-autocomplete-viewer-copy-button {
         opacity: 1;

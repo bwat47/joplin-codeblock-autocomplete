@@ -1,5 +1,5 @@
 /**
- * Markdown viewer integration for fenced-code copy buttons and line numbers.
+ * Markdown viewer integration for fenced-code headers (copy button and title) and line numbers.
  *
  * The existing fence renderer remains responsible for all code rendering and
  * Rich Text metadata. This plugin adds optional decorations to the outer
@@ -10,7 +10,8 @@
 import type { MarkdownItContentScriptModule } from 'api/types';
 import { SETTING_KEYS } from '../../settingsKeys';
 import { parseFenceInfo, resolveLineNumbering } from '../fenceInfo';
-import { addContainerClass, isRenderedCodeContainer } from './codeContainer';
+import { addContainerClass, isRenderedCodeContainer, prependToContainer } from './codeContainer';
+import { escapeHtml } from './escapeHtml';
 import { preserveFenceInfo } from './fenceSource';
 import { markLineNumberContainer } from './viewerLineNumbers';
 
@@ -56,6 +57,7 @@ type MarkdownItPluginOptions = {
 type IsViewerFeatureEnabled = () => boolean;
 
 const COPY_BUTTON_CLASS = 'codeblock-autocomplete-viewer-copy-button';
+const TITLE_CLASS = 'codeblock-autocomplete-viewer-title';
 /**
  * Added to the container that receives a button. The stylesheet needs to scope
  * `position` and the reserved `padding-right` to those containers only, since
@@ -73,7 +75,11 @@ const COPY_BUTTON_HTML = `<button type="button" class="${COPY_BUTTON_CLASS}" tit
 </svg>
 </button>`;
 
-function injectCopyButton(renderedHtml: string): string {
+/**
+ * Adds the header: the copy button, and the block's title when its info string sets one. The title
+ * comes first in the container so it sits above the code, sharing its row with the button.
+ */
+function injectHeader(renderedHtml: string, title: string | null): string {
     if (!isRenderedCodeContainer(renderedHtml)) {
         return renderedHtml;
     }
@@ -84,8 +90,12 @@ function injectCopyButton(renderedHtml: string): string {
     }
 
     const withButton = `${renderedHtml.slice(0, closingTagIndex)}${COPY_BUTTON_HTML}${renderedHtml.slice(closingTagIndex)}`;
+    const withTitle =
+        title === null
+            ? withButton
+            : prependToContainer(withButton, `<div class="${TITLE_CLASS}">${escapeHtml(title)}</div>`);
 
-    return addContainerClass(withButton, COPY_CONTAINER_CLASS);
+    return addContainerClass(withTitle, COPY_CONTAINER_CLASS);
 }
 
 export function installViewerCodeBlockRenderer(
@@ -113,10 +123,11 @@ export function installViewerCodeBlockRenderer(
         // Runs regardless of the viewer settings, so turning them off does not make Rich Text
         // edits drop the options.
         const info = token.info ?? '';
+        const fenceInfo = parseFenceInfo(info);
         const withSource = preserveFenceInfo(renderedHtml, info);
-        const numbering = resolveLineNumbering(parseFenceInfo(info), isLineNumbersEnabled());
+        const numbering = resolveLineNumbering(fenceInfo, isLineNumbersEnabled());
         const withNumbers = numbering.enabled ? markLineNumberContainer(withSource, numbering.start) : withSource;
-        return isCopyWidgetEnabled() ? injectCopyButton(withNumbers) : withNumbers;
+        return isCopyWidgetEnabled() ? injectHeader(withNumbers, fenceInfo.title) : withNumbers;
     };
     viewerRenderer.codeblockAutocompleteViewerFeatures = true;
 

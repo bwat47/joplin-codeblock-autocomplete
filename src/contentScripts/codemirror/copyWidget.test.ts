@@ -99,6 +99,57 @@ describe('createCopyWidgetPlugin', () => {
         }
     });
 
+    it.each([
+        ['a top-level block', '```py title="utils/math.py" ln\nx = 1\n```\n|', ''],
+        ['a quoted block', '> ```py title="utils/math.py"\n> x = 1\n> ```\n|', '> '],
+    ])('shows the title in place of the opening fence of %s', (_name, doc, prefix) => {
+        const context = createPostMessageContext();
+        const harness = createEditorHarness(doc, {
+            extensions: [markdown(), createSettingsExtension(), copyWidgetTheme, createCopyWidgetPlugin(context)],
+        });
+
+        try {
+            applyPluginSettings(harness.view, {
+                enableLanguageAutocomplete: true,
+                enableCopyWidget: true,
+                enableLineNumbers: false,
+                languages: [],
+            });
+
+            const openingLine = harness.view.contentDOM.querySelector('.cm-line');
+            const title = openingLine?.querySelector<HTMLElement>('.cm-codeblock-title');
+            expect(title?.textContent).toBe('utils/math.py');
+            expect(title?.style.getPropertyValue('--cm-codeblock-copy-label-chars')).toBe('2');
+            expect(openingLine?.textContent).toBe(`${prefix}utils/math.pypy`);
+            expect(getCopyWidgetButton().textContent).toBe('py');
+        } finally {
+            harness.destroy();
+        }
+    });
+
+    it('reveals the opening fence instead of the title while the cursor is on that line', () => {
+        const context = createPostMessageContext();
+        const harness = createEditorHarness('```py title=math.py\nx = 1\n```\n|', {
+            extensions: [markdown(), createSettingsExtension(), copyWidgetTheme, createCopyWidgetPlugin(context)],
+        });
+
+        try {
+            applyPluginSettings(harness.view, {
+                enableLanguageAutocomplete: true,
+                enableCopyWidget: true,
+                enableLineNumbers: false,
+                languages: [],
+            });
+
+            harness.view.dispatch({ selection: { anchor: 0 } });
+
+            expect(document.querySelector('.cm-codeblock-title')).toBeNull();
+            expect(harness.view.contentDOM.querySelector('.cm-line')?.textContent).toBe('```py title=math.py');
+        } finally {
+            harness.destroy();
+        }
+    });
+
     it('copies plain fenced code content unchanged', () => {
         const context = createPostMessageContext();
         const harness = createEditorHarness('```txt\nplain text\n```\n|', {

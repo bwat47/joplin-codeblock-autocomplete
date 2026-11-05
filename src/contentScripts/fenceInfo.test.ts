@@ -40,7 +40,7 @@ describe('parseFenceInfo', () => {
     });
 
     it('does not treat the language as an option', () => {
-        expect(parseFenceInfo('ln')).toEqual({ language: 'ln', lineNumbers: null, lineNumberStart: null });
+        expect(parseFenceInfo('ln')).toEqual({ language: 'ln', lineNumbers: null, lineNumberStart: null, title: null });
     });
 
     it('does not read options from inside quoted values of other options', () => {
@@ -48,7 +48,21 @@ describe('parseFenceInfo', () => {
             language: 'ts',
             lineNumbers: true,
             lineNumberStart: null,
+            title: 'ln=false start=4',
         });
+    });
+
+    it.each([
+        ['py', null],
+        ['py title=math.py', 'math.py'],
+        ['py title="utils/math.py"', 'utils/math.py'],
+        ['py title="my file.py" ln', 'my file.py'],
+        ['py title=\'say "hi".py\'', 'say "hi".py'],
+        ['py title=""', null],
+        ['py title', null],
+        ['py title="unclosed quote', '"unclosed'],
+    ])('reads the title option from %j', (info, title) => {
+        expect(parseFenceInfo(info).title).toBe(title);
     });
 });
 

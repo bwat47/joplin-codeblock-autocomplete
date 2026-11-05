@@ -2,7 +2,7 @@
 
 ## Purpose and Scope
 
-Codeblock Utils adds fenced-code-block utilities to Joplin's CodeMirror 6 editor and Markdown viewer: language autocomplete, code block insertion, copy buttons, and line numbers.
+Codeblock Utils adds fenced-code-block utilities to Joplin's CodeMirror 6 editor and Markdown viewer: language autocomplete, code block insertion, code block headers (copy button and title), and line numbers.
 
 This document describes component boundaries and data flow. Detailed feature behavior belongs in the README and tests; implementation constraints belong alongside the code.
 
@@ -11,12 +11,12 @@ This document describes component boundaries and data flow. Detailed feature beh
 | Component                      | Entry point                              | Responsibility                                                                                                                                |
 | ------------------------------ | ---------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
 | Main plugin process            | `src/index.ts`                           | Registers settings, content scripts, and menu/toolbar commands; handles clipboard access and copy feedback; forwards editor settings updates. |
-| CodeMirror content script      | `src/contentScripts/codemirror/index.ts` | Installs editor extensions and commands for autocomplete, code block insertion, copy buttons, and line numbers.                               |
-| Markdown viewer content script | `src/contentScripts/viewer/index.ts`     | Extends fenced-code rendering with optional copy buttons and line numbers, supported by viewer JavaScript and CSS assets.                     |
+| CodeMirror content script      | `src/contentScripts/codemirror/index.ts` | Installs editor extensions and commands for autocomplete, code block insertion, code block headers, and line numbers.                         |
+| Markdown viewer content script | `src/contentScripts/viewer/index.ts`     | Extends fenced-code rendering with optional code block headers and line numbers, supported by viewer JavaScript and CSS assets.               |
 
 The main process owns Joplin API integration. Content scripts own editor or viewer behavior and request main-process services through messages.
 
-`src/contentScripts/fenceInfo.ts` parses the per-block options written after the language in a fence's info string (such as `ln` and `start=N`). Both content scripts use it, so a fence means the same thing in the editor and the viewer.
+`src/contentScripts/fenceInfo.ts` parses the per-block options written after the language in a fence's info string (such as `ln`, `start=N` and `title=...`). Both content scripts use it, so a fence means the same thing in the editor and the viewer.
 
 ## Settings and Communication
 
@@ -30,14 +30,14 @@ The main process owns Joplin API integration. Content scripts own editor or view
 
 Paths below are relative to `src/contentScripts/codemirror/`.
 
-| Module                            | Responsibility                                                                           |
-| --------------------------------- | ---------------------------------------------------------------------------------------- |
-| `codeMirror6Plugin.ts`            | Composition root: assembles extensions and registers editor commands.                    |
-| `pluginSettings.ts`, `types.ts`   | Editor settings state and message/command contracts.                                     |
-| `fenceAutocomplete.ts`            | Fence-triggered language completion.                                                     |
-| `insertCodeBlock.ts`              | Editing commands that wrap or unwrap fenced code blocks.                                 |
-| `copyWidget.ts`, `lineNumbers.ts` | Optional editor decorations for copying and numbering code.                              |
-| `fencedCodeBlock.ts`              | Shared syntax-tree discovery and block geometry used by editing and decoration features. |
+| Module                            | Responsibility                                                                            |
+| --------------------------------- | ----------------------------------------------------------------------------------------- |
+| `codeMirror6Plugin.ts`            | Composition root: assembles extensions and registers editor commands.                     |
+| `pluginSettings.ts`, `types.ts`   | Editor settings state and message/command contracts.                                      |
+| `fenceAutocomplete.ts`            | Fence-triggered language completion.                                                      |
+| `insertCodeBlock.ts`              | Editing commands that wrap or unwrap fenced code blocks.                                  |
+| `copyWidget.ts`, `lineNumbers.ts` | Optional editor decorations: the code block header (copy button and title) and numbering. |
+| `fencedCodeBlock.ts`              | Shared syntax-tree discovery and block geometry used by editing and decoration features.  |
 
 Keep document changes in editing commands and presentation in decoration modules. Reuse the shared block helpers for features that need fenced-code boundaries.
 
@@ -51,7 +51,7 @@ Paths below are relative to `src/contentScripts/viewer/`.
 | `codeContainer.ts`                  | Shared identification and marking of eligible rendered code containers.  |
 | `viewerLineNumbers.ts`              | Marks containers for optional line numbering during rendering.           |
 | `fenceSource.ts`                    | Keeps fence options in the Rich Text editor's source metadata.           |
-| `copyWidget.js`, `copyWidget.css`   | Copy interaction and button presentation.                                |
+| `copyWidget.js`, `copyWidget.css`   | Copy interaction and header (button and title) presentation.             |
 | `lineNumbers.js`, `lineNumbers.css` | Line-number DOM decoration and presentation.                             |
 
 The viewer preserves Joplin's existing rendered HTML. Its one change to source metadata restores the full info string, which Joplin's code renderer shortens to the language, so the Rich Text editors do not drop fence options when they convert back to Markdown. It decorates ordinary rendered code containers, leaving specialized fence renderers such as diagrams untouched. Viewer decorations preserve the code text used for copying.

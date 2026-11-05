@@ -34,9 +34,9 @@ const SETTINGS_CONFIG = {
     enableCopyWidget: {
         key: SETTING_KEYS.enableCopyWidget,
         defaultValue: false,
-        label: 'Enable Markdown editor copy widget',
+        label: 'Show Markdown editor code block header (title and copy button)',
         description:
-            'Show a copy button on fenced code blocks in the Markdown editor and hide the opening-fence language text when the cursor is not on that line.',
+            'Show a header on fenced code blocks in the Markdown editor, with a copy button and the title set with title="..." after the language, when the cursor is not on the opening fence line. The header hides the opening-fence text it replaces.',
         target: 'editor',
     },
     enableLineNumbers: {
@@ -50,8 +50,9 @@ const SETTINGS_CONFIG = {
     enableViewerCopyWidget: {
         key: SETTING_KEYS.enableViewerCopyWidget,
         defaultValue: false,
-        label: 'Enable Markdown viewer copy widget',
-        description: 'Show a copy button when hovering over fenced code blocks in the Markdown viewer.',
+        label: 'Show Markdown viewer code block header (title and copy button)',
+        description:
+            'Show a copy button when hovering over fenced code blocks in the Markdown viewer, and the title set with title="..." after the language above the code.',
         target: 'viewer',
     },
     enableViewerLineNumbers: {

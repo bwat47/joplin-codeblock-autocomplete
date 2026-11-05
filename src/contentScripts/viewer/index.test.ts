@@ -78,6 +78,34 @@ describe('installViewerCodeBlockRenderer', () => {
         expect(renderedHtml.match(/codeblock-autocomplete-viewer-copy-container/g)).toHaveLength(1);
     });
 
+    it('adds an escaped title above the code when the info string sets one', () => {
+        const { markdownIt } = createMarkdownIt(JOPLIN_FENCE_HTML);
+        installViewerCodeBlockRenderer(markdownIt, COPY_WIDGET_ENABLED, () => false);
+
+        const renderedHtml = renderFence(markdownIt, { info: 'ts title="<a & b>.ts"' });
+        const container = new DOMParser().parseFromString(renderedHtml, 'text/html').querySelector('.joplin-editable');
+        const title = container?.firstElementChild;
+
+        expect(title?.className).toBe('codeblock-autocomplete-viewer-title');
+        expect(title?.textContent).toBe('<a & b>.ts');
+        expect(title?.children).toHaveLength(0);
+        expect(container?.querySelectorAll('.codeblock-autocomplete-viewer-title')).toHaveLength(1);
+    });
+
+    it.each([
+        ['the copy widget is disabled', 'ts title=a.ts', false],
+        ['the info string has no title', 'ts ln', true],
+    ])('adds no title when %s', (_name, info, copyEnabled) => {
+        const { markdownIt } = createMarkdownIt(JOPLIN_FENCE_HTML);
+        installViewerCodeBlockRenderer(
+            markdownIt,
+            () => copyEnabled,
+            () => false
+        );
+
+        expect(renderFence(markdownIt, { info })).not.toContain('codeblock-autocomplete-viewer-title');
+    });
+
     it('preserves the existing rendered HTML and Rich Text source metadata', () => {
         const { markdownIt, defaultFenceRenderer } = createMarkdownIt(JOPLIN_FENCE_HTML);
         installViewerCodeBlockRenderer(markdownIt, COPY_WIDGET_ENABLED, () => false);

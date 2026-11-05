@@ -6,8 +6,8 @@
 Codeblock Utils adds tools for working with fenced code blocks in Joplin:
 
 - Language autocomplete when typing backticks or tildes in the Markdown editor
-- Copy button for fenced code blocks in the Markdown editor
-- Copy button for fenced code blocks in the Markdown viewer (and Rich Text editor)
+- Code block header with a copy button and optional title in the Markdown editor
+- Code block header with a copy button and optional title in the Markdown viewer (and Rich Text editor)
 - Optional line numbers for fenced code blocks in the Markdown editor and viewer, which individual blocks can turn on or off
 - Toolbar button, Edit menu command, and keyboard shortcut to insert, wrap, or unwrap code blocks in the Markdown editor
 
@@ -31,45 +31,48 @@ An insert code block command is available via a formatting toolbar icon, Edit me
 
 The command supports multiple cursors and selections, and is line-aware (e.g. cursor on line with no selection > invoke command > wraps entire line in code block). Invoking it with a cursor or selection inside an existing fenced code block removes the surrounding fence lines.
 
-### Markdown editor copy button
+### Markdown editor code block header
 
-If the copy widget is enabled, you will see the code fence language rendered as a clickable copy button on the top-right of the code block (when the cursor isn't on the opening fence line).
+If the code block header is enabled, you will see the code fence language rendered as a clickable copy button on the top-right of the code block (when the cursor isn't on the opening fence line).
 
 Clicking the copy button will copy the code block contents to your clipboard. If the code fence doesn't have a language specified, it will display a generic "Copy" label instead of the language.
 
+If the block sets a [title](#per-block-options), the title is shown on the top-left in place of the opening fence. Clicking the title places the cursor on the opening fence line, which reveals the Markdown.
+
 ### Markdown editor line numbers
 
-If line numbers are enabled, each line inside a fenced code block in the Markdown editor is numbered, starting from 1 on the line after the opening fence. The fence lines are shifted to stay aligned with the code but are not numbered. Individual blocks can override this setting with [per-block options](#per-block-line-number-options).
+If line numbers are enabled, each line inside a fenced code block in the Markdown editor is numbered, starting from 1 on the line after the opening fence. The fence lines are shifted to stay aligned with the code but are not numbered. Individual blocks can override this setting with [per-block options](#per-block-options).
 
-### Markdown viewer copy button
+### Markdown viewer code block header
 
-The Markdown viewer has a separate copy-widget setting. When enabled, hovering over a rendered fenced code block shows an icon-only copy button in its top-right corner. The button remains visible on touch devices and can also be reached with the keyboard.
+The Markdown viewer has a separate code block header setting. When enabled, hovering over a rendered fenced code block shows an icon-only copy button in its top-right corner. The button remains visible on touch devices and can also be reached with the keyboard. If the block sets a [title](#per-block-options), the title is shown above the code on the top-left.
 
 Clicking the button copies the fenced code contents and displays a success toast. Indented code blocks, inline code, raw HTML code blocks, and fences that Joplin renders as something other than code (Mermaid, ABC notation, Fountain) are not changed.
 
 > [!note]
-> This setting also enables a working copy button in the desktop rich text editor (TinyMCE).
+> This setting also enables a working copy button and titles in the desktop rich text editor (TinyMCE).
 >
 > It technically works in the mobile (prosemirror) rich text editor as well, however, the prosemirror editor places its own "edit" button on the top right, so the two buttons overlap.
 
 ### Markdown viewer line numbers
 
-Enable the viewer line-number setting to number each logical line of fenced code, starting from 1 for each block. Highlighting is preserved, and copying code excludes the numbers. This setting is independent of editor line numbers and viewer copy buttons. Diagram blocks are not numbered. Individual blocks can override this setting with [per-block options](#per-block-line-number-options).
+Enable the viewer line-number setting to number each logical line of fenced code, starting from 1 for each block. Highlighting is preserved, and copying code excludes the numbers. This setting is independent of editor line numbers and the viewer code block header. Diagram blocks are not numbered. Individual blocks can override this setting with [per-block options](#per-block-options).
 
-### Per-block line number options
+### Per-block options
 
-Options written after the language on the opening fence control line numbers for that block, in both the Markdown editor and the viewer:
+Options written after the language on the opening fence apply to that block, in both the Markdown editor and the viewer:
 
-| Option     | Effect                                                                                                |
-| ---------- | ----------------------------------------------------------------------------------------------------- |
-| `ln`       | Number this block, even when the line-number setting is off.                                          |
-| `ln=false` | Never number this block, even when the line-number setting is on.                                     |
-| `start=N`  | Start numbering at `N` (a whole number, 0 or more). Also numbers the block, unless `ln=false` is set. |
+| Option         | Effect                                                                                                                                                                                             |
+| -------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ln`           | Number this block, even when the line-number setting is off.                                                                                                                                       |
+| `ln=false`     | Never number this block, even when the line-number setting is on.                                                                                                                                  |
+| `start=N`      | Start numbering at `N` (a whole number, 0 or more). Also numbers the block, unless `ln=false` is set.                                                                                              |
+| `title="text"` | Show a title in the block's header. Quotes are needed only when the title contains spaces; use single quotes for a title containing `"`. Shown only when the code block header setting is enabled. |
 
 For example:
 
 ````markdown
-```python ln start=10
+```python title="utils/greet.py" ln start=10
 def greet(name):
     return f"Hello, {name}"
 ```
@@ -85,11 +88,11 @@ def greet(name):
 
 Enable language auto-complete - Toggle the language dropdown for code fences. When disabled, typing exactly three backticks or tildes inserts a closing fence immediately without opening the dropdown.
 
-Enable Markdown editor copy widget - Show a copy button on fenced code blocks in the Markdown editor and hide the opening-fence language text when the cursor is not on that line.
+Show Markdown editor code block header (title and copy button) - Show a header on fenced code blocks in the Markdown editor, with a copy button and the block's title, when the cursor is not on the opening fence line. The header hides the opening-fence text it replaces.
 
 Show line numbers in Markdown editor code blocks - Number the lines inside fenced code blocks in the Markdown editor. Blocks can override this with `ln` or `ln=false`.
 
-Enable Markdown viewer copy widget - Show a copy button when hovering over fenced code blocks in the Markdown viewer.
+Show Markdown viewer code block header (title and copy button) - Show a copy button when hovering over fenced code blocks in the Markdown viewer, and the block's title above the code.
 
 Show line numbers in Markdown viewer code blocks - Number the lines inside fenced code blocks in the Markdown viewer. Blocks can override this with `ln` or `ln=false`.
 
