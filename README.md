@@ -41,7 +41,7 @@ If the block sets a [title](#per-block-options), the title is shown on the top-l
 
 ### Markdown editor line numbers
 
-If line numbers are enabled, each line inside a fenced code block in the Markdown editor is numbered, starting from 1 on the line after the opening fence. The fence lines are shifted to stay aligned with the code but are not numbered. Individual blocks can override this setting with [per-block options](#per-block-options).
+If line numbers are enabled, each line inside a fenced code block in the Markdown editor is numbered, starting from 1 on the line after the opening fence. The fence lines are not numbered or indented, so they extend over the numbers above and below the code. Individual blocks can override this setting with [per-block options](#per-block-options).
 
 ### Markdown viewer code block header
 

@@ -50,10 +50,10 @@ export const lineNumbersTheme = EditorView.baseTheme({
 });
 
 /**
- * Decorates the visible lines of every numbered fenced code block that intersects the viewport.
- * Every block line is shifted by the gutter so the fences stay aligned with the code, but only
- * content lines are numbered, counting from the block's start number (1 unless its info string
- * sets `start=N`) on the line after the opening fence.
+ * Numbers the visible content lines of every numbered fenced code block that intersects the
+ * viewport, counting from the block's start number (1 unless its info string sets `start=N`) on
+ * the line after the opening fence. The fence lines are left in place, so they span the gutter
+ * above and below the numbers, and the opening fence's header stays at the block's left edge.
  *
  * Whether a block is numbered comes from its info string options, falling back to the setting,
  * so blocks are inspected even while the setting is off.
@@ -96,14 +96,13 @@ function buildLineNumberDecorations(view: EditorView, enabledByDefault: boolean)
                 const largestNumber = numbering.start + Math.max(0, lastContentLine - openingLine - 1);
                 const style = `${DIGITS_PROPERTY}: ${String(largestNumber).length}`;
 
-                const from = Math.max(openingLine, firstVisibleLine);
-                const to = Math.min(lastLine, lastVisibleLine);
+                const from = Math.max(openingLine + 1, firstVisibleLine);
+                const to = Math.min(lastContentLine, lastVisibleLine);
                 for (let lineNumber = from; lineNumber <= to; lineNumber++) {
-                    const isContentLine = lineNumber > openingLine && lineNumber <= lastContentLine;
-                    const attributes: Record<string, string> = { style };
-                    if (isContentLine) {
-                        attributes[LINE_NUMBER_ATTRIBUTE] = String(numbering.start + lineNumber - openingLine - 1);
-                    }
+                    const attributes = {
+                        style,
+                        [LINE_NUMBER_ATTRIBUTE]: String(numbering.start + lineNumber - openingLine - 1),
+                    };
 
                     decorations.push(
                         Decoration.line({ class: LINE_CLASS, attributes }).range(doc.line(lineNumber).from)

@@ -44,17 +44,17 @@ function getRenderedLines(harness: EditorHarness): RenderedLine[] {
 }
 
 describe('createLineNumbersPlugin', () => {
-    it('numbers content lines and offsets the fences without numbering them', () => {
+    it('numbers and offsets content lines while leaving the fences in place', () => {
         const harness = createHarness('before\n```ts\nconst a = 1;\n\nconst b = 2;\n```\nafter');
 
         try {
             expect(getRenderedLines(harness)).toEqual([
                 { number: null, numbered: false, text: 'before' },
-                { number: null, numbered: true, text: '```ts' },
+                { number: null, numbered: false, text: '```ts' },
                 { number: '1', numbered: true, text: 'const a = 1;' },
                 { number: '2', numbered: true, text: '' },
                 { number: '3', numbered: true, text: 'const b = 2;' },
-                { number: null, numbered: true, text: '```' },
+                { number: null, numbered: false, text: '```' },
                 { number: null, numbered: false, text: 'after' },
             ]);
         } finally {
@@ -125,7 +125,7 @@ describe('createLineNumbersPlugin', () => {
             expect(harness.view.contentDOM.querySelector('.cm-codeblock-line-numbers')).toBeNull();
 
             setLineNumbersEnabled(harness, true);
-            expect(harness.view.contentDOM.querySelectorAll('.cm-codeblock-line-numbers')).toHaveLength(3);
+            expect(harness.view.contentDOM.querySelectorAll('.cm-codeblock-line-numbers')).toHaveLength(1);
 
             setLineNumbersEnabled(harness, false);
             expect(harness.view.contentDOM.querySelector('.cm-codeblock-line-numbers')).toBeNull();
@@ -147,7 +147,7 @@ describe('createLineNumbersPlugin', () => {
                 null,
                 null,
             ]);
-            expect(harness.view.contentDOM.querySelectorAll('.cm-codeblock-line-numbers')).toHaveLength(3);
+            expect(harness.view.contentDOM.querySelectorAll('.cm-codeblock-line-numbers')).toHaveLength(1);
         } finally {
             harness.destroy();
         }
@@ -158,7 +158,7 @@ describe('createLineNumbersPlugin', () => {
 
         try {
             expect(getNumbers(harness)).toEqual(['1']);
-            expect(harness.view.contentDOM.querySelectorAll('.cm-codeblock-line-numbers')).toHaveLength(3);
+            expect(harness.view.contentDOM.querySelectorAll('.cm-codeblock-line-numbers')).toHaveLength(1);
         } finally {
             harness.destroy();
         }
