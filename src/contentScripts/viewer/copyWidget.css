@@ -105,8 +105,8 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    font-size: 0.9em;
-    font-weight: 600;
+    font-size: 1em;
+    font-style: italic;
 }
 
 .codeblock-autocomplete-viewer-title ~ pre:not(.joplin-source) {

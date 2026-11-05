@@ -81,7 +81,7 @@ export const copyWidgetTheme = EditorView.baseTheme({
         textOverflow: 'ellipsis',
         whiteSpace: 'nowrap',
         verticalAlign: 'top',
-        fontWeight: '600',
+        fontStyle: 'italic',
         cursor: 'text',
     },
     '.cm-codeblock-copy-widget svg': {
