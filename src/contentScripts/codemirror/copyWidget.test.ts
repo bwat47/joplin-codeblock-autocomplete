@@ -76,6 +76,29 @@ describe('createCopyWidgetPlugin', () => {
         }
     });
 
+    it('labels the button with the language only and hides the options', () => {
+        const context = createPostMessageContext();
+        const harness = createEditorHarness('```js ln start=3\nconst a = 1;\n```\n|', {
+            extensions: [markdown(), createSettingsExtension(), copyWidgetTheme, createCopyWidgetPlugin(context)],
+        });
+
+        try {
+            applyPluginSettings(harness.view, {
+                enableLanguageAutocomplete: true,
+                enableCopyWidget: true,
+                enableLineNumbers: false,
+                languages: [],
+            });
+
+            const button = getCopyWidgetButton();
+            expect(button.textContent).toBe('js');
+            expect(button.getAttribute('aria-label')).toBe('Copy js code block');
+            expect(harness.view.contentDOM.querySelector('.cm-line')?.textContent).toBe('```js');
+        } finally {
+            harness.destroy();
+        }
+    });
+
     it('copies plain fenced code content unchanged', () => {
         const context = createPostMessageContext();
         const harness = createEditorHarness('```txt\nplain text\n```\n|', {

@@ -16,6 +16,8 @@ This document describes component boundaries and data flow. Detailed feature beh
 
 The main process owns Joplin API integration. Content scripts own editor or viewer behavior and request main-process services through messages.
 
+`src/contentScripts/fenceInfo.ts` parses the per-block options written after the language in a fence's info string (such as `ln` and `start=N`). Both content scripts use it, so a fence means the same thing in the editor and the viewer.
+
 ## Settings and Communication
 
 - `src/settings.ts` defines and registers settings and prepares the editor settings payload. `src/settingsKeys.ts` shares setting identifiers without importing the main-process Joplin API.
@@ -48,10 +50,11 @@ Paths below are relative to `src/contentScripts/viewer/`.
 | `index.ts`                          | Wraps the existing Markdown-it fence renderer and exposes viewer assets. |
 | `codeContainer.ts`                  | Shared identification and marking of eligible rendered code containers.  |
 | `viewerLineNumbers.ts`              | Marks containers for optional line numbering during rendering.           |
+| `fenceSource.ts`                    | Keeps fence options in the Rich Text editor's source metadata.           |
 | `copyWidget.js`, `copyWidget.css`   | Copy interaction and button presentation.                                |
 | `lineNumbers.js`, `lineNumbers.css` | Line-number DOM decoration and presentation.                             |
 
-The viewer preserves Joplin's existing rendered HTML and source metadata. It decorates ordinary rendered code containers, leaving specialized fence renderers such as diagrams untouched. Viewer decorations preserve the code text used for copying.
+The viewer preserves Joplin's existing rendered HTML. Its one change to source metadata restores the full info string, which Joplin's code renderer shortens to the language, so the Rich Text editors do not drop fence options when they convert back to Markdown. It decorates ordinary rendered code containers, leaving specialized fence renderers such as diagrams untouched. Viewer decorations preserve the code text used for copying.
 
 ## Compatibility and Maintenance
 

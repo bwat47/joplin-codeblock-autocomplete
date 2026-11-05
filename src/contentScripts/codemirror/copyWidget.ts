@@ -3,6 +3,7 @@ import { Decoration, EditorView, ViewPlugin, WidgetType, type DecorationSet, typ
 import type { SyntaxNode } from '@lezer/common';
 
 import { logger } from '../../logger';
+import { parseFenceInfo } from '../fenceInfo';
 import { getFencedCodeBlockGeometry, getFencedCodeSyntaxTree } from './fencedCodeBlock';
 import { areSettingsEqual, getPluginSettings } from './pluginSettings';
 import type { PostMessageContext } from './types';
@@ -86,7 +87,8 @@ function getFencedCodeBlockInfo(
         hiddenInfoFrom: openingFenceMark && codeInfo ? openingFenceMark.to : null,
         hiddenInfoTo: codeInfo ? codeInfo.to : null,
         interactionSelectionAnchor: getInteractionSelectionAnchor(state, openingLineFrom),
-        language: codeInfo ? state.doc.sliceString(codeInfo.from, codeInfo.to) : null,
+        // Only the language labels the button; options after it stay hidden with the rest of the info string.
+        language: codeInfo ? parseFenceInfo(state.doc.sliceString(codeInfo.from, codeInfo.to)).language || null : null,
         openingLineFrom,
         openingLineTo,
     };

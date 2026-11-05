@@ -134,6 +134,63 @@ describe('createLineNumbersPlugin', () => {
         }
     });
 
+    it('numbers blocks that opt in with ln while the setting is off', () => {
+        const harness = createHarness('```ts ln\na\n```\n\n```ts\nb\n```', false);
+
+        try {
+            expect(getRenderedLines(harness).map((line) => line.number)).toEqual([
+                null,
+                '1',
+                null,
+                null,
+                null,
+                null,
+                null,
+            ]);
+            expect(harness.view.contentDOM.querySelectorAll('.cm-codeblock-line-numbers')).toHaveLength(3);
+        } finally {
+            harness.destroy();
+        }
+    });
+
+    it('skips blocks that opt out with ln=false while the setting is on', () => {
+        const harness = createHarness('```ts ln=false\na\n```\n\n```ts\nb\n```');
+
+        try {
+            expect(getNumbers(harness)).toEqual(['1']);
+            expect(harness.view.contentDOM.querySelectorAll('.cm-codeblock-line-numbers')).toHaveLength(3);
+        } finally {
+            harness.destroy();
+        }
+    });
+
+    it('starts numbering from the start option and sizes the gutter to the largest number', () => {
+        const harness = createHarness('```ts start=9\na\nb\n```', false);
+
+        try {
+            expect(getNumbers(harness)).toEqual(['9', '10']);
+            const lines = harness.view.contentDOM.querySelectorAll<HTMLElement>('.cm-codeblock-line-numbers');
+            for (const line of lines) {
+                expect(line.style.getPropertyValue('--cm-codeblock-line-number-digits')).toBe('2');
+            }
+        } finally {
+            harness.destroy();
+        }
+    });
+
+    it('updates numbering when the info string options are edited', () => {
+        const harness = createHarness('```ts\na\n```', false);
+
+        try {
+            expect(getNumbers(harness)).toEqual([]);
+
+            harness.view.dispatch({ changes: { from: 5, insert: ' start=3' } });
+            expect(getNumbers(harness)).toEqual(['3']);
+        } finally {
+            harness.destroy();
+        }
+    });
+
     it('numbers newly visible lines by their position in the block when scrolled', () => {
         const content = Array.from({ length: 5000 }, (_, index) => `line ${index + 1}`).join('\n');
         const harness = createHarness(`\`\`\`\n${content}\n\`\`\``);

@@ -5,6 +5,8 @@
     var CONTAINER_CLASS = 'codeblock-autocomplete-viewer-line-numbers';
     var LINE_CLASS = 'codeblock-autocomplete-viewer-code-line';
     var NUMBERED_ATTRIBUTE = 'data-codeblock-numbered';
+    /** Set by the renderer from the fence's `start=N` option; absent means 1. */
+    var START_ATTRIBUTE = 'data-codeblock-line-start';
     /** Excludes numbered code so observer passes triggered by any DOM change stay cheap. */
     var UNNUMBERED_CODE_SELECTOR =
         '.' + CONTAINER_CLASS + ' > pre:not(.joplin-source) > code:not([' + NUMBERED_ATTRIBUTE + '])';
@@ -24,6 +26,8 @@
         var ancestors = [];
         /** @type {Node[]} */
         var parents = [];
+        var container = code.closest('.' + CONTAINER_CLASS);
+        var start = Number((container && container.getAttribute(START_ATTRIBUTE)) || 1);
         var count = 0;
 
         function currentParent() {
@@ -35,7 +39,7 @@
         function newLine() {
             var line = ownerDocument.createElement('span');
             line.className = LINE_CLASS;
-            line.setAttribute('data-line-number', String(++count));
+            line.setAttribute('data-line-number', String(start + count++));
             fragment.appendChild(line);
             parents = [line];
             ancestors.forEach(function (ancestor) {
@@ -69,7 +73,7 @@
         newLine();
         Array.from(code.childNodes).forEach(visit);
         code.replaceChildren(fragment);
-        code.style.setProperty('--codeblock-line-number-digits', String(String(count).length));
+        code.style.setProperty('--codeblock-line-number-digits', String(String(start + count - 1).length));
         code.setAttribute(NUMBERED_ATTRIBUTE, 'true');
     }
 

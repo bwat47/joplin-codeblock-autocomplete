@@ -3,9 +3,9 @@ import type { ViewerAssetController, ViewerWindow } from './viewerTypes';
 
 const viewerWindow = window as ViewerWindow;
 
-function setCode(html: string): HTMLElement {
+function setCode(html: string, containerAttributes = ''): HTMLElement {
     document.body.innerHTML =
-        '<div class="joplin-editable codeblock-autocomplete-viewer-line-numbers">' +
+        `<div class="joplin-editable codeblock-autocomplete-viewer-line-numbers"${containerAttributes}>` +
         '<pre class="joplin-source" hidden data-joplin-language="ts">original source</pre>' +
         `<pre class="hljs"><code>${html}</code></pre></div>`;
     return document.querySelector('code')!;
@@ -72,6 +72,13 @@ describe('viewer line numbers', () => {
         expect(lines(replacement)).toHaveLength(2);
     });
 
+    it('starts numbering from the container start attribute', async () => {
+        const code = setCode('a\nb', ' data-codeblock-line-start="9"');
+        controller = await loadAsset();
+        expect(lines(code).map((line) => line.getAttribute('data-line-number'))).toEqual(['9', '10']);
+        expect(code.style.getPropertyValue('--codeblock-line-number-digits')).toBe('2');
+    });
+
     it('leaves unmarked code and diagram containers alone', async () => {
         document.body.innerHTML =
             '<div class="joplin-editable"><pre><code>plain</code></pre></div>' +
@@ -84,10 +91,16 @@ describe('viewer line numbers', () => {
     it('marks eligible renderer output without changing source metadata', () => {
         const html =
             '<div class="other joplin-editable"><pre class="joplin-source">source</pre><pre><code>x</code></pre></div>';
-        expect(markLineNumberContainer(html)).toBe(
+        expect(markLineNumberContainer(html, 1)).toBe(
             html.replace('other joplin-editable', 'other joplin-editable codeblock-autocomplete-viewer-line-numbers')
         );
+        expect(markLineNumberContainer(html, 0)).toBe(
+            html.replace(
+                'class="other joplin-editable"',
+                'class="other joplin-editable codeblock-autocomplete-viewer-line-numbers" data-codeblock-line-start="0"'
+            )
+        );
         const diagram = '<div class="joplin-editable"><pre class="mermaid">graph</pre></div>';
-        expect(markLineNumberContainer(diagram)).toBe(diagram);
+        expect(markLineNumberContainer(diagram, 5)).toBe(diagram);
     });
 });

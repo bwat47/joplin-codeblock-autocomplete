@@ -233,6 +233,43 @@ describe('viewer settings combinations', () => {
         expect(html).toContain('<pre class="joplin-source" data-joplin-language="ts">const value = 1;</pre>');
     });
 
+    it.each([
+        ['ts ln', false, true, null],
+        ['ts ln=false', true, false, null],
+        ['ts start=7', false, true, '7'],
+        ['ts start=1', true, true, null],
+    ])('applies the %j options with the setting %s', (info, setting, numbered, start) => {
+        const { markdownIt } = createMarkdownIt(JOPLIN_FENCE_HTML);
+        installViewerCodeBlockRenderer(
+            markdownIt,
+            () => false,
+            () => setting
+        );
+        const container = new DOMParser()
+            .parseFromString(renderFence(markdownIt, { info }), 'text/html')
+            .querySelector('.joplin-editable');
+
+        expect(container?.classList.contains('codeblock-autocomplete-viewer-line-numbers')).toBe(numbered);
+        expect(container?.getAttribute('data-codeblock-line-start')).toBe(start);
+    });
+
+    it('preserves fence options in the source metadata while every viewer feature is off', () => {
+        const html =
+            '<div class="joplin-editable"><pre class="joplin-source" hidden data-joplin-language="ts" ' +
+            'data-joplin-source-open="```ts&#10;" data-joplin-source-close="&#10;```">x</pre>' +
+            '<pre class="hljs"><code>x</code></pre></div>\n';
+        const { markdownIt } = createMarkdownIt(html);
+        installViewerCodeBlockRenderer(
+            markdownIt,
+            () => false,
+            () => false
+        );
+
+        expect(renderFence(markdownIt, { info: 'ts ln=false' })).toContain(
+            'data-joplin-source-open="```ts ln=false&#10;"'
+        );
+    });
+
     it('reads line-number setting changes on each render', () => {
         const { markdownIt } = createMarkdownIt(JOPLIN_FENCE_HTML);
         let enabled = false;

@@ -43,7 +43,8 @@ const SETTINGS_CONFIG = {
         key: SETTING_KEYS.enableLineNumbers,
         defaultValue: false,
         label: 'Show line numbers in Markdown editor code blocks',
-        description: 'Number the lines inside fenced code blocks in the Markdown editor.',
+        description:
+            'Number the lines inside fenced code blocks in the Markdown editor. Blocks can override this with "ln" or "ln=false" after the language.',
         target: 'editor',
     },
     enableViewerCopyWidget: {
@@ -57,7 +58,8 @@ const SETTINGS_CONFIG = {
         key: SETTING_KEYS.enableViewerLineNumbers,
         defaultValue: false,
         label: 'Show line numbers in Markdown viewer code blocks',
-        description: 'Number the lines inside fenced code blocks in the Markdown viewer.',
+        description:
+            'Number the lines inside fenced code blocks in the Markdown viewer. Blocks can override this with "ln" or "ln=false" after the language.',
         target: 'viewer',
     },
     languages: {

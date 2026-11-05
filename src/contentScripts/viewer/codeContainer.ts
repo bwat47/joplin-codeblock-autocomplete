@@ -25,3 +25,11 @@ export function addContainerClass(renderedHtml: string, className: string): stri
         (attribute) => `${attribute.slice(0, -1)} ${className}${attribute.slice(-1)}`
     );
 }
+
+/**
+ * Adds an attribute to the outer `joplin-editable` container, next to its class attribute. The
+ * value is written as given, so callers must pass attribute-safe values.
+ */
+export function addContainerAttribute(renderedHtml: string, name: string, value: string): string {
+    return renderedHtml.replace(EDITABLE_CLASS_PATTERN, (attribute) => `${attribute} ${name}="${value}"`);
+}

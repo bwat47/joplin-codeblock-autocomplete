@@ -9,10 +9,13 @@
  */
 import type { MarkdownItContentScriptModule } from 'api/types';
 import { SETTING_KEYS } from '../../settingsKeys';
+import { parseFenceInfo, resolveLineNumbering } from '../fenceInfo';
 import { addContainerClass, isRenderedCodeContainer } from './codeContainer';
+import { preserveFenceInfo } from './fenceSource';
 import { markLineNumberContainer } from './viewerLineNumbers';
 
 type MarkdownItToken = {
+    info?: string;
     tag?: string;
 };
 
@@ -102,11 +105,17 @@ export function installViewerCodeBlockRenderer(
 
     const viewerRenderer: InstalledRendererRule = (tokens, index, options, environment, renderer) => {
         const renderedHtml = defaultRenderer(tokens, index, options, environment, renderer);
-        if (tokens[index]?.tag !== 'code') {
+        const token = tokens[index];
+        if (token?.tag !== 'code') {
             return renderedHtml;
         }
 
-        const withNumbers = isLineNumbersEnabled() ? markLineNumberContainer(renderedHtml) : renderedHtml;
+        // Runs regardless of the viewer settings, so turning them off does not make Rich Text
+        // edits drop the options.
+        const info = token.info ?? '';
+        const withSource = preserveFenceInfo(renderedHtml, info);
+        const numbering = resolveLineNumbering(parseFenceInfo(info), isLineNumbersEnabled());
+        const withNumbers = numbering.enabled ? markLineNumberContainer(withSource, numbering.start) : withSource;
         return isCopyWidgetEnabled() ? injectCopyButton(withNumbers) : withNumbers;
     };
     viewerRenderer.codeblockAutocompleteViewerFeatures = true;

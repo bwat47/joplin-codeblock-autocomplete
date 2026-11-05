@@ -2,6 +2,7 @@ import { syntaxTree } from '@codemirror/language';
 import type { Extension, Range } from '@codemirror/state';
 import { Decoration, EditorView, ViewPlugin, type DecorationSet, type ViewUpdate } from '@codemirror/view';
 
+import { parseFenceInfo, resolveLineNumbering } from '../fenceInfo';
 import { getFencedCodeBlockGeometry, getFencedCodeSyntaxTree } from './fencedCodeBlock';
 import { getPluginSettings } from './pluginSettings';
 
@@ -49,15 +50,19 @@ export const lineNumbersTheme = EditorView.baseTheme({
 });
 
 /**
- * Decorates the visible lines of every fenced code block that intersects the viewport. Every
- * block line is shifted by the gutter so the fences stay aligned with the code, but only content
- * lines are numbered, counting from 1 on the line after the opening fence.
+ * Decorates the visible lines of every numbered fenced code block that intersects the viewport.
+ * Every block line is shifted by the gutter so the fences stay aligned with the code, but only
+ * content lines are numbered, counting from the block's start number (1 unless its info string
+ * sets `start=N`) on the line after the opening fence.
+ *
+ * Whether a block is numbered comes from its info string options, falling back to the setting,
+ * so blocks are inspected even while the setting is off.
  *
  * Numbers come from the block's geometry rather than the viewport, so a block that starts above
  * the viewport still shows its true line numbers. Only lines inside the visible ranges are
  * decorated, which keeps very long blocks cheap.
  */
-function buildLineNumberDecorations(view: EditorView): DecorationSet {
+function buildLineNumberDecorations(view: EditorView, enabledByDefault: boolean): DecorationSet {
     const { state } = view;
     const { doc } = state;
     const { tree } = getFencedCodeSyntaxTree(state, view.viewport.to);
@@ -75,12 +80,21 @@ function buildLineNumberDecorations(view: EditorView): DecorationSet {
                     return undefined;
                 }
 
-                const { blockTo, hasClosingFence, openingLineFrom } = getFencedCodeBlockGeometry(state, node.node);
+                const { blockTo, children, hasClosingFence, openingLineFrom } = getFencedCodeBlockGeometry(
+                    state,
+                    node.node
+                );
+                const info = children.codeInfo ? doc.sliceString(children.codeInfo.from, children.codeInfo.to) : '';
+                const numbering = resolveLineNumbering(parseFenceInfo(info), enabledByDefault);
+                if (!numbering.enabled) {
+                    return false;
+                }
+
                 const openingLine = doc.lineAt(openingLineFrom).number;
                 const lastLine = doc.lineAt(blockTo).number;
                 const lastContentLine = hasClosingFence ? lastLine - 1 : lastLine;
-                const digits = String(Math.max(1, lastContentLine - openingLine)).length;
-                const style = `${DIGITS_PROPERTY}: ${digits}`;
+                const largestNumber = numbering.start + Math.max(0, lastContentLine - openingLine - 1);
+                const style = `${DIGITS_PROPERTY}: ${String(largestNumber).length}`;
 
                 const from = Math.max(openingLine, firstVisibleLine);
                 const to = Math.min(lastLine, lastVisibleLine);
@@ -88,7 +102,7 @@ function buildLineNumberDecorations(view: EditorView): DecorationSet {
                     const isContentLine = lineNumber > openingLine && lineNumber <= lastContentLine;
                     const attributes: Record<string, string> = { style };
                     if (isContentLine) {
-                        attributes[LINE_NUMBER_ATTRIBUTE] = String(lineNumber - openingLine);
+                        attributes[LINE_NUMBER_ATTRIBUTE] = String(numbering.start + lineNumber - openingLine - 1);
                     }
 
                     decorations.push(
@@ -114,26 +128,21 @@ export function createLineNumbersPlugin(): Extension {
             }
 
             update(update: ViewUpdate): void {
-                const wasEnabled = getPluginSettings(update.startState).enableLineNumbers;
-                const isEnabled = getPluginSettings(update.state).enableLineNumbers;
-
                 // A tree change without a doc change means a background parse has caught up,
                 // which may reveal blocks that were unparsed when the decorations were built.
                 if (
-                    wasEnabled !== isEnabled ||
-                    (isEnabled &&
-                        (update.docChanged ||
-                            update.viewportChanged ||
-                            syntaxTree(update.startState) !== syntaxTree(update.state)))
+                    getPluginSettings(update.startState).enableLineNumbers !==
+                        getPluginSettings(update.state).enableLineNumbers ||
+                    update.docChanged ||
+                    update.viewportChanged ||
+                    syntaxTree(update.startState) !== syntaxTree(update.state)
                 ) {
                     this.decorations = this.build(update.view);
                 }
             }
 
             private build(view: EditorView): DecorationSet {
-                return getPluginSettings(view.state).enableLineNumbers
-                    ? buildLineNumberDecorations(view)
-                    : Decoration.none;
+                return buildLineNumberDecorations(view, getPluginSettings(view.state).enableLineNumbers);
             }
         },
         {
