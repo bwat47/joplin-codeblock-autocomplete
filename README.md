@@ -53,7 +53,7 @@ Clicking the button copies the fenced code contents and displays a success toast
 > [!note]
 > This setting also enables a working copy button and titles in the desktop rich text editor (TinyMCE).
 >
-> It technically works in the mobile (prosemirror) rich text editor as well, however, the prosemirror editor places its own "edit" button on the top right, so the two buttons overlap.
+> The copy button is hidden in the mobile (ProseMirror) rich text editor, which shows its own "Edit" button in the same corner of a selected code block. Titles are still shown there.
 
 ### Markdown viewer line numbers
 

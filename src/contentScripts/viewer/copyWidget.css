@@ -119,6 +119,17 @@
     }
 }
 
+/*
+ * Joplin's mobile Rich Text editor (ProseMirror, whose editable root always has
+ * the `ProseMirror` class) shows its own Edit button over the selected block's
+ * top-right corner, where it would cover the copy button. Selecting the block is
+ * also what tapping the copy button does first, so the button is hidden there
+ * rather than left under the Edit button.
+ */
+.ProseMirror .codeblock-autocomplete-viewer-copy-button {
+    display: none;
+}
+
 @media print {
     .codeblock-autocomplete-viewer-copy-button {
         display: none !important;
