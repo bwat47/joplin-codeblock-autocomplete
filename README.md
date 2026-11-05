@@ -9,6 +9,7 @@ Codeblock Utils adds tools for working with fenced code blocks in Joplin:
 - Code block header with a copy button and optional title in the Markdown editor
 - Code block header with a copy button and optional title in the Markdown viewer (and Rich Text editor)
 - Optional line numbers for fenced code blocks in the Markdown editor and viewer, which individual blocks can turn on or off
+- Highlighted lines in fenced code blocks, chosen per block
 - Toolbar button, Edit menu command, and keyboard shortcut to insert, wrap, or unwrap code blocks in the Markdown editor
 
 ![ex](https://github.com/bwat47/joplin-codeblock-autocomplete/blob/main/images/example.gif)
@@ -62,17 +63,18 @@ Enable the viewer line-number setting to number each logical line of fenced code
 
 Options written after the language on the opening fence apply to that block, in both the Markdown editor and the viewer:
 
-| Option         | Effect                                                                                                                                                                                             |
-| -------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `ln`           | Number this block, even when the line-number setting is off.                                                                                                                                       |
-| `ln=false`     | Never number this block, even when the line-number setting is on.                                                                                                                                  |
-| `start=N`      | Start numbering at `N` (a whole number, 0 or more). Also numbers the block, unless `ln=false` is set.                                                                                              |
-| `title="text"` | Show a title in the block's header. Quotes are needed only when the title contains spaces; use single quotes for a title containing `"`. Shown only when the code block header setting is enabled. |
+| Option         | Effect                                                                                                                                                                                                                   |
+| -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `ln`           | Number this block, even when the line-number setting is off.                                                                                                                                                             |
+| `ln=false`     | Never number this block, even when the line-number setting is on.                                                                                                                                                        |
+| `start=N`      | Start numbering at `N` (a whole number, 0 or more). Also numbers the block, unless `ln=false` is set.                                                                                                                    |
+| `title="text"` | Show a title in the block's header. Quotes are needed only when the title contains spaces; use single quotes for a title containing `"`. Shown only when the code block header setting is enabled.                       |
+| `hl=LINES`     | Highlight lines, as a comma-separated list of line numbers and ranges such as `hl=2,5-7`. The numbers are the displayed ones, so with `start=10`, `hl=10` is the first line. Works whether or not the block is numbered. |
 
 For example:
 
 ````markdown
-```python title="utils/greet.py" ln start=10
+```python title="utils/greet.py" ln start=10 hl=11
 def greet(name):
     return f"Hello, {name}"
 ```

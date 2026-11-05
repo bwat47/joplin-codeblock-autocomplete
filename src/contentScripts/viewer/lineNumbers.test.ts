@@ -1,11 +1,12 @@
-import { markLineNumberContainer } from './viewerLineNumbers';
+import { markCodeLineContainer } from './viewerLineNumbers';
 import type { ViewerAssetController, ViewerWindow } from './viewerTypes';
 
 const viewerWindow = window as ViewerWindow;
 
 function setCode(html: string, containerAttributes = ''): HTMLElement {
     document.body.innerHTML =
-        `<div class="joplin-editable codeblock-autocomplete-viewer-line-numbers"${containerAttributes}>` +
+        '<div class="joplin-editable codeblock-autocomplete-viewer-lines codeblock-autocomplete-viewer-line-numbers"' +
+        `${containerAttributes}>` +
         '<pre class="joplin-source" hidden data-joplin-language="ts">original source</pre>' +
         `<pre class="hljs"><code>${html}</code></pre></div>`;
     return document.querySelector('code')!;
@@ -79,10 +80,25 @@ describe('viewer line numbers', () => {
         expect(code.style.getPropertyValue('--codeblock-line-number-digits')).toBe('2');
     });
 
+    it('highlights lines by position without numbering them in unnumbered containers', async () => {
+        document.body.innerHTML =
+            '<div class="joplin-editable codeblock-autocomplete-viewer-lines" data-codeblock-highlight-lines="1 3">' +
+            '<pre class="hljs"><code>a\nb\nc</code></pre></div>';
+        const code = document.querySelector('code')!;
+        controller = await loadAsset();
+
+        expect(lines(code).map((line) => line.textContent)).toEqual(['a\n', 'b\n', 'c']);
+        expect(lines(code).map((line) => line.getAttribute('data-line-number'))).toEqual([null, null, null]);
+        expect(
+            lines(code).map((line) => line.classList.contains('codeblock-autocomplete-viewer-highlighted-line'))
+        ).toEqual([true, false, true]);
+        expect(code.style.getPropertyValue('--codeblock-line-number-digits')).toBe('');
+    });
+
     it('leaves unmarked code and diagram containers alone', async () => {
         document.body.innerHTML =
             '<div class="joplin-editable"><pre><code>plain</code></pre></div>' +
-            '<div class="joplin-editable codeblock-autocomplete-viewer-line-numbers"><pre class="mermaid">graph</pre></div>';
+            '<div class="joplin-editable codeblock-autocomplete-viewer-lines"><pre class="mermaid">graph</pre></div>';
         const original = document.body.innerHTML;
         controller = await loadAsset();
         expect(document.body.innerHTML).toBe(original);
@@ -91,16 +107,28 @@ describe('viewer line numbers', () => {
     it('marks eligible renderer output without changing source metadata', () => {
         const html =
             '<div class="other joplin-editable"><pre class="joplin-source">source</pre><pre><code>x</code></pre></div>';
-        expect(markLineNumberContainer(html, 1)).toBe(
-            html.replace('other joplin-editable', 'other joplin-editable codeblock-autocomplete-viewer-line-numbers')
+        const lines = 'codeblock-autocomplete-viewer-lines';
+        const numbers = 'codeblock-autocomplete-viewer-line-numbers';
+        const mark = (numbered: boolean, start: number, highlightedLines: number[]): string =>
+            markCodeLineContainer(html, { numbered, start, highlightedLines });
+
+        expect(mark(true, 1, [])).toBe(
+            html.replace('other joplin-editable', `other joplin-editable ${lines} ${numbers}`)
         );
-        expect(markLineNumberContainer(html, 0)).toBe(
+        expect(mark(true, 0, [])).toBe(
             html.replace(
                 'class="other joplin-editable"',
-                'class="other joplin-editable codeblock-autocomplete-viewer-line-numbers" data-codeblock-line-start="0"'
+                `class="other joplin-editable ${lines} ${numbers}" data-codeblock-line-start="0"`
             )
         );
+        expect(mark(false, 5, [1, 3])).toBe(
+            html.replace(
+                'class="other joplin-editable"',
+                `class="other joplin-editable ${lines}" data-codeblock-highlight-lines="1 3"`
+            )
+        );
+        expect(mark(false, 1, [])).toBe(html);
         const diagram = '<div class="joplin-editable"><pre class="mermaid">graph</pre></div>';
-        expect(markLineNumberContainer(diagram, 5)).toBe(diagram);
+        expect(markCodeLineContainer(diagram, { numbered: true, start: 5, highlightedLines: [1] })).toBe(diagram);
     });
 });

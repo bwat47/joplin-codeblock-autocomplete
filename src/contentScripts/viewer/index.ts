@@ -9,13 +9,14 @@
  */
 import type { MarkdownItContentScriptModule } from 'api/types';
 import { SETTING_KEYS } from '../../settingsKeys';
-import { parseFenceInfo, resolveLineNumbering } from '../fenceInfo';
+import { isLineHighlighted, parseFenceInfo, resolveLineNumbering, type FenceInfo } from '../fenceInfo';
 import { addContainerClass, isRenderedCodeContainer, prependToContainer } from './codeContainer';
 import { escapeHtml } from './escapeHtml';
 import { preserveFenceInfo } from './fenceSource';
-import { markLineNumberContainer } from './viewerLineNumbers';
+import { markCodeLineContainer } from './viewerLineNumbers';
 
 type MarkdownItToken = {
+    content?: string;
     info?: string;
     tag?: string;
 };
@@ -98,6 +99,26 @@ function injectHeader(renderedHtml: string, title: string | null): string {
     return addContainerClass(withTitle, COPY_CONTAINER_CLASS);
 }
 
+/**
+ * Lists the positions of the block's highlighted lines, counting its first line as 1. The token's
+ * content ends with the newline before the closing fence, which does not start another line.
+ */
+function getHighlightedLinePositions(content: string, fenceInfo: FenceInfo, start: number): number[] {
+    if (fenceInfo.highlightedLines.length === 0) {
+        return [];
+    }
+
+    const lineCount = content.replace(/\n$/, '').split('\n').length;
+    const positions: number[] = [];
+    for (let position = 1; position <= lineCount; position++) {
+        if (isLineHighlighted(fenceInfo, start + position - 1)) {
+            positions.push(position);
+        }
+    }
+
+    return positions;
+}
+
 export function installViewerCodeBlockRenderer(
     markdownIt: MarkdownItLike,
     isCopyWidgetEnabled: IsViewerFeatureEnabled,
@@ -126,8 +147,12 @@ export function installViewerCodeBlockRenderer(
         const fenceInfo = parseFenceInfo(info);
         const withSource = preserveFenceInfo(renderedHtml, info);
         const numbering = resolveLineNumbering(fenceInfo, isLineNumbersEnabled());
-        const withNumbers = numbering.enabled ? markLineNumberContainer(withSource, numbering.start) : withSource;
-        return isCopyWidgetEnabled() ? injectHeader(withNumbers, fenceInfo.title) : withNumbers;
+        const withLines = markCodeLineContainer(withSource, {
+            numbered: numbering.enabled,
+            start: numbering.start,
+            highlightedLines: getHighlightedLinePositions(token.content ?? '', fenceInfo, numbering.start),
+        });
+        return isCopyWidgetEnabled() ? injectHeader(withLines, fenceInfo.title) : withLines;
     };
     viewerRenderer.codeblockAutocompleteViewerFeatures = true;
 

@@ -169,7 +169,10 @@ describe('viewer copy widget asset', () => {
 
 it.each([true, false])('copies numbered code verbatim with source metadata=%s', async (withSource) => {
     const button = setViewerHtml('first &amp; second\n\n', '<span class="comment">first &amp; second\n\n</span>');
-    button.parentElement!.classList.add('codeblock-autocomplete-viewer-line-numbers');
+    button.parentElement!.classList.add(
+        'codeblock-autocomplete-viewer-lines',
+        'codeblock-autocomplete-viewer-line-numbers'
+    );
     if (!withSource) document.querySelector('.joplin-source')!.remove();
     vi.resetModules();
     const postMessage = vi.fn<ViewerWebviewApi['postMessage']>().mockResolvedValue({ ok: true });

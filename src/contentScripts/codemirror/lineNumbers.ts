@@ -2,13 +2,16 @@ import { syntaxTree } from '@codemirror/language';
 import type { Extension, Range } from '@codemirror/state';
 import { Decoration, EditorView, ViewPlugin, type DecorationSet, type ViewUpdate } from '@codemirror/view';
 
-import { parseFenceInfo, resolveLineNumbering } from '../fenceInfo';
+import { isLineHighlighted, parseFenceInfo, resolveLineNumbering } from '../fenceInfo';
 import { getFencedCodeBlockGeometry, getFencedCodeSyntaxTree } from './fencedCodeBlock';
 import { getPluginSettings } from './pluginSettings';
 
 const LINE_CLASS = 'cm-codeblock-line-numbers';
 const LINE_NUMBER_ATTRIBUTE = 'data-codeblock-line-number';
 const DIGITS_PROPERTY = '--cm-codeblock-line-number-digits';
+const HIGHLIGHTED_LINE_CLASS = 'cm-codeblock-highlighted-line';
+/** Matches the viewer's highlight in `viewer/lineNumbers.css`. */
+const HIGHLIGHT_COLOR = 'rgba(255, 196, 0, 0.18)';
 
 /** Space between the number and the code, and between the number and the block's left edge. */
 const NUMBER_GAP = '0.75em';
@@ -47,16 +50,25 @@ export const lineNumbersTheme = EditorView.baseTheme({
         pointerEvents: 'none',
         userSelect: 'none',
     },
+    /*
+     * Joplin shades code blocks with each line's background colour, so the highlight is a
+     * translucent image layered over that colour instead of a colour that would replace it.
+     */
+    [`.cm-line.${HIGHLIGHTED_LINE_CLASS}`]: {
+        backgroundImage: `linear-gradient(${HIGHLIGHT_COLOR}, ${HIGHLIGHT_COLOR})`,
+    },
 });
 
 /**
- * Numbers the visible content lines of every numbered fenced code block that intersects the
- * viewport, counting from the block's start number (1 unless its info string sets `start=N`) on
- * the line after the opening fence. The fence lines are left in place, so they span the gutter
- * above and below the numbers, and the opening fence's header stays at the block's left edge.
+ * Decorates the visible content lines of every fenced code block that intersects the viewport:
+ * numbering them, counting from the block's start number (1 unless its info string sets
+ * `start=N`) on the line after the opening fence, and highlighting the lines its `hl` option
+ * names. The fence lines are left in place, so they span the gutter above and below the numbers,
+ * and the opening fence's header stays at the block's left edge.
  *
  * Whether a block is numbered comes from its info string options, falling back to the setting,
- * so blocks are inspected even while the setting is off.
+ * so blocks are inspected even while the setting is off. Highlights apply whether or not the
+ * block is numbered, and count from the same start number.
  *
  * Numbers come from the block's geometry rather than the viewport, so a block that starts above
  * the viewport still shows its true line numbers. Only lines inside the visible ranges are
@@ -85,8 +97,9 @@ function buildLineNumberDecorations(view: EditorView, enabledByDefault: boolean)
                     node.node
                 );
                 const info = children.codeInfo ? doc.sliceString(children.codeInfo.from, children.codeInfo.to) : '';
-                const numbering = resolveLineNumbering(parseFenceInfo(info), enabledByDefault);
-                if (!numbering.enabled) {
+                const fenceInfo = parseFenceInfo(info);
+                const numbering = resolveLineNumbering(fenceInfo, enabledByDefault);
+                if (!numbering.enabled && fenceInfo.highlightedLines.length === 0) {
                     return false;
                 }
 
@@ -99,13 +112,25 @@ function buildLineNumberDecorations(view: EditorView, enabledByDefault: boolean)
                 const from = Math.max(openingLine + 1, firstVisibleLine);
                 const to = Math.min(lastContentLine, lastVisibleLine);
                 for (let lineNumber = from; lineNumber <= to; lineNumber++) {
-                    const attributes = {
-                        style,
-                        [LINE_NUMBER_ATTRIBUTE]: String(numbering.start + lineNumber - openingLine - 1),
-                    };
+                    const displayedNumber = numbering.start + lineNumber - openingLine - 1;
+                    const isHighlighted = isLineHighlighted(fenceInfo, displayedNumber);
+                    if (!numbering.enabled && !isHighlighted) {
+                        continue;
+                    }
+
+                    const classes: string[] = [];
+                    const attributes: Record<string, string> = {};
+                    if (numbering.enabled) {
+                        classes.push(LINE_CLASS);
+                        attributes.style = style;
+                        attributes[LINE_NUMBER_ATTRIBUTE] = String(displayedNumber);
+                    }
+                    if (isHighlighted) {
+                        classes.push(HIGHLIGHTED_LINE_CLASS);
+                    }
 
                     decorations.push(
-                        Decoration.line({ class: LINE_CLASS, attributes }).range(doc.line(lineNumber).from)
+                        Decoration.line({ class: classes.join(' '), attributes }).range(doc.line(lineNumber).from)
                     );
                 }
 

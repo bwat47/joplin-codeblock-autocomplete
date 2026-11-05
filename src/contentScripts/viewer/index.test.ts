@@ -281,6 +281,28 @@ describe('viewer settings combinations', () => {
         expect(container?.getAttribute('data-codeblock-line-start')).toBe(start);
     });
 
+    it.each([
+        ['ts hl=2', 'a\nb\nc\n', false, '2'],
+        ['ts start=10 hl=11-12,99', 'a\nb\nc\n', true, '2 3'],
+        ['ts hl=4', 'a\nb\nc\n', false, null],
+    ])('marks the %j highlights by position in the block', (info, content, numbered, positions) => {
+        const { markdownIt } = createMarkdownIt(JOPLIN_FENCE_HTML);
+        installViewerCodeBlockRenderer(
+            markdownIt,
+            () => false,
+            () => false
+        );
+        const container = new DOMParser()
+            .parseFromString(renderFence(markdownIt, { info, content }), 'text/html')
+            .querySelector('.joplin-editable');
+
+        expect(container?.getAttribute('data-codeblock-highlight-lines')).toBe(positions);
+        expect(container?.classList.contains('codeblock-autocomplete-viewer-lines')).toBe(
+            positions !== null || numbered
+        );
+        expect(container?.classList.contains('codeblock-autocomplete-viewer-line-numbers')).toBe(numbered);
+    });
+
     it('preserves fence options in the source metadata while every viewer feature is off', () => {
         const html =
             '<div class="joplin-editable"><pre class="joplin-source" hidden data-joplin-language="ts" ' +

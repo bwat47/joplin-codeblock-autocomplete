@@ -1,4 +1,4 @@
-import { parseFenceInfo, resolveLineNumbering } from './fenceInfo';
+import { isLineHighlighted, parseFenceInfo, resolveLineNumbering } from './fenceInfo';
 
 describe('parseFenceInfo', () => {
     it.each([
@@ -40,7 +40,13 @@ describe('parseFenceInfo', () => {
     });
 
     it('does not treat the language as an option', () => {
-        expect(parseFenceInfo('ln')).toEqual({ language: 'ln', lineNumbers: null, lineNumberStart: null, title: null });
+        expect(parseFenceInfo('ln')).toEqual({
+            language: 'ln',
+            lineNumbers: null,
+            lineNumberStart: null,
+            title: null,
+            highlightedLines: [],
+        });
     });
 
     it('does not read options from inside quoted values of other options', () => {
@@ -49,6 +55,7 @@ describe('parseFenceInfo', () => {
             lineNumbers: true,
             lineNumberStart: null,
             title: 'ln=false start=4',
+            highlightedLines: [],
         });
     });
 
@@ -63,6 +70,53 @@ describe('parseFenceInfo', () => {
         ['py title="unclosed quote', '"unclosed'],
     ])('reads the title option from %j', (info, title) => {
         expect(parseFenceInfo(info).title).toBe(title);
+    });
+});
+
+describe('highlighted lines', () => {
+    it.each([
+        ['ts', []],
+        ['ts hl=3', [{ from: 3, to: 3 }]],
+        [
+            'ts hl=10,13-14',
+            [
+                { from: 10, to: 10 },
+                { from: 13, to: 14 },
+            ],
+        ],
+        [
+            'ts hl="2, 4-5"',
+            [
+                { from: 2, to: 2 },
+                { from: 4, to: 5 },
+            ],
+        ],
+        ['ts hl=7-5', [{ from: 5, to: 7 }]],
+        [
+            'ts hl=a,2,-3,4-,1.5,6',
+            [
+                { from: 2, to: 2 },
+                { from: 6, to: 6 },
+            ],
+        ],
+        ['ts hl=', []],
+        ['ts hl', []],
+    ])('reads the hl option from %j', (info, highlightedLines) => {
+        expect(parseFenceInfo(info).highlightedLines).toEqual(highlightedLines);
+    });
+
+    it('checks lines against every range', () => {
+        const info = parseFenceInfo('ts hl=10,13-14');
+
+        expect([9, 10, 11, 12, 13, 14, 15].map((line) => isLineHighlighted(info, line))).toEqual([
+            false,
+            true,
+            false,
+            false,
+            true,
+            true,
+            false,
+        ]);
     });
 });
 

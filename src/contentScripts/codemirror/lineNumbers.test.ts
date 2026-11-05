@@ -12,6 +12,12 @@ type RenderedLine = {
     text: string;
 };
 
+function getHighlightedTexts(harness: EditorHarness): string[] {
+    return Array.from(harness.view.contentDOM.querySelectorAll('.cm-line.cm-codeblock-highlighted-line')).map(
+        (line) => line.textContent
+    );
+}
+
 function createHarness(doc: string, enableLineNumbers = true): EditorHarness {
     const harness = createEditorHarness(doc, {
         extensions: [markdown(), createSettingsExtension(), lineNumbersTheme, createLineNumbersPlugin()],
@@ -186,6 +192,38 @@ describe('createLineNumbersPlugin', () => {
 
             harness.view.dispatch({ changes: { from: 5, insert: ' start=3' } });
             expect(getNumbers(harness)).toEqual(['3']);
+        } finally {
+            harness.destroy();
+        }
+    });
+
+    it('highlights the hl lines without numbering them while numbers are off', () => {
+        const harness = createHarness('```ts hl=1,3\na\nb\nc\n```', false);
+
+        try {
+            expect(getHighlightedTexts(harness)).toEqual(['a', 'c']);
+            expect(harness.view.contentDOM.querySelector('.cm-codeblock-line-numbers')).toBeNull();
+        } finally {
+            harness.destroy();
+        }
+    });
+
+    it('counts highlights from the start number alongside the line numbers', () => {
+        const harness = createHarness('```ts start=10 hl=11-12\na\nb\nc\n```');
+
+        try {
+            expect(getHighlightedTexts(harness)).toEqual(['b', 'c']);
+            expect(getNumbers(harness)).toEqual(['10', '11', '12']);
+        } finally {
+            harness.destroy();
+        }
+    });
+
+    it('ignores highlights outside the block', () => {
+        const harness = createHarness('```ts hl=5\na\n```\n\nafter', false);
+
+        try {
+            expect(getHighlightedTexts(harness)).toEqual([]);
         } finally {
             harness.destroy();
         }
