@@ -58,7 +58,8 @@ type MarkdownItPluginOptions = {
 type IsViewerFeatureEnabled = () => boolean;
 
 const COPY_BUTTON_CLASS = 'codeblock-autocomplete-viewer-copy-button';
-const TITLE_CLASS = 'codeblock-autocomplete-viewer-title';
+/** `hljs` gives the title the code theme's background and colour. */
+const TITLE_CLASSES = 'codeblock-autocomplete-viewer-title hljs';
 /**
  * Added to the container that receives a button. The stylesheet needs to scope
  * `position` and the reserved `padding-right` to those containers only, since
@@ -94,7 +95,7 @@ function injectHeader(renderedHtml: string, title: string | null): string {
     const withTitle =
         title === null
             ? withButton
-            : prependToContainer(withButton, `<div class="${TITLE_CLASS}">${escapeHtml(title)}</div>`);
+            : prependToContainer(withButton, `<div class="${TITLE_CLASSES}">${escapeHtml(title)}</div>`);
 
     return addContainerClass(withTitle, COPY_CONTAINER_CLASS);
 }

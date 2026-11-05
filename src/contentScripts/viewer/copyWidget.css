@@ -91,17 +91,26 @@
 }
 
 /*
- * The title sits above the code in the same row as the button, so it reserves
- * the same room on the right and cuts off long titles instead of wrapping.
+ * The title is a header bar joined to the top of the code. Its `hljs` class
+ * gives it the code theme's background and text colour, and a faint tint and
+ * divider set it apart from the code. It takes over the code's top margin, and
+ * shares its row with the button, so it reserves the same room on the right and
+ * cuts off long titles instead of wrapping.
  */
 .codeblock-autocomplete-viewer-title {
-    padding: 0.25em 2em 0.25em 0;
+    margin-top: 1em;
+    padding: 0.4em 2em 0.4em 0.5em;
+    border-bottom: 1px solid rgba(127, 127, 127, 0.2);
+    background-image: linear-gradient(rgba(127, 127, 127, 0.08), rgba(127, 127, 127, 0.08));
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
     font-size: 0.9em;
     font-weight: 600;
-    opacity: 0.8;
+}
+
+.codeblock-autocomplete-viewer-title ~ pre:not(.joplin-source) {
+    margin-top: 0;
 }
 
 @media (any-hover: none) {

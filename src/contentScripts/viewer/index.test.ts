@@ -86,7 +86,7 @@ describe('installViewerCodeBlockRenderer', () => {
         const container = new DOMParser().parseFromString(renderedHtml, 'text/html').querySelector('.joplin-editable');
         const title = container?.firstElementChild;
 
-        expect(title?.className).toBe('codeblock-autocomplete-viewer-title');
+        expect(title?.className).toBe('codeblock-autocomplete-viewer-title hljs');
         expect(title?.textContent).toBe('<a & b>.ts');
         expect(title?.children).toHaveLength(0);
         expect(container?.querySelectorAll('.codeblock-autocomplete-viewer-title')).toHaveLength(1);
