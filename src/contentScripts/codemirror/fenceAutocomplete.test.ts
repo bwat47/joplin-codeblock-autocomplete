@@ -213,6 +213,51 @@ describe('createCodeBlockCompleter', () => {
         }
     });
 
+    it.each([
+        ['after a space following the language', '```ts |'],
+        ['while typing an option', '```ts ln|'],
+        ['while typing a quoted option', '```ts title="a b|'],
+        ['after a space following a bare fence', '``` |'],
+    ])('offers no languages %s', (_name, doc) => {
+        const harness = createEditorHarness(doc, {
+            extensions: [createSettingsExtension()],
+        });
+
+        try {
+            applyPluginSettings(harness.view, {
+                enableLanguageAutocomplete: true,
+                enableCopyWidget: false,
+                enableLineNumbers: false,
+                languages: ['typescript'],
+            });
+
+            const completer = createCodeBlockCompleter();
+            expect(completer(createCompletionContext(harness.view))).toBeNull();
+        } finally {
+            harness.destroy();
+        }
+    });
+
+    it('still offers languages while editing the language before existing options', () => {
+        const harness = createEditorHarness('```ty| ln', {
+            extensions: [createSettingsExtension()],
+        });
+
+        try {
+            applyPluginSettings(harness.view, {
+                enableLanguageAutocomplete: true,
+                enableCopyWidget: false,
+                enableLineNumbers: false,
+                languages: ['typescript'],
+            });
+
+            const completer = createCodeBlockCompleter();
+            expect(getResultLabels(completer(createCompletionContext(harness.view)))).toEqual(['typescript', 'ty']);
+        } finally {
+            harness.destroy();
+        }
+    });
+
     it('returns null when language autocomplete is disabled', () => {
         const harness = createEditorHarness('```py|', {
             extensions: [createSettingsExtension()],
