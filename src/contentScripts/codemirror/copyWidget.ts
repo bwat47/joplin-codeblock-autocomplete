@@ -3,22 +3,29 @@ import { Decoration, EditorView, ViewPlugin, WidgetType, type DecorationSet, typ
 import type { SyntaxNode } from '@lezer/common';
 
 import { logger } from '../../logger';
+import { parseFenceInfo } from '../fenceInfo';
 import { getFencedCodeBlockGeometry, getFencedCodeSyntaxTree } from './fencedCodeBlock';
 import { areSettingsEqual, getPluginSettings } from './pluginSettings';
 import type { PostMessageContext } from './types';
 
 type FencedCodeBlockInfo = {
     copyText: string;
-    hiddenInfoFrom: number | null;
-    hiddenInfoTo: number | null;
+    /**
+     * The opening-line text the header hides: the info string, or with a title the fence and the
+     * info string, which the title takes the place of.
+     */
+    hiddenFrom: number | null;
+    hiddenTo: number | null;
     interactionSelectionAnchor: number;
     language: string | null;
     openingLineFrom: number;
     openingLineTo: number;
+    title: string | null;
 };
 
 const COPY_WIDGET_TITLE = 'Copy code block';
 const COPY_ICON_LABEL = 'Copy';
+const COPY_LABEL_CHARS_PROPERTY = '--cm-codeblock-copy-label-chars';
 
 function getInteractionSelectionAnchor(state: EditorView['state'], openingLineFrom: number): number {
     const openingLine = state.doc.lineAt(openingLineFrom);
@@ -63,6 +70,20 @@ export const copyWidgetTheme = EditorView.baseTheme({
     '.cm-codeblock-copy-widget:focus': {
         outline: 'none',
     },
+    /*
+     * The title stops short of the copy button, which is absolutely positioned at the line's end:
+     * its label width in characters, plus the icon, gap, padding and inset.
+     */
+    '.cm-codeblock-title': {
+        display: 'inline-block',
+        maxWidth: `calc(100% - var(${COPY_LABEL_CHARS_PROPERTY}, 4) * 1ch - 3em)`,
+        overflow: 'hidden',
+        textOverflow: 'ellipsis',
+        whiteSpace: 'nowrap',
+        verticalAlign: 'top',
+        fontStyle: 'italic',
+        cursor: 'text',
+    },
     '.cm-codeblock-copy-widget svg': {
         width: '0.95em',
         height: '0.95em',
@@ -80,15 +101,25 @@ function getFencedCodeBlockInfo(
         fencedCodeNode
     );
     const { codeInfo, openingFenceMark } = children;
+    const info = codeInfo ? parseFenceInfo(state.doc.sliceString(codeInfo.from, codeInfo.to)) : null;
+    const title = info?.title ?? null;
+
+    // A title takes the place of the fence as well as the info string.
+    let hiddenFrom: number | null = null;
+    if (openingFenceMark && codeInfo) {
+        hiddenFrom = title === null ? openingFenceMark.to : openingFenceMark.from;
+    }
 
     return {
         copyText: getFencedCodeBlockCopyText(state, fencedCodeNode, contentFrom, contentTo),
-        hiddenInfoFrom: openingFenceMark && codeInfo ? openingFenceMark.to : null,
-        hiddenInfoTo: codeInfo ? codeInfo.to : null,
+        hiddenFrom,
+        hiddenTo: codeInfo ? codeInfo.to : null,
         interactionSelectionAnchor: getInteractionSelectionAnchor(state, openingLineFrom),
-        language: codeInfo ? state.doc.sliceString(codeInfo.from, codeInfo.to) : null,
+        // Only the language labels the button; options after it stay hidden with the rest of the info string.
+        language: info?.language || null,
         openingLineFrom,
         openingLineTo,
+        title,
     };
 }
 
@@ -212,6 +243,38 @@ function createCopyIcon(ownerDocument: Document): SVGSVGElement {
     return svg;
 }
 
+/**
+ * Shows a block's title in place of its opening fence. Unlike the copy button, it leaves events to
+ * the editor, so clicking it places the cursor on the opening line, which reveals the Markdown.
+ */
+class CodeBlockTitleWidget extends WidgetType {
+    public constructor(
+        private readonly title: string,
+        private readonly copyLabel: string
+    ) {
+        super();
+    }
+
+    public override eq(other: WidgetType): boolean {
+        return (
+            other instanceof CodeBlockTitleWidget && other.title === this.title && other.copyLabel === this.copyLabel
+        );
+    }
+
+    public toDOM(view: EditorView): HTMLElement {
+        const element = view.dom.ownerDocument.createElement('span');
+        element.className = 'cm-codeblock-title';
+        element.textContent = this.title;
+        element.title = this.title;
+        element.style.setProperty(COPY_LABEL_CHARS_PROPERTY, String(this.copyLabel.length));
+        return element;
+    }
+
+    public override ignoreEvent(): boolean {
+        return false;
+    }
+}
+
 class CopyCodeBlockWidget extends WidgetType {
     public constructor(
         private readonly context: PostMessageContext,
@@ -315,8 +378,12 @@ function buildCopyWidgetDecorations(
 
         decorationRanges.push(Decoration.line({ class: 'cm-codeblock-copy-line' }).range(block.openingLineFrom));
 
-        if (block.hiddenInfoFrom !== null && block.hiddenInfoTo !== null) {
-            decorationRanges.push(Decoration.replace({}).range(block.hiddenInfoFrom, block.hiddenInfoTo));
+        if (block.hiddenFrom !== null && block.hiddenTo !== null) {
+            const widget =
+                block.title === null
+                    ? undefined
+                    : new CodeBlockTitleWidget(block.title, block.language ?? COPY_ICON_LABEL);
+            decorationRanges.push(Decoration.replace({ widget }).range(block.hiddenFrom, block.hiddenTo));
         }
 
         decorationRanges.push(

@@ -1,5 +1,5 @@
 /**
- * Markdown viewer integration for fenced-code copy buttons and line numbers.
+ * Markdown viewer integration for fenced-code headers (copy button and title) and line numbers.
  *
  * The existing fence renderer remains responsible for all code rendering and
  * Rich Text metadata. This plugin adds optional decorations to the outer
@@ -9,10 +9,15 @@
  */
 import type { MarkdownItContentScriptModule } from 'api/types';
 import { SETTING_KEYS } from '../../settingsKeys';
-import { addContainerClass, isRenderedCodeContainer } from './codeContainer';
-import { markLineNumberContainer } from './viewerLineNumbers';
+import { isLineHighlighted, parseFenceInfo, resolveLineNumbering, type FenceInfo } from '../fenceInfo';
+import { addContainerClass, isRenderedCodeContainer, prependToContainer } from './codeContainer';
+import { escapeHtml } from './escapeHtml';
+import { preserveFenceInfo } from './fenceSource';
+import { markCodeLineContainer } from './viewerLineNumbers';
 
 type MarkdownItToken = {
+    content?: string;
+    info?: string;
     tag?: string;
 };
 
@@ -53,6 +58,8 @@ type MarkdownItPluginOptions = {
 type IsViewerFeatureEnabled = () => boolean;
 
 const COPY_BUTTON_CLASS = 'codeblock-autocomplete-viewer-copy-button';
+/** `hljs` gives the title the code theme's background and colour. */
+const TITLE_CLASSES = 'codeblock-autocomplete-viewer-title hljs';
 /**
  * Added to the container that receives a button. The stylesheet needs to scope
  * `position` and the reserved `padding-right` to those containers only, since
@@ -70,7 +77,11 @@ const COPY_BUTTON_HTML = `<button type="button" class="${COPY_BUTTON_CLASS}" tit
 </svg>
 </button>`;
 
-function injectCopyButton(renderedHtml: string): string {
+/**
+ * Adds the header: the copy button, and the block's title when its info string sets one. The title
+ * comes first in the container so it sits above the code, sharing its row with the button.
+ */
+function injectHeader(renderedHtml: string, title: string | null): string {
     if (!isRenderedCodeContainer(renderedHtml)) {
         return renderedHtml;
     }
@@ -81,8 +92,32 @@ function injectCopyButton(renderedHtml: string): string {
     }
 
     const withButton = `${renderedHtml.slice(0, closingTagIndex)}${COPY_BUTTON_HTML}${renderedHtml.slice(closingTagIndex)}`;
+    const withTitle =
+        title === null
+            ? withButton
+            : prependToContainer(withButton, `<div class="${TITLE_CLASSES}">${escapeHtml(title)}</div>`);
 
-    return addContainerClass(withButton, COPY_CONTAINER_CLASS);
+    return addContainerClass(withTitle, COPY_CONTAINER_CLASS);
+}
+
+/**
+ * Lists the positions of the block's highlighted lines, counting its first line as 1. The token's
+ * content ends with the newline before the closing fence, which does not start another line.
+ */
+function getHighlightedLinePositions(content: string, fenceInfo: FenceInfo, start: number): number[] {
+    if (fenceInfo.highlightedLines.length === 0) {
+        return [];
+    }
+
+    const lineCount = content.replace(/\n$/, '').split('\n').length;
+    const positions: number[] = [];
+    for (let position = 1; position <= lineCount; position++) {
+        if (isLineHighlighted(fenceInfo, start + position - 1)) {
+            positions.push(position);
+        }
+    }
+
+    return positions;
 }
 
 export function installViewerCodeBlockRenderer(
@@ -102,12 +137,23 @@ export function installViewerCodeBlockRenderer(
 
     const viewerRenderer: InstalledRendererRule = (tokens, index, options, environment, renderer) => {
         const renderedHtml = defaultRenderer(tokens, index, options, environment, renderer);
-        if (tokens[index]?.tag !== 'code') {
+        const token = tokens[index];
+        if (token?.tag !== 'code') {
             return renderedHtml;
         }
 
-        const withNumbers = isLineNumbersEnabled() ? markLineNumberContainer(renderedHtml) : renderedHtml;
-        return isCopyWidgetEnabled() ? injectCopyButton(withNumbers) : withNumbers;
+        // Runs regardless of the viewer settings, so turning them off does not make Rich Text
+        // edits drop the options.
+        const info = token.info ?? '';
+        const fenceInfo = parseFenceInfo(info);
+        const withSource = preserveFenceInfo(renderedHtml, info);
+        const numbering = resolveLineNumbering(fenceInfo, isLineNumbersEnabled());
+        const withLines = markCodeLineContainer(withSource, {
+            numbered: numbering.enabled,
+            start: numbering.start,
+            highlightedLines: getHighlightedLinePositions(token.content ?? '', fenceInfo, numbering.start),
+        });
+        return isCopyWidgetEnabled() ? injectHeader(withLines, fenceInfo.title) : withLines;
     };
     viewerRenderer.codeblockAutocompleteViewerFeatures = true;
 

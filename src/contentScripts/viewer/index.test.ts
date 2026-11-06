@@ -78,6 +78,34 @@ describe('installViewerCodeBlockRenderer', () => {
         expect(renderedHtml.match(/codeblock-autocomplete-viewer-copy-container/g)).toHaveLength(1);
     });
 
+    it('adds an escaped title above the code when the info string sets one', () => {
+        const { markdownIt } = createMarkdownIt(JOPLIN_FENCE_HTML);
+        installViewerCodeBlockRenderer(markdownIt, COPY_WIDGET_ENABLED, () => false);
+
+        const renderedHtml = renderFence(markdownIt, { info: 'ts title="<a & b>.ts"' });
+        const container = new DOMParser().parseFromString(renderedHtml, 'text/html').querySelector('.joplin-editable');
+        const title = container?.firstElementChild;
+
+        expect(title?.className).toBe('codeblock-autocomplete-viewer-title hljs');
+        expect(title?.textContent).toBe('<a & b>.ts');
+        expect(title?.children).toHaveLength(0);
+        expect(container?.querySelectorAll('.codeblock-autocomplete-viewer-title')).toHaveLength(1);
+    });
+
+    it.each([
+        ['the copy widget is disabled', 'ts title=a.ts', false],
+        ['the info string has no title', 'ts ln', true],
+    ])('adds no title when %s', (_name, info, copyEnabled) => {
+        const { markdownIt } = createMarkdownIt(JOPLIN_FENCE_HTML);
+        installViewerCodeBlockRenderer(
+            markdownIt,
+            () => copyEnabled,
+            () => false
+        );
+
+        expect(renderFence(markdownIt, { info })).not.toContain('codeblock-autocomplete-viewer-title');
+    });
+
     it('preserves the existing rendered HTML and Rich Text source metadata', () => {
         const { markdownIt, defaultFenceRenderer } = createMarkdownIt(JOPLIN_FENCE_HTML);
         installViewerCodeBlockRenderer(markdownIt, COPY_WIDGET_ENABLED, () => false);
@@ -231,6 +259,63 @@ describe('viewer settings combinations', () => {
         expect(html.includes('codeblock-autocomplete-viewer-copy-button')).toBe(copy);
         expect(html.includes('codeblock-autocomplete-viewer-line-numbers')).toBe(numbers);
         expect(html).toContain('<pre class="joplin-source" data-joplin-language="ts">const value = 1;</pre>');
+    });
+
+    it.each([
+        ['ts ln', false, true, null],
+        ['ts ln=false', true, false, null],
+        ['ts start=7', false, true, '7'],
+        ['ts start=1', true, true, null],
+    ])('applies the %j options with the setting %s', (info, setting, numbered, start) => {
+        const { markdownIt } = createMarkdownIt(JOPLIN_FENCE_HTML);
+        installViewerCodeBlockRenderer(
+            markdownIt,
+            () => false,
+            () => setting
+        );
+        const pre = new DOMParser()
+            .parseFromString(renderFence(markdownIt, { info }), 'text/html')
+            .querySelector('pre.hljs');
+
+        expect(pre?.classList.contains('codeblock-autocomplete-viewer-line-numbers')).toBe(numbered);
+        expect(pre?.getAttribute('data-codeblock-line-start')).toBe(start);
+    });
+
+    it.each([
+        ['ts hl=2', 'a\nb\nc\n', false, '2'],
+        ['ts start=10 hl=11-12,99', 'a\nb\nc\n', true, '2 3'],
+        ['ts hl=4', 'a\nb\nc\n', false, null],
+    ])('marks the %j highlights by position in the block', (info, content, numbered, positions) => {
+        const { markdownIt } = createMarkdownIt(JOPLIN_FENCE_HTML);
+        installViewerCodeBlockRenderer(
+            markdownIt,
+            () => false,
+            () => false
+        );
+        const pre = new DOMParser()
+            .parseFromString(renderFence(markdownIt, { info, content }), 'text/html')
+            .querySelector('pre.hljs');
+
+        expect(pre?.getAttribute('data-codeblock-highlight-lines')).toBe(positions);
+        expect(pre?.classList.contains('codeblock-autocomplete-viewer-lines')).toBe(positions !== null || numbered);
+        expect(pre?.classList.contains('codeblock-autocomplete-viewer-line-numbers')).toBe(numbered);
+    });
+
+    it('preserves fence options in the source metadata while every viewer feature is off', () => {
+        const html =
+            '<div class="joplin-editable"><pre class="joplin-source" hidden data-joplin-language="ts" ' +
+            'data-joplin-source-open="```ts&#10;" data-joplin-source-close="&#10;```">x</pre>' +
+            '<pre class="hljs"><code>x</code></pre></div>\n';
+        const { markdownIt } = createMarkdownIt(html);
+        installViewerCodeBlockRenderer(
+            markdownIt,
+            () => false,
+            () => false
+        );
+
+        expect(renderFence(markdownIt, { info: 'ts ln=false' })).toContain(
+            'data-joplin-source-open="```ts ln=false&#10;"'
+        );
     });
 
     it('reads line-number setting changes on each render', () => {

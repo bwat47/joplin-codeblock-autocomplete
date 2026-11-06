@@ -17,7 +17,9 @@ const IMMEDIATE_FENCE_LENGTH = 3;
 /**
  * Parse the opening fence at the current cursor position.
  * Supports both backtick and tilde (~~~) style fences.
- * Returns fence details or undefined if not at a valid fence position.
+ * Returns fence details or undefined if not at a valid fence position: the cursor must be
+ * in the language word directly after the fence, so typing options after the language
+ * (for example `ts ln` or `ts title="a"`) does not offer languages.
  */
 function parseOpeningFence(state: CompletionContext['state'], pos: number): OpeningFence | undefined {
     const line = state.doc.lineAt(pos);
@@ -37,14 +39,15 @@ function parseOpeningFence(state: CompletionContext['state'], pos: number): Open
     const typedLang = match[3]!;
 
     const fenceStart = lineStartPos + indent.length;
-    if (pos < fenceStart + fence.length) return undefined;
+    const languageStartPos = fenceStart + fence.length;
+    if (pos < languageStartPos || pos > languageStartPos + typedLang.length) return undefined;
 
     return {
         indent,
         fenceChar,
         fenceCount: fence.length,
         typedLang,
-        languageStartPos: fenceStart + fence.length,
+        languageStartPos,
     };
 }
 

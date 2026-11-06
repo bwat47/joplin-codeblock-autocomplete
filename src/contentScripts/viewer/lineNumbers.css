@@ -1,9 +1,24 @@
+/*
+ * Split code is as wide as its longest line, so line backgrounds such as
+ * highlights reach the end of code that scrolls sideways. `fit-content` still
+ * follows the available width when the code wraps.
+ */
+pre.codeblock-autocomplete-viewer-lines > code {
+    display: block;
+    box-sizing: border-box;
+    width: fit-content;
+    min-width: 100%;
+}
+
 /* Each logical line keeps its highlighted children and original newline. */
-.codeblock-autocomplete-viewer-line-numbers .codeblock-autocomplete-viewer-code-line {
+.codeblock-autocomplete-viewer-lines .codeblock-autocomplete-viewer-code-line {
     display: block;
     position: relative;
     min-height: 1em;
     min-height: 1lh;
+}
+
+.codeblock-autocomplete-viewer-line-numbers .codeblock-autocomplete-viewer-code-line {
     padding-left: calc(var(--codeblock-line-number-digits, 1) * 1ch + 1.25em);
 }
 
@@ -18,4 +33,12 @@
     opacity: 0.5;
     pointer-events: none;
     user-select: none;
+}
+
+/*
+ * A translucent image layered over the block's own background, so it works on
+ * light and dark code themes. Matches the editor's highlight colour.
+ */
+.codeblock-autocomplete-viewer-highlighted-line {
+    background-image: linear-gradient(rgba(255, 196, 0, 0.18), rgba(255, 196, 0, 0.18));
 }

@@ -11,8 +11,13 @@
  * Joplin renders fenced code blocks with no padding, so a single-line block is
  * only one line tall. Reserve room at the end of the line so code never runs
  * underneath the icon.
+ *
+ * Code split into lines (for numbers or highlights) reserves the room on each
+ * line instead, inside the line's own background, so highlights reach the
+ * block's right edge.
  */
-.codeblock-autocomplete-viewer-copy-container > pre:not(.joplin-source) {
+.codeblock-autocomplete-viewer-copy-container > pre:not(.joplin-source):not(.codeblock-autocomplete-viewer-lines),
+.codeblock-autocomplete-viewer-copy-container .codeblock-autocomplete-viewer-code-line {
     padding-right: 2em;
 }
 
@@ -85,10 +90,44 @@
     pointer-events: none;
 }
 
+/*
+ * The title is a header bar joined to the top of the code. Its `hljs` class
+ * gives it the code theme's background and text colour, and a faint tint and
+ * divider set it apart from the code. It takes over the code's top margin, and
+ * shares its row with the button, so it reserves the same room on the right and
+ * cuts off long titles instead of wrapping.
+ */
+.codeblock-autocomplete-viewer-title {
+    margin-top: 1em;
+    padding: 0.4em 2em 0.4em 0.5em;
+    border-bottom: 1px solid rgba(127, 127, 127, 0.2);
+    background-image: linear-gradient(rgba(127, 127, 127, 0.08), rgba(127, 127, 127, 0.08));
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 1em;
+    font-style: italic;
+}
+
+.codeblock-autocomplete-viewer-title ~ pre:not(.joplin-source) {
+    margin-top: 0;
+}
+
 @media (any-hover: none) {
     .codeblock-autocomplete-viewer-copy-button {
         opacity: 1;
     }
+}
+
+/*
+ * Joplin's mobile Rich Text editor (ProseMirror, whose editable root always has
+ * the `ProseMirror` class) shows its own Edit button over the selected block's
+ * top-right corner, where it would cover the copy button. Selecting the block is
+ * also what tapping the copy button does first, so the button is hidden there
+ * rather than left under the Edit button.
+ */
+.ProseMirror .codeblock-autocomplete-viewer-copy-button {
+    display: none;
 }
 
 @media print {

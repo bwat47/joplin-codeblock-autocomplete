@@ -34,30 +34,33 @@ const SETTINGS_CONFIG = {
     enableCopyWidget: {
         key: SETTING_KEYS.enableCopyWidget,
         defaultValue: false,
-        label: 'Enable Markdown editor copy widget',
+        label: 'Show Markdown editor code block header (title and copy button)',
         description:
-            'Show a copy button on fenced code blocks in the Markdown editor and hide the opening-fence language text when the cursor is not on that line.',
+            'Show a header on fenced code blocks in the Markdown editor, with a copy button and the title set with title="..." after the language, when the cursor is not on the opening fence line. The header hides the opening-fence text it replaces.',
         target: 'editor',
     },
     enableLineNumbers: {
         key: SETTING_KEYS.enableLineNumbers,
         defaultValue: false,
         label: 'Show line numbers in Markdown editor code blocks',
-        description: 'Number the lines inside fenced code blocks in the Markdown editor.',
+        description:
+            'Number the lines inside fenced code blocks in the Markdown editor. Blocks can override this with "ln" or "ln=false" after the language.',
         target: 'editor',
     },
     enableViewerCopyWidget: {
         key: SETTING_KEYS.enableViewerCopyWidget,
         defaultValue: false,
-        label: 'Enable Markdown viewer copy widget',
-        description: 'Show a copy button when hovering over fenced code blocks in the Markdown viewer.',
+        label: 'Show Markdown viewer code block header (title and copy button)',
+        description:
+            'Show a copy button when hovering over fenced code blocks in the Markdown viewer, and the title set with title="..." after the language above the code.',
         target: 'viewer',
     },
     enableViewerLineNumbers: {
         key: SETTING_KEYS.enableViewerLineNumbers,
         defaultValue: false,
         label: 'Show line numbers in Markdown viewer code blocks',
-        description: 'Number the lines inside fenced code blocks in the Markdown viewer.',
+        description:
+            'Number the lines inside fenced code blocks in the Markdown viewer. Blocks can override this with "ln" or "ln=false" after the language.',
         target: 'viewer',
     },
     languages: {

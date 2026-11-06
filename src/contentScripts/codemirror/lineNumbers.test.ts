@@ -12,6 +12,12 @@ type RenderedLine = {
     text: string;
 };
 
+function getHighlightedTexts(harness: EditorHarness): string[] {
+    return Array.from(harness.view.contentDOM.querySelectorAll('.cm-line.cm-codeblock-highlighted-line')).map(
+        (line) => line.textContent
+    );
+}
+
 function createHarness(doc: string, enableLineNumbers = true): EditorHarness {
     const harness = createEditorHarness(doc, {
         extensions: [markdown(), createSettingsExtension(), lineNumbersTheme, createLineNumbersPlugin()],
@@ -44,17 +50,17 @@ function getRenderedLines(harness: EditorHarness): RenderedLine[] {
 }
 
 describe('createLineNumbersPlugin', () => {
-    it('numbers content lines and offsets the fences without numbering them', () => {
+    it('numbers and offsets content lines while leaving the fences in place', () => {
         const harness = createHarness('before\n```ts\nconst a = 1;\n\nconst b = 2;\n```\nafter');
 
         try {
             expect(getRenderedLines(harness)).toEqual([
                 { number: null, numbered: false, text: 'before' },
-                { number: null, numbered: true, text: '```ts' },
+                { number: null, numbered: false, text: '```ts' },
                 { number: '1', numbered: true, text: 'const a = 1;' },
                 { number: '2', numbered: true, text: '' },
                 { number: '3', numbered: true, text: 'const b = 2;' },
-                { number: null, numbered: true, text: '```' },
+                { number: null, numbered: false, text: '```' },
                 { number: null, numbered: false, text: 'after' },
             ]);
         } finally {
@@ -125,10 +131,99 @@ describe('createLineNumbersPlugin', () => {
             expect(harness.view.contentDOM.querySelector('.cm-codeblock-line-numbers')).toBeNull();
 
             setLineNumbersEnabled(harness, true);
-            expect(harness.view.contentDOM.querySelectorAll('.cm-codeblock-line-numbers')).toHaveLength(3);
+            expect(harness.view.contentDOM.querySelectorAll('.cm-codeblock-line-numbers')).toHaveLength(1);
 
             setLineNumbersEnabled(harness, false);
             expect(harness.view.contentDOM.querySelector('.cm-codeblock-line-numbers')).toBeNull();
+        } finally {
+            harness.destroy();
+        }
+    });
+
+    it('numbers blocks that opt in with ln while the setting is off', () => {
+        const harness = createHarness('```ts ln\na\n```\n\n```ts\nb\n```', false);
+
+        try {
+            expect(getRenderedLines(harness).map((line) => line.number)).toEqual([
+                null,
+                '1',
+                null,
+                null,
+                null,
+                null,
+                null,
+            ]);
+            expect(harness.view.contentDOM.querySelectorAll('.cm-codeblock-line-numbers')).toHaveLength(1);
+        } finally {
+            harness.destroy();
+        }
+    });
+
+    it('skips blocks that opt out with ln=false while the setting is on', () => {
+        const harness = createHarness('```ts ln=false\na\n```\n\n```ts\nb\n```');
+
+        try {
+            expect(getNumbers(harness)).toEqual(['1']);
+            expect(harness.view.contentDOM.querySelectorAll('.cm-codeblock-line-numbers')).toHaveLength(1);
+        } finally {
+            harness.destroy();
+        }
+    });
+
+    it('starts numbering from the start option and sizes the gutter to the largest number', () => {
+        const harness = createHarness('```ts start=9\na\nb\n```', false);
+
+        try {
+            expect(getNumbers(harness)).toEqual(['9', '10']);
+            const lines = harness.view.contentDOM.querySelectorAll<HTMLElement>('.cm-codeblock-line-numbers');
+            for (const line of lines) {
+                expect(line.style.getPropertyValue('--cm-codeblock-line-number-digits')).toBe('2');
+            }
+        } finally {
+            harness.destroy();
+        }
+    });
+
+    it('updates numbering when the info string options are edited', () => {
+        const harness = createHarness('```ts\na\n```', false);
+
+        try {
+            expect(getNumbers(harness)).toEqual([]);
+
+            harness.view.dispatch({ changes: { from: 5, insert: ' start=3' } });
+            expect(getNumbers(harness)).toEqual(['3']);
+        } finally {
+            harness.destroy();
+        }
+    });
+
+    it('highlights the hl lines without numbering them while numbers are off', () => {
+        const harness = createHarness('```ts hl=1,3\na\nb\nc\n```', false);
+
+        try {
+            expect(getHighlightedTexts(harness)).toEqual(['a', 'c']);
+            expect(harness.view.contentDOM.querySelector('.cm-codeblock-line-numbers')).toBeNull();
+        } finally {
+            harness.destroy();
+        }
+    });
+
+    it('counts highlights from the start number alongside the line numbers', () => {
+        const harness = createHarness('```ts start=10 hl=11-12\na\nb\nc\n```');
+
+        try {
+            expect(getHighlightedTexts(harness)).toEqual(['b', 'c']);
+            expect(getNumbers(harness)).toEqual(['10', '11', '12']);
+        } finally {
+            harness.destroy();
+        }
+    });
+
+    it('ignores highlights outside the block', () => {
+        const harness = createHarness('```ts hl=5\na\n```\n\nafter', false);
+
+        try {
+            expect(getHighlightedTexts(harness)).toEqual([]);
         } finally {
             harness.destroy();
         }

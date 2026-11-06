@@ -2,12 +2,20 @@
 (function () {
     'use strict';
 
-    var CONTAINER_CLASS = 'codeblock-autocomplete-viewer-line-numbers';
+    /** Set by the renderer on the `<pre>` of code that is split into lines. */
+    var LINES_CLASS = 'codeblock-autocomplete-viewer-lines';
+    /** Set alongside it when the lines are numbered. */
+    var NUMBERS_CLASS = 'codeblock-autocomplete-viewer-line-numbers';
     var LINE_CLASS = 'codeblock-autocomplete-viewer-code-line';
+    var HIGHLIGHTED_LINE_CLASS = 'codeblock-autocomplete-viewer-highlighted-line';
     var NUMBERED_ATTRIBUTE = 'data-codeblock-numbered';
-    /** Excludes numbered code so observer passes triggered by any DOM change stay cheap. */
+    /** Set by the renderer from the fence's `start=N` option; absent means 1. */
+    var START_ATTRIBUTE = 'data-codeblock-line-start';
+    /** Set by the renderer to the space-separated positions (from 1) of highlighted lines. */
+    var HIGHLIGHT_ATTRIBUTE = 'data-codeblock-highlight-lines';
+    /** Excludes split code so observer passes triggered by any DOM change stay cheap. */
     var UNNUMBERED_CODE_SELECTOR =
-        '.' + CONTAINER_CLASS + ' > pre:not(.joplin-source) > code:not([' + NUMBERED_ATTRIBUTE + '])';
+        'pre.' + LINES_CLASS + ':not(.joplin-source) > code:not([' + NUMBERED_ATTRIBUTE + '])';
     /** @type {MutationObserver | null} */
     var observer = null;
 
@@ -24,6 +32,14 @@
         var ancestors = [];
         /** @type {Node[]} */
         var parents = [];
+        var container = code.parentElement;
+        var numbered = !!container && container.classList.contains(NUMBERS_CLASS);
+        var start = Number((container && container.getAttribute(START_ATTRIBUTE)) || 1);
+        /** @type {Record<string, boolean>} */
+        var highlighted = {};
+        ((container && container.getAttribute(HIGHLIGHT_ATTRIBUTE)) || '').split(' ').forEach(function (position) {
+            if (position) highlighted[position] = true;
+        });
         var count = 0;
 
         function currentParent() {
@@ -35,7 +51,9 @@
         function newLine() {
             var line = ownerDocument.createElement('span');
             line.className = LINE_CLASS;
-            line.setAttribute('data-line-number', String(++count));
+            count++;
+            if (numbered) line.setAttribute('data-line-number', String(start + count - 1));
+            if (highlighted[String(count)]) line.classList.add(HIGHLIGHTED_LINE_CLASS);
             fragment.appendChild(line);
             parents = [line];
             ancestors.forEach(function (ancestor) {
@@ -69,7 +87,9 @@
         newLine();
         Array.from(code.childNodes).forEach(visit);
         code.replaceChildren(fragment);
-        code.style.setProperty('--codeblock-line-number-digits', String(String(count).length));
+        if (numbered) {
+            code.style.setProperty('--codeblock-line-number-digits', String(String(start + count - 1).length));
+        }
         code.setAttribute(NUMBERED_ATTRIBUTE, 'true');
     }
 

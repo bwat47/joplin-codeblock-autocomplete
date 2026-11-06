@@ -2,12 +2,16 @@ import { syntaxTree } from '@codemirror/language';
 import type { Extension, Range } from '@codemirror/state';
 import { Decoration, EditorView, ViewPlugin, type DecorationSet, type ViewUpdate } from '@codemirror/view';
 
+import { isLineHighlighted, parseFenceInfo, resolveLineNumbering } from '../fenceInfo';
 import { getFencedCodeBlockGeometry, getFencedCodeSyntaxTree } from './fencedCodeBlock';
 import { getPluginSettings } from './pluginSettings';
 
 const LINE_CLASS = 'cm-codeblock-line-numbers';
 const LINE_NUMBER_ATTRIBUTE = 'data-codeblock-line-number';
 const DIGITS_PROPERTY = '--cm-codeblock-line-number-digits';
+const HIGHLIGHTED_LINE_CLASS = 'cm-codeblock-highlighted-line';
+/** Matches the viewer's highlight in `viewer/lineNumbers.css`. */
+const HIGHLIGHT_COLOR = 'rgba(255, 196, 0, 0.18)';
 
 /** Space between the number and the code, and between the number and the block's left edge. */
 const NUMBER_GAP = '0.75em';
@@ -46,18 +50,31 @@ export const lineNumbersTheme = EditorView.baseTheme({
         pointerEvents: 'none',
         userSelect: 'none',
     },
+    /*
+     * Joplin shades code blocks with each line's background colour, so the highlight is a
+     * translucent image layered over that colour instead of a colour that would replace it.
+     */
+    [`.cm-line.${HIGHLIGHTED_LINE_CLASS}`]: {
+        backgroundImage: `linear-gradient(${HIGHLIGHT_COLOR}, ${HIGHLIGHT_COLOR})`,
+    },
 });
 
 /**
- * Decorates the visible lines of every fenced code block that intersects the viewport. Every
- * block line is shifted by the gutter so the fences stay aligned with the code, but only content
- * lines are numbered, counting from 1 on the line after the opening fence.
+ * Decorates the visible content lines of every fenced code block that intersects the viewport:
+ * numbering them, counting from the block's start number (1 unless its info string sets
+ * `start=N`) on the line after the opening fence, and highlighting the lines its `hl` option
+ * names. The fence lines are left in place, so they span the gutter above and below the numbers,
+ * and the opening fence's header stays at the block's left edge.
+ *
+ * Whether a block is numbered comes from its info string options, falling back to the setting,
+ * so blocks are inspected even while the setting is off. Highlights apply whether or not the
+ * block is numbered, and count from the same start number.
  *
  * Numbers come from the block's geometry rather than the viewport, so a block that starts above
  * the viewport still shows its true line numbers. Only lines inside the visible ranges are
  * decorated, which keeps very long blocks cheap.
  */
-function buildLineNumberDecorations(view: EditorView): DecorationSet {
+function buildLineNumberDecorations(view: EditorView, enabledByDefault: boolean): DecorationSet {
     const { state } = view;
     const { doc } = state;
     const { tree } = getFencedCodeSyntaxTree(state, view.viewport.to);
@@ -75,24 +92,45 @@ function buildLineNumberDecorations(view: EditorView): DecorationSet {
                     return undefined;
                 }
 
-                const { blockTo, hasClosingFence, openingLineFrom } = getFencedCodeBlockGeometry(state, node.node);
+                const { blockTo, children, hasClosingFence, openingLineFrom } = getFencedCodeBlockGeometry(
+                    state,
+                    node.node
+                );
+                const info = children.codeInfo ? doc.sliceString(children.codeInfo.from, children.codeInfo.to) : '';
+                const fenceInfo = parseFenceInfo(info);
+                const numbering = resolveLineNumbering(fenceInfo, enabledByDefault);
+                if (!numbering.enabled && fenceInfo.highlightedLines.length === 0) {
+                    return false;
+                }
+
                 const openingLine = doc.lineAt(openingLineFrom).number;
                 const lastLine = doc.lineAt(blockTo).number;
                 const lastContentLine = hasClosingFence ? lastLine - 1 : lastLine;
-                const digits = String(Math.max(1, lastContentLine - openingLine)).length;
-                const style = `${DIGITS_PROPERTY}: ${digits}`;
+                const largestNumber = numbering.start + Math.max(0, lastContentLine - openingLine - 1);
+                const style = `${DIGITS_PROPERTY}: ${String(largestNumber).length}`;
 
-                const from = Math.max(openingLine, firstVisibleLine);
-                const to = Math.min(lastLine, lastVisibleLine);
+                const from = Math.max(openingLine + 1, firstVisibleLine);
+                const to = Math.min(lastContentLine, lastVisibleLine);
                 for (let lineNumber = from; lineNumber <= to; lineNumber++) {
-                    const isContentLine = lineNumber > openingLine && lineNumber <= lastContentLine;
-                    const attributes: Record<string, string> = { style };
-                    if (isContentLine) {
-                        attributes[LINE_NUMBER_ATTRIBUTE] = String(lineNumber - openingLine);
+                    const displayedNumber = numbering.start + lineNumber - openingLine - 1;
+                    const isHighlighted = isLineHighlighted(fenceInfo, displayedNumber);
+                    if (!numbering.enabled && !isHighlighted) {
+                        continue;
+                    }
+
+                    const classes: string[] = [];
+                    const attributes: Record<string, string> = {};
+                    if (numbering.enabled) {
+                        classes.push(LINE_CLASS);
+                        attributes.style = style;
+                        attributes[LINE_NUMBER_ATTRIBUTE] = String(displayedNumber);
+                    }
+                    if (isHighlighted) {
+                        classes.push(HIGHLIGHTED_LINE_CLASS);
                     }
 
                     decorations.push(
-                        Decoration.line({ class: LINE_CLASS, attributes }).range(doc.line(lineNumber).from)
+                        Decoration.line({ class: classes.join(' '), attributes }).range(doc.line(lineNumber).from)
                     );
                 }
 
@@ -114,26 +152,21 @@ export function createLineNumbersPlugin(): Extension {
             }
 
             update(update: ViewUpdate): void {
-                const wasEnabled = getPluginSettings(update.startState).enableLineNumbers;
-                const isEnabled = getPluginSettings(update.state).enableLineNumbers;
-
                 // A tree change without a doc change means a background parse has caught up,
                 // which may reveal blocks that were unparsed when the decorations were built.
                 if (
-                    wasEnabled !== isEnabled ||
-                    (isEnabled &&
-                        (update.docChanged ||
-                            update.viewportChanged ||
-                            syntaxTree(update.startState) !== syntaxTree(update.state)))
+                    getPluginSettings(update.startState).enableLineNumbers !==
+                        getPluginSettings(update.state).enableLineNumbers ||
+                    update.docChanged ||
+                    update.viewportChanged ||
+                    syntaxTree(update.startState) !== syntaxTree(update.state)
                 ) {
                     this.decorations = this.build(update.view);
                 }
             }
 
             private build(view: EditorView): DecorationSet {
-                return getPluginSettings(view.state).enableLineNumbers
-                    ? buildLineNumberDecorations(view)
-                    : Decoration.none;
+                return buildLineNumberDecorations(view, getPluginSettings(view.state).enableLineNumbers);
             }
         },
         {
