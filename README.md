@@ -15,7 +15,7 @@ Codeblock Utils adds tools for fenced code blocks in Joplin:
 
 ### Create a code block
 
-In the Markdown editor, type an opening fence of three or more backticks or tildes to open the language list. Selecting a language adds it and a matching closing fence. If the language has no matches, choose **Custom language** to use what you typed. For nested blocks, use more than three fence characters; the closing fence will have the same length.
+In the Markdown editor, type an opening fence of three or more backticks or tildes to open the language list. Selecting a language adds it and a matching closing fence. If the language has no matches, choose **Custom language** to use what you typed. For nested blocks, use more than three fence characters; the closing fence will have the same length. Changing the language of an existing code block only replaces the language; no extra closing fence is added. The list does not open on closing fences.
 
 If you disable language autocomplete, typing exactly three backticks or tildes immediately inserts a closing fence. The cursor stays at the end of the opening fence so you can type a language or press Enter.
 

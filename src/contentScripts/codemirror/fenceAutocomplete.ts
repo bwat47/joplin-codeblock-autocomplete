@@ -1,7 +1,10 @@
 import type { Completion, CompletionContext, CompletionResult } from '@codemirror/autocomplete';
-import { EditorSelection, type Extension } from '@codemirror/state';
+import { language } from '@codemirror/language';
+import { EditorSelection, StateField, type EditorState, type Extension, type Transaction } from '@codemirror/state';
 import { EditorView, type ViewUpdate } from '@codemirror/view';
+import type { SyntaxNode } from '@lezer/common';
 
+import { getFencedCodeBlockGeometry, getFencedCodeSyntaxTree } from './fencedCodeBlock';
 import { getPluginSettings } from './pluginSettings';
 
 type OpeningFence = {
@@ -13,6 +16,12 @@ type OpeningFence = {
 };
 
 const IMMEDIATE_FENCE_LENGTH = 3;
+
+/**
+ * Optional indent (group 1) followed by a fence of 3+ backticks or tildes, at the start of a line.
+ * Matches "~~~" and "  ~~~~ts" (as "  ~~~~"); does not match "~~" or "a~~~".
+ */
+const FENCE_PREFIX_PATTERN = /^(\s*)(?:`{3,}|~{3,})/;
 
 /**
  * Parse the opening fence at the current cursor position.
@@ -51,12 +60,212 @@ function parseOpeningFence(state: CompletionContext['state'], pos: number): Open
     };
 }
 
+/** Offsets of the fence characters within a line, after any indent. */
+type FenceRun = { start: number; end: number };
+
+/** The line's fence characters, or undefined when the line does not start with a fence. */
+function getFenceRun(lineText: string): FenceRun | undefined {
+    const match = FENCE_PREFIX_PATTERN.exec(lineText);
+    return match ? { start: match[1]!.length, end: match[0].length } : undefined;
+}
+
 /**
- * Creates a completion apply function that replaces typed language and inserts closing fence.
+ * Whether a change made the fence characters `fenceFrom`..`fenceTo` new.
+ *
+ * It did when it inserted, removed, or replaced fence characters, or when it made them lead their
+ * line (Enter before a mid-line fence, deleting text before it). Changes after the fence (typing
+ * the language) leave it as it was, and so do changes before it that only affect whitespace or
+ * line breaks: indenting the line, Enter at its start, joining an empty line above it.
+ */
+function changeCreatesFence(
+    startState: EditorState,
+    fenceFrom: number,
+    fenceTo: number,
+    change: { toA: number; fromB: number; toB: number }
+): boolean {
+    if (change.fromB < fenceTo && change.toB > fenceFrom) return true;
+    if (change.fromB >= fenceTo) return false;
+
+    // The change ends before the fence, and only whitespace separates them. The fence already led
+    // its line if only whitespace preceded the change's end in the old document too.
+    const oldLineFrom = startState.doc.lineAt(change.toA).from;
+    return !/^\s*$/.test(startState.doc.sliceString(oldLineFrom, change.toA));
+}
+
+/**
+ * Whether the line `lineFrom`..`lineTo` holds the closing fence of a block that opened earlier.
+ *
+ * A closing fence cannot carry an info string, so this only recognizes a closing fence until
+ * something is typed after it; from then on the line parses as an opening fence.
+ */
+function isClosingFenceLine(state: EditorState, lineFrom: number, lineTo: number): boolean {
+    const { tree } = getFencedCodeSyntaxTree(state, lineTo);
+    let closing = false;
+
+    tree.iterate({
+        from: lineFrom,
+        to: lineTo,
+        enter: (node) => {
+            if (closing) return false;
+            if (node.name !== 'CodeMark' || node.from < lineFrom) return undefined;
+
+            const parent = node.node.parent;
+            closing = parent?.name === 'FencedCode' && parent.from < lineFrom;
+            return false;
+        },
+    });
+
+    return closing;
+}
+
+/**
+ * How the fence on a line the user is editing came about:
+ * - `created`: the user made the fence characters themselves (see `changeCreatesFence`).
+ * - `closing`: the line was a closing fence when the user edited it.
+ */
+type FenceOrigin = 'created' | 'closing';
+
+/** Fence lines that `tr` created or started editing as closing fences, keyed by line start. */
+function getEditedFenceLines(tr: Transaction): Map<number, FenceOrigin> {
+    const { startState, state } = tr;
+    const lines = new Map<number, FenceOrigin>();
+
+    tr.changes.iterChanges((fromA, toA, fromB, toB) => {
+        for (
+            let lineNumber = state.doc.lineAt(fromB).number;
+            lineNumber <= state.doc.lineAt(toB).number;
+            lineNumber++
+        ) {
+            const line = state.doc.line(lineNumber);
+            const fenceRun = getFenceRun(line.text);
+            if (!fenceRun) continue;
+            if (
+                changeCreatesFence(startState, line.from + fenceRun.start, line.from + fenceRun.end, {
+                    toA,
+                    fromB,
+                    toB,
+                })
+            ) {
+                lines.set(line.from, 'created');
+            }
+        }
+
+        // A closing fence keeps its history only when its fence characters survive the change.
+        // Lines strictly between the change's first and last lines are deleted outright, so only
+        // those two can hold one.
+        const firstLine = startState.doc.lineAt(fromA);
+        const lastLine = startState.doc.lineAt(toA);
+        for (const line of firstLine.number === lastLine.number ? [firstLine] : [firstLine, lastLine]) {
+            const fenceRun = getFenceRun(line.text);
+            if (!fenceRun) continue;
+            if (fromA < line.from + fenceRun.end && toA > line.from + fenceRun.start) continue;
+            if (isClosingFenceLine(startState, line.from, line.to)) {
+                lines.set(state.doc.lineAt(tr.changes.mapPos(line.from, 1)).from, 'closing');
+            }
+        }
+    });
+
+    return lines;
+}
+
+/**
+ * The origin of each fence line the user is editing, keyed by line start.
+ *
+ * The document alone cannot say what a fence was before the user typed on its line. A fence typed
+ * above an existing block pairs with that block's closing fence just as the block's own opening
+ * fence does, and a closing fence becomes an opening fence as soon as a language is typed after
+ * it. So the origin is recorded by the edit itself and kept until no cursor is on the line.
+ * A fence the user is editing without a recorded origin is an existing opening fence.
+ *
+ * A later edit that finds the line closing a block overrides `created`: a fence typed inside an
+ * existing block closes that block.
+ */
+const editedFenceLines = StateField.define<ReadonlyMap<number, FenceOrigin>>({
+    create: () => new Map(),
+    update(lines, tr) {
+        if (!tr.docChanged && !tr.selection) return lines;
+
+        const candidates = new Map<number, FenceOrigin>();
+        for (const [from, origin] of lines) candidates.set(tr.changes.mapPos(from, 1), origin);
+        for (const [from, origin] of getEditedFenceLines(tr)) candidates.set(from, origin);
+        if (candidates.size === 0) return lines;
+
+        const { doc, selection } = tr.state;
+        const cursorLines = new Set(selection.ranges.map((range) => doc.lineAt(range.head).from));
+        const edited = new Map<number, FenceOrigin>();
+        for (const [pos, origin] of candidates) {
+            const line = doc.lineAt(pos);
+            if (cursorLines.has(line.from) && getFenceRun(line.text)) {
+                edited.set(line.from, origin);
+            }
+        }
+
+        return edited;
+    },
+});
+
+function getFenceOrigin(state: EditorState, lineFrom: number): FenceOrigin | undefined {
+    return state.field(editedFenceLines, false)?.get(lineFrom);
+}
+
+/**
+ * Whether the fence on `pos`'s line closes a block, either now or when the user started editing
+ * it. A language typed there would turn the closing fence into an opening one.
+ */
+function isEditingClosingFence(state: EditorState, pos: number): boolean {
+    const line = state.doc.lineAt(pos);
+    return getFenceOrigin(state, line.from) === 'closing' || isClosingFenceLine(state, line.from, line.to);
+}
+
+function findFencedCodeStartingOnLine(state: EditorState, lineFrom: number, lineTo: number): SyntaxNode | null {
+    const { tree } = getFencedCodeSyntaxTree(state, lineTo);
+    let fencedCode: SyntaxNode | null = null;
+
+    tree.iterate({
+        from: lineFrom,
+        to: lineTo,
+        enter: (node) => {
+            if (fencedCode) return false;
+            if (node.name !== 'FencedCode') return undefined;
+            if (node.from >= lineFrom) fencedCode = node.node;
+            // A block that started earlier encloses this line, so this line is not an opening fence.
+            return false;
+        },
+    });
+
+    return fencedCode;
+}
+
+/**
+ * Whether applying a language to the fence on the line `lineFrom`..`lineTo` should also add a
+ * closing fence.
+ *
+ * A fence the user created always gets one. An existing fence gets one only when a fully parsed document
+ * shows it opening a block that runs unclosed to the end. Without a Markdown parser there is no
+ * structure to protect, so it is closed like a new fence. When the answer is uncertain (a partial
+ * parse, or a line that is not an opening fence, such as one inside an enclosing block), no
+ * closing fence is added: a missing fence is easier to notice and fix than a stray one that
+ * silently restructures the rest of the note.
+ */
+function shouldInsertClosingFence(state: EditorState, lineFrom: number, lineTo: number): boolean {
+    if (getFenceOrigin(state, lineFrom) === 'created') return true;
+    if (state.facet(language) === null) return true;
+
+    const fencedCode = findFencedCodeStartingOnLine(state, lineFrom, lineTo);
+    if (!fencedCode) return false;
+
+    const { hasClosingFence } = getFencedCodeBlockGeometry(state, fencedCode);
+    return !hasClosingFence && getFencedCodeSyntaxTree(state, state.doc.length).complete;
+}
+
+/**
+ * Creates a completion apply function that replaces the typed language and, for a new block,
+ * inserts a closing fence (see `shouldInsertClosingFence`).
  *
  * Works across every cursor in a multi-cursor selection: each cursor that sits on a
  * valid opening fence is re-parsed independently so it gets the correct indent, fence
  * style, and replacement range. The chosen language is applied at all of them.
+ * The whole language word is replaced, including any part after the cursor.
  */
 function createApplyFunction(desiredLang: string) {
     return (view: EditorView) => {
@@ -66,13 +275,26 @@ function createApplyFunction(desiredLang: string) {
 
         for (const range of view.state.selection.ranges) {
             const openingFence = parseOpeningFence(view.state, range.head);
-            if (!openingFence) continue;
+            if (!openingFence || isEditingClosingFence(view.state, range.head)) continue;
 
-            const { indent, fenceChar, fenceCount } = openingFence;
+            const { indent, fenceChar, fenceCount, languageStartPos, typedLang } = openingFence;
+            const languageEnd = languageStartPos + typedLang.length;
+            const line = view.state.doc.lineAt(range.head);
+
+            if (!shouldInsertClosingFence(view.state, line.from, line.to)) {
+                changes.push({
+                    from: languageStartPos,
+                    to: languageEnd,
+                    insert: desiredLang,
+                    cursorOffset: desiredLang.length,
+                });
+                continue;
+            }
+
             const fence = fenceChar.repeat(fenceCount);
             changes.push({
-                from: openingFence.languageStartPos,
-                to: range.head,
+                from: languageStartPos,
+                to: languageEnd,
                 insert: `${desiredLang}${lineBreak}${indent}${lineBreak}${indent}${fence}`,
                 // Offset (relative to the start of the insertion) where the cursor should land,
                 // i.e. on the blank line between the opening and closing fences. A document line break is
@@ -191,7 +413,7 @@ export function createCodeBlockCompleter() {
         if (!settings.enableLanguageAutocomplete) return null;
 
         const openingFence = parseOpeningFence(state, pos);
-        if (!openingFence) return null;
+        if (!openingFence || isEditingClosingFence(state, pos)) return null;
 
         return {
             from: openingFence.languageStartPos,
@@ -210,7 +432,10 @@ export const fenceAutocompleteTheme = EditorView.baseTheme({
 });
 
 export function createFenceTriggerExtension(): Extension {
-    return EditorView.updateListener.of((update: ViewUpdate) => {
-        handleFenceTrigger(update);
-    });
+    return [
+        editedFenceLines,
+        EditorView.updateListener.of((update: ViewUpdate) => {
+            handleFenceTrigger(update);
+        }),
+    ];
 }

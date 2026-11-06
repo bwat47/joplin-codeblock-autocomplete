@@ -5,7 +5,9 @@ import {
     type CompletionContext,
     type CompletionResult,
 } from '@codemirror/autocomplete';
+import { markdown } from '@codemirror/lang-markdown';
 import { EditorSelection, EditorState, Transaction } from '@codemirror/state';
+import type { EditorView } from '@codemirror/view';
 
 import { createEditorHarness } from '../../testUtils/editorHarness';
 import { createCodeBlockCompleter, createFenceTriggerExtension } from './fenceAutocomplete';
@@ -377,6 +379,276 @@ describe('createFenceTriggerExtension', () => {
 
             expect(harness.getText()).toBe('```\n```\n```\n```');
             expect(harness.view.state.selection.ranges.map((range) => range.head)).toEqual([3, 11]);
+        } finally {
+            harness.destroy();
+        }
+    });
+});
+
+describe('closing fence on language completion', () => {
+    function createMarkdownHarness(doc: string): ReturnType<typeof createEditorHarness> {
+        const harness = createEditorHarness(doc, {
+            extensions: [markdown(), createSettingsExtension(), createFenceTriggerExtension()],
+        });
+        applyPluginSettings(harness.view, {
+            enableLanguageAutocomplete: true,
+            enableCopyWidget: false,
+            enableLineNumbers: false,
+            languages: ['python', 'javascript'],
+        });
+        return harness;
+    }
+
+    function typeText(view: EditorView, text: string): void {
+        const pos = view.state.selection.main.head;
+        view.dispatch({
+            changes: { from: pos, insert: text },
+            selection: { anchor: pos + text.length },
+            userEvent: 'input.type',
+        });
+    }
+
+    function deleteBackward(view: EditorView, count: number): void {
+        const pos = view.state.selection.main.head;
+        view.dispatch({
+            changes: { from: pos - count, to: pos },
+            selection: { anchor: pos - count },
+            userEvent: 'delete.backward',
+        });
+    }
+
+    function complete(view: EditorView, label: string): void {
+        const result = createCodeBlockCompleter()(createCompletionContext(view));
+        if (!result) {
+            throw new Error('Expected completions for an opening fence.');
+        }
+        applyCompletion(view, result, label);
+    }
+
+    it('changes the language of an existing block without adding a closing fence', () => {
+        const harness = createMarkdownHarness('```js|\ncode\n```\n');
+
+        try {
+            deleteBackward(harness.view, 2);
+            typeText(harness.view, 'py');
+            complete(harness.view, 'python');
+
+            expect(harness.getText()).toBe('```python\ncode\n```\n');
+            expect(harness.getCursor()).toBe(9);
+        } finally {
+            harness.destroy();
+        }
+    });
+
+    it('replaces the whole language word when the cursor is inside it', () => {
+        const harness = createMarkdownHarness('```py|thon\ncode\n```');
+
+        try {
+            complete(harness.view, 'python');
+
+            expect(harness.getText()).toBe('```python\ncode\n```');
+        } finally {
+            harness.destroy();
+        }
+    });
+
+    it('keeps a fence existing when Enter is pressed at the start of its line', () => {
+        const harness = createMarkdownHarness('|```ja\ncode\n```');
+
+        try {
+            typeText(harness.view, '\n');
+            harness.view.dispatch({ selection: { anchor: 6 } });
+            complete(harness.view, 'javascript');
+
+            expect(harness.getText()).toBe('\n```javascript\ncode\n```');
+        } finally {
+            harness.destroy();
+        }
+    });
+
+    it('closes a fence typed above an existing block', () => {
+        // The new fence pairs with the existing block's closing fence, so only its history shows it is new.
+        const harness = createMarkdownHarness('|\nparagraph\n```js\ncode\n```');
+
+        try {
+            typeText(harness.view, '`');
+            typeText(harness.view, '`');
+            typeText(harness.view, '`');
+            typeText(harness.view, 'py');
+            complete(harness.view, 'python');
+
+            expect(harness.getText()).toBe('```python\n\n```\nparagraph\n```js\ncode\n```');
+            expect(harness.getCursor()).toBe(10);
+        } finally {
+            harness.destroy();
+        }
+    });
+
+    it('closes a fence created by pressing Enter before mid-line backticks', () => {
+        const harness = createMarkdownHarness('text|```\nparagraph\n```js\ncode\n```');
+
+        try {
+            typeText(harness.view, '\n');
+            harness.view.dispatch({ selection: { anchor: 8 } });
+            complete(harness.view, 'python');
+
+            expect(harness.getText()).toBe('text\n```python\n\n```\nparagraph\n```js\ncode\n```');
+        } finally {
+            harness.destroy();
+        }
+    });
+
+    it('closes an existing fence that runs unclosed to the end of the document', () => {
+        const harness = createMarkdownHarness('```|\ncode');
+
+        try {
+            complete(harness.view, 'python');
+
+            expect(harness.getText()).toBe('```python\n\n```\ncode');
+        } finally {
+            harness.destroy();
+        }
+    });
+
+    it('adds no closing fence to fence text inside an enclosing block', () => {
+        const harness = createMarkdownHarness('````md\n```|\n````');
+
+        try {
+            complete(harness.view, 'python');
+
+            expect(harness.getText()).toBe('````md\n```python\n````');
+        } finally {
+            harness.destroy();
+        }
+    });
+
+    it('treats a fresh fence as existing once the cursor has left its line', () => {
+        const harness = createMarkdownHarness('|\n```js\ncode\n```');
+
+        try {
+            typeText(harness.view, '```');
+            harness.view.dispatch({ selection: { anchor: harness.view.state.doc.length } });
+            harness.view.dispatch({ selection: { anchor: 3 } });
+            complete(harness.view, 'python');
+
+            // The fence now pairs with the next fence line, which is the documented limit of this rule.
+            expect(harness.getText()).toBe('```python\n```js\ncode\n```');
+        } finally {
+            harness.destroy();
+        }
+    });
+    it('offers no languages on a bare closing fence', () => {
+        const harness = createMarkdownHarness('```js\ncode\n```|');
+
+        try {
+            expect(createCodeBlockCompleter()(createCompletionContext(harness.view))).toBeNull();
+        } finally {
+            harness.destroy();
+        }
+    });
+
+    it('offers no languages while typing after a closing fence', () => {
+        // Once text follows it, the closing fence parses as an opening fence; its history says otherwise.
+        const harness = createMarkdownHarness('```js\ncode\n```|\n');
+
+        try {
+            typeText(harness.view, 'p');
+            expect(createCodeBlockCompleter()(createCompletionContext(harness.view))).toBeNull();
+            typeText(harness.view, 'y');
+            expect(createCodeBlockCompleter()(createCompletionContext(harness.view))).toBeNull();
+        } finally {
+            harness.destroy();
+        }
+    });
+
+    it('offers no languages on a fence typed inside a block, which closes that block', () => {
+        const harness = createMarkdownHarness('```js\none\n|\ntwo\n```');
+
+        try {
+            typeText(harness.view, '```');
+            expect(createCodeBlockCompleter()(createCompletionContext(harness.view))).toBeNull();
+            typeText(harness.view, 'p');
+            expect(createCodeBlockCompleter()(createCompletionContext(harness.view))).toBeNull();
+        } finally {
+            harness.destroy();
+        }
+    });
+
+    it('still offers languages on an opening fence after a closed block', () => {
+        const harness = createMarkdownHarness('```js\ncode\n```\n\n|');
+
+        try {
+            typeText(harness.view, '```');
+            typeText(harness.view, 'py');
+            complete(harness.view, 'python');
+
+            expect(harness.getText()).toBe('```js\ncode\n```\n\n```python\n\n```');
+        } finally {
+            harness.destroy();
+        }
+    });
+
+    it.each([
+        ['indenting with spaces', '```py|\ncode\n```', { from: 0, insert: '  ' }, '  ```python\ncode\n```'],
+        ['indenting with a tab', '```py|\ncode\n```', { from: 0, insert: '\t' }, '\t```python\ncode\n```'],
+        ['unindenting', '  ```py|\ncode\n```', { from: 0, to: 2 }, '```python\ncode\n```'],
+    ])('keeps a fence existing after %s its line', (_name, doc, change, expected) => {
+        const harness = createMarkdownHarness(doc);
+
+        try {
+            harness.view.dispatch({ changes: change, userEvent: 'input.indent' });
+            harness.view.dispatch({ selection: { anchor: harness.view.state.doc.line(1).to } });
+            typeText(harness.view, 'th');
+            complete(harness.view, 'python');
+
+            expect(harness.getText()).toBe(expected);
+        } finally {
+            harness.destroy();
+        }
+    });
+
+    it('closes a fence created by deleting the text before it', () => {
+        const harness = createMarkdownHarness('x|```\nparagraph\n```js\ncode\n```');
+
+        try {
+            deleteBackward(harness.view, 1);
+            harness.view.dispatch({ selection: { anchor: 3 } });
+            complete(harness.view, 'python');
+
+            expect(harness.getText()).toBe('```python\n\n```\nparagraph\n```js\ncode\n```');
+        } finally {
+            harness.destroy();
+        }
+    });
+
+    it('offers languages on a fence pasted over a whole block', () => {
+        const harness = createMarkdownHarness('before\n[[```js\ncode\n```]]\nafter');
+
+        try {
+            const { from, to } = harness.view.state.selection.main;
+            harness.view.dispatch({
+                changes: { from, to, insert: '```py' },
+                selection: { anchor: from + 5 },
+                userEvent: 'input.paste',
+            });
+            complete(harness.view, 'python');
+
+            expect(harness.getText()).toBe('before\n```python\n\n```\nafter');
+        } finally {
+            harness.destroy();
+        }
+    });
+
+    it('offers no languages after replacing a selection that ends just before a closing fence', () => {
+        const harness = createMarkdownHarness('```js\n[[code\n]]```');
+
+        try {
+            const { from, to } = harness.view.state.selection.main;
+            harness.view.dispatch({ changes: { from, to, insert: 'more\n' }, userEvent: 'input.paste' });
+            harness.view.dispatch({ selection: { anchor: harness.view.state.doc.length } });
+            typeText(harness.view, 'p');
+
+            expect(createCodeBlockCompleter()(createCompletionContext(harness.view))).toBeNull();
         } finally {
             harness.destroy();
         }
