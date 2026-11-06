@@ -2,6 +2,7 @@ import {
     autocompletion,
     completionStatus,
     currentCompletions,
+    startCompletion,
     type CompletionContext,
     type CompletionResult,
 } from '@codemirror/autocomplete';
@@ -57,6 +58,31 @@ async function waitForActiveCompletion(view: ReturnType<typeof createEditorHarne
     }
 }
 
+/** Returns the labels CodeMirror displays after filtering and ranking the completer's options. */
+async function getDisplayedLabels(doc: string, languages: string[]): Promise<string[]> {
+    const harness = createEditorHarness(doc, {
+        extensions: [
+            createSettingsExtension(),
+            autocompletion({ override: [createCodeBlockCompleter()], activateOnTyping: false }),
+        ],
+    });
+
+    try {
+        applyPluginSettings(harness.view, {
+            enableLanguageAutocomplete: true,
+            enableCopyWidget: false,
+            enableLineNumbers: false,
+            languages,
+        });
+
+        startCompletion(harness.view);
+        await waitForActiveCompletion(harness.view);
+        return currentCompletions(harness.view.state).map((completion) => completion.label);
+    } finally {
+        harness.destroy();
+    }
+}
+
 function applyCompletion(
     view: ReturnType<typeof createEditorHarness>['view'],
     result: CompletionResult,
@@ -74,7 +100,7 @@ function applyCompletion(
 }
 
 describe('createCodeBlockCompleter', () => {
-    it('returns sorted language completions and a no-language option for a bare fence', () => {
+    it('starts at the language position and lists every language plus a no-language option', () => {
         const harness = createEditorHarness('```|', {
             extensions: [createSettingsExtension()],
         });
@@ -87,37 +113,45 @@ describe('createCodeBlockCompleter', () => {
                 languages: ['python', 'javascript'],
             });
 
-            const completer = createCodeBlockCompleter();
-            const result = completer(createCompletionContext(harness.view));
+            const result = createCodeBlockCompleter()(createCompletionContext(harness.view));
 
             expect(result?.from).toBe(3);
-            expect(getResultLabels(result)).toEqual(['No language', 'javascript', 'python']);
+            expect(result?.filter).not.toBe(false);
+            expect(getResultLabels(result)).toEqual(['python', 'javascript', 'No language']);
         } finally {
             harness.destroy();
         }
     });
 
-    it('includes a custom language option for partial input without an exact match', () => {
-        const harness = createEditorHarness('```py|', {
-            extensions: [createSettingsExtension()],
-        });
+    it('shows the no-language option first, then languages alphabetically, for a bare fence', async () => {
+        expect(await getDisplayedLabels('```|', ['python', 'javascript'])).toEqual([
+            'No language',
+            'javascript',
+            'python',
+        ]);
+    });
 
-        try {
-            applyPluginSettings(harness.view, {
-                enableLanguageAutocomplete: true,
-                enableCopyWidget: false,
-                enableLineNumbers: false,
-                languages: ['python', 'javascript'],
-            });
+    it('shows matching languages before a trailing custom language option', async () => {
+        expect(await getDisplayedLabels('```py|', ['python', 'javascript'])).toEqual(['python', 'py']);
+    });
 
-            const completer = createCodeBlockCompleter();
-            const result = completer(createCompletionContext(harness.view));
+    it('fuzzy-matches languages and ranks prefix matches above substring matches', async () => {
+        expect(await getDisplayedLabels('```sc|', ['javascript', 'python', 'scss'])).toEqual([
+            'scss',
+            'javascript',
+            'sc',
+        ]);
+    });
 
-            expect(result?.from).toBe(3);
-            expect(getResultLabels(result)).toEqual(['python', 'py']);
-        } finally {
-            harness.destroy();
-        }
+    it('matches non-adjacent characters in order', async () => {
+        expect(await getDisplayedLabels('```jsn|', ['javascript', 'json'])).toEqual(['json', 'jsn']);
+    });
+
+    it('omits the custom language option when the typed language matches exactly', async () => {
+        expect(await getDisplayedLabels('```Python|', ['python', 'pythonconsole'])).toEqual([
+            'python',
+            'pythonconsole',
+        ]);
     });
 
     it('applies the selected language and inserts a matching closing fence', () => {
@@ -240,24 +274,8 @@ describe('createCodeBlockCompleter', () => {
         }
     });
 
-    it('still offers languages while editing the language before existing options', () => {
-        const harness = createEditorHarness('```ty| ln', {
-            extensions: [createSettingsExtension()],
-        });
-
-        try {
-            applyPluginSettings(harness.view, {
-                enableLanguageAutocomplete: true,
-                enableCopyWidget: false,
-                enableLineNumbers: false,
-                languages: ['typescript'],
-            });
-
-            const completer = createCodeBlockCompleter();
-            expect(getResultLabels(completer(createCompletionContext(harness.view)))).toEqual(['typescript', 'ty']);
-        } finally {
-            harness.destroy();
-        }
+    it('still offers languages while editing the language before existing options', async () => {
+        expect(await getDisplayedLabels('```ty| ln', ['typescript'])).toEqual(['typescript', 'ty']);
     });
 
     it('returns null when language autocomplete is disabled', () => {

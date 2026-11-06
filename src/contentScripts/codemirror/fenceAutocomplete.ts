@@ -340,34 +340,42 @@ function autoInsertClosingFences(view: EditorView, cursorPositions: number[]): v
     view.dispatch(view.state.update({ changes: changeSet, selection }));
 }
 
+/**
+ * Options without a section always sort above sectioned ones, so this keeps the
+ * custom entry last even though its label is an exact match for the typed text.
+ */
+const CUSTOM_LANGUAGE_SECTION = 'Custom language';
+
+/**
+ * Builds the unfiltered option list; CodeMirror's fuzzy matcher filters, ranks
+ * and highlights it against the typed language.
+ */
 function buildCompletionOptions(languages: string[], openingFence: OpeningFence): Completion[] {
     const { typedLang } = openingFence;
-    const typedLangLower = typedLang.toLowerCase();
-    const matchedLanguages = languages
-        .filter((lang) => lang.toLowerCase().startsWith(typedLangLower))
-        .sort((a, b) => a.localeCompare(b));
 
-    const options: Completion[] = matchedLanguages.map((lang) => ({
+    const options: Completion[] = languages.map((lang) => ({
         label: lang,
         type: 'codeblock',
         apply: createApplyFunction(lang),
     }));
 
     if (!typedLang) {
-        options.unshift({
+        options.push({
             label: 'No language',
             type: 'codeblock',
+            boost: 99,
             apply: createApplyFunction(''),
         });
         return options;
     }
 
-    const hasExactMatch = matchedLanguages.some((lang) => lang.toLowerCase() === typedLangLower);
+    const typedLangLower = typedLang.toLowerCase();
+    const hasExactMatch = languages.some((lang) => lang.toLowerCase() === typedLangLower);
     if (!hasExactMatch) {
         options.push({
             label: typedLang,
             type: 'codeblock',
-            detail: 'custom language',
+            section: CUSTOM_LANGUAGE_SECTION,
             apply: createApplyFunction(typedLang),
         });
     }
@@ -415,10 +423,11 @@ export function createCodeBlockCompleter() {
         const openingFence = parseOpeningFence(state, pos);
         if (!openingFence || isEditingClosingFence(state, pos)) return null;
 
+        // No `validFor`: CodeMirror re-queries on each keystroke so the custom
+        // entry tracks the typed text.
         return {
             from: openingFence.languageStartPos,
             options: buildCompletionOptions(settings.languages, openingFence),
-            filter: false,
         };
     };
 }
