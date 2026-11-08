@@ -13,10 +13,16 @@ import vitest from '@vitest/eslint-plugin';
 
 export default defineConfig([
     // webpack.config.js is generator-managed; tool configs aren't project sources
-    globalIgnores(['api/**', 'dist/**', 'webpack.config.js', '.prettierrc.js']),
+    globalIgnores(['api/**', 'dist/**', '.api-staging-*/**', '.prettierrc.js']),
 
     js.configs.recommended,
     sonarjs.configs.recommended,
+
+    // Bundle tests run under node:test.
+    {
+        files: ['test/*.mjs'],
+        languageOptions: { globals: globals.node },
+    },
 
     // Project TS/JS sources
     {
