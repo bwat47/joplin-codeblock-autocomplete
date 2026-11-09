@@ -1,3 +1,4 @@
 {
-    "extraScripts": ["contentScripts/codemirror/index.ts", "contentScripts/viewer/index.ts"]
+    "extraScripts": ["contentScripts/codemirror/index.ts", "contentScripts/viewer/index.ts"],
+    "buildOptions": { "target": "es2020" }
 }
