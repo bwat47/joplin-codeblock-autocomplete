@@ -9,6 +9,8 @@ publish/
 *:Zone.Identifier
 *.patch
 *.diff
+.codex/
+.claude/
 gemini/
 prompts/
 .claude/settings.local.json
