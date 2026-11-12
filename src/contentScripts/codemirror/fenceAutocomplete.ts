@@ -1,4 +1,9 @@
-import type { Completion, CompletionContext, CompletionResult } from '@codemirror/autocomplete';
+import {
+    pickedCompletion,
+    type Completion,
+    type CompletionContext,
+    type CompletionResult,
+} from '@codemirror/autocomplete';
 import { language } from '@codemirror/language';
 import { EditorSelection, StateField, type EditorState, type Extension, type Transaction } from '@codemirror/state';
 import { EditorView, type ViewUpdate } from '@codemirror/view';
@@ -16,6 +21,14 @@ type OpeningFence = {
 };
 
 const IMMEDIATE_FENCE_LENGTH = 3;
+const COMPLETION_USER_EVENT = 'input.complete';
+
+/**
+ * Completion type for language options. CodeMirror adds `cm-completionIcon-<type>` to each
+ * option's icon, so styles can target this plugin's options without affecting completion menus
+ * from Joplin or other plugins.
+ */
+const LANGUAGE_COMPLETION_TYPE = 'codeblock-autocomplete-language';
 
 /**
  * Optional indent (group 1) followed by a fence of 3+ backticks or tildes, at the start of a line.
@@ -268,7 +281,7 @@ function shouldInsertClosingFence(state: EditorState, lineFrom: number, lineTo: 
  * The whole language word is replaced, including any part after the cursor.
  */
 function createApplyFunction(desiredLang: string) {
-    return (view: EditorView) => {
+    return (view: EditorView, completion: Completion) => {
         const lineBreak = view.state.lineBreak || '\n';
 
         const changes: { from: number; to: number; insert: string; cursorOffset: number }[] = [];
@@ -310,7 +323,15 @@ function createApplyFunction(desiredLang: string) {
             changes.map((change) => EditorSelection.cursor(changeSet.mapPos(change.from, -1) + change.cursorOffset))
         );
 
-        view.dispatch(view.state.update({ changes: changeSet, selection }));
+        view.dispatch(
+            view.state.update({
+                changes: changeSet,
+                selection,
+                // Matches what CodeMirror dispatches when it applies a string completion.
+                annotations: pickedCompletion.of(completion),
+                userEvent: COMPLETION_USER_EVENT,
+            })
+        );
     };
 }
 
@@ -355,14 +376,14 @@ function buildCompletionOptions(languages: string[], openingFence: OpeningFence)
 
     const options: Completion[] = languages.map((lang) => ({
         label: lang,
-        type: 'codeblock',
+        type: LANGUAGE_COMPLETION_TYPE,
         apply: createApplyFunction(lang),
     }));
 
     if (!typedLang) {
         options.push({
             label: 'No language',
-            type: 'codeblock',
+            type: LANGUAGE_COMPLETION_TYPE,
             boost: 99,
             apply: createApplyFunction(''),
         });
@@ -374,7 +395,7 @@ function buildCompletionOptions(languages: string[], openingFence: OpeningFence)
     if (!hasExactMatch) {
         options.push({
             label: typedLang,
-            type: 'codeblock',
+            type: LANGUAGE_COMPLETION_TYPE,
             section: CUSTOM_LANGUAGE_SECTION,
             apply: createApplyFunction(typedLang),
         });
@@ -432,11 +453,28 @@ export function createCodeBlockCompleter() {
     };
 }
 
+const LANGUAGE_ICON_CLASS = `cm-completionIcon-${LANGUAGE_COMPLETION_TYPE}`;
+const LANGUAGE_ROW_SELECTOR = `.cm-tooltip.cm-tooltip-autocomplete > ul > li:has(.${LANGUAGE_ICON_CLASS})`;
+const LANGUAGE_ICON_SELECTOR = `.cm-tooltip.cm-tooltip-autocomplete .cm-completionIcon.${LANGUAGE_ICON_CLASS}`;
+
+/**
+ * Styles for language completion rows. Every selector is scoped to this plugin's icon class so
+ * completion menus from Joplin or other plugins keep their own styling.
+ */
 export const fenceAutocompleteTheme = EditorView.baseTheme({
-    '.cm-completionIcon-codeblock::after': {
+    [LANGUAGE_ICON_SELECTOR]: {
+        // Explicit so stylesheets that hide completion icons in every menu
+        // (e.g. Quick Links Plus) don't hide the language icon.
+        display: 'inline-block',
+    },
+    [`${LANGUAGE_ICON_SELECTOR}::after`]: {
         content: "'λ'",
         fontFamily: 'monospace',
         opacity: '0.7',
+    },
+    // Resets label padding that other plugins (e.g. Quick Links Plus) apply to every completion menu.
+    [`${LANGUAGE_ROW_SELECTOR} > .cm-completionLabel`]: {
+        padding: '0',
     },
 });
 

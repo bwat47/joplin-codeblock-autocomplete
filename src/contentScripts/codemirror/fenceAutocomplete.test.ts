@@ -2,13 +2,14 @@ import {
     autocompletion,
     completionStatus,
     currentCompletions,
+    pickedCompletion,
     startCompletion,
     type CompletionContext,
     type CompletionResult,
 } from '@codemirror/autocomplete';
 import { markdown } from '@codemirror/lang-markdown';
 import { EditorSelection, EditorState, Transaction } from '@codemirror/state';
-import type { EditorView } from '@codemirror/view';
+import { EditorView } from '@codemirror/view';
 
 import { createEditorHarness } from '../../testUtils/editorHarness';
 import { createCodeBlockCompleter, createFenceTriggerExtension } from './fenceAutocomplete';
@@ -177,6 +178,40 @@ describe('createCodeBlockCompleter', () => {
 
             expect(harness.getText()).toBe('  ~~~~json\n  \n  ~~~~');
             expect(harness.getCursor()).toBe(13);
+        } finally {
+            harness.destroy();
+        }
+    });
+
+    it('marks the inserted change as a picked completion', () => {
+        const transactions: Transaction[] = [];
+        const harness = createEditorHarness('```|', {
+            extensions: [
+                createSettingsExtension(),
+                EditorView.updateListener.of((update) => transactions.push(...update.transactions)),
+            ],
+        });
+
+        try {
+            applyPluginSettings(harness.view, {
+                enableLanguageAutocomplete: true,
+                enableCopyWidget: false,
+                enableLineNumbers: false,
+                languages: ['json'],
+            });
+
+            const result = createCodeBlockCompleter()(createCompletionContext(harness.view));
+            const completion = result?.options.find((option) => option.label === 'json');
+            if (!result || !completion) {
+                throw new Error('Expected a json completion for an opening fence.');
+            }
+
+            transactions.length = 0;
+            applyCompletion(harness.view, result, 'json');
+
+            expect(transactions).toHaveLength(1);
+            expect(transactions[0]!.annotation(pickedCompletion)).toBe(completion);
+            expect(transactions[0]!.isUserEvent('input.complete')).toBe(true);
         } finally {
             harness.destroy();
         }

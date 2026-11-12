@@ -60,4 +60,6 @@ The viewer preserves Joplin's existing rendered HTML. Its one change to source m
 
 The display name is Codeblock Utils, but the package name (`joplin-plugin-codeblock-autocomplete`), manifest ID (`com.bwat47.codeblock-autocomplete`), existing setting keys, and runtime identifiers retain their original names for compatibility.
 
+Completion menus are shared with Joplin and other plugins, so language-completion styles target only this plugin's completion type, and completions are applied with CodeMirror's `pickedCompletion` annotation and `input.complete` user event.
+
 Tests live alongside feature modules; shared editor test support is in `src/testUtils/editorHarness.ts`. Logging uses `src/logger.ts`. Update this document when component responsibilities or communication paths change.
