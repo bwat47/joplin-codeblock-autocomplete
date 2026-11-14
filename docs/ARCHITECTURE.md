@@ -63,3 +63,9 @@ The display name is Codeblock Utils, but the package name (`joplin-plugin-codebl
 Completion menus are shared with Joplin and other plugins, so language-completion styles target only this plugin's completion type, and completions are applied with CodeMirror's `pickedCompletion` annotation and `input.complete` user event.
 
 Tests live alongside feature modules; shared editor test support is in `src/testUtils/editorHarness.ts`. Logging uses `src/logger.ts`. Update this document when component responsibilities or communication paths change.
+
+## Build and Packaging
+
+`npm run dist` typechecks, then delegates bundling and packaging to the shared `@bwat47/joplin-plugin-scripts` dev dependency, which uses esbuild to produce `dist/` and the `.jpl` in `publish/`. Build behavior lives in that package rather than in local scripts.
+
+`plugin.config.json` registers the CodeMirror and viewer content scripts as `extraScripts`. Content scripts keep Joplin's CodeMirror and Lezer libraries external, and the viewer's CSS and JS assets are copied as-is.

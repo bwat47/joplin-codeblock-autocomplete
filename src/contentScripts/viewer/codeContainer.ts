@@ -1,7 +1,7 @@
 /** Matches Joplin's editable class attribute, including containers with other classes. */
 const EDITABLE_CLASS_PATTERN = /class=(['"])[^'"]*\bjoplin-editable\b[^'"]*\1/;
 /** Matches the whole opening tag of the editable container, for example `<div class="joplin-editable">`. */
-const EDITABLE_OPENING_TAG_PATTERN = /<div\b[^>]*\bclass=(['"])[^'"]*\bjoplin-editable\b[^'"]*\1[^>]*>/;
+const EDITABLE_OPENING_TAG_PATTERN = /<div\b[^>]+\bclass=(['"])[^'"]*\bjoplin-editable\b[^'"]*\1[^>]*>/;
 /**
  * Joplin's own `fence` overrides (mermaid, ABC, Fountain) also emit a
  * `joplin-editable` container, so the container alone does not identify a code

@@ -1,0 +1,22 @@
+{
+    "$schema": "./node_modules/fallow/schema.json",
+    "entry": [
+        "src/index.ts",
+        "src/contentScripts/codemirror/index.ts",
+        "src/contentScripts/viewer/index.ts",
+        "src/contentScripts/viewer/copyWidget.css",
+        "src/contentScripts/viewer/copyWidget.js",
+        "src/contentScripts/viewer/lineNumbers.css",
+        "src/contentScripts/viewer/lineNumbers.js"
+    ],
+    "supportEntry": ["src/**/*.test.ts", "src/testUtils/editorHarness.ts"],
+    "ignorePatterns": ["**/*.d.ts", "api/**"],
+    "rules": {
+        "complexity-crap": "off",
+        "dev-dependencies-in-production": "off"
+    },
+    "health": {
+        "maxCognitive": 15,
+        "maxCyclomatic": 20
+    }
+}
