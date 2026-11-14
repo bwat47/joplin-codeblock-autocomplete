@@ -67,11 +67,9 @@ export function applyPluginSettings(view: EditorView, settings: unknown): void {
 
 export async function syncInitialSettings(context: PostMessageContext, codeMirror: CodeMirrorControl): Promise<void> {
     try {
-        const settings = normalizeSettings(
-            await context.postMessage({
-                command: 'getSettings',
-            })
-        );
+        // oxlint-disable-next-line unicorn/require-post-message-target-origin -- Joplin's content script API, not window.postMessage
+        const response = await context.postMessage({ command: 'getSettings' });
+        const settings = normalizeSettings(response);
 
         applyPluginSettings(codeMirror.editor as EditorView, settings);
     } catch (error) {

@@ -34,7 +34,7 @@
         var parents = [];
         var container = code.parentElement;
         var numbered = !!container && container.classList.contains(NUMBERS_CLASS);
-        var start = Number((container && container.getAttribute(START_ATTRIBUTE)) || 1);
+        var firstLineNumber = Number((container && container.getAttribute(START_ATTRIBUTE)) || 1);
         /** @type {Record<string, boolean>} */
         var highlighted = {};
         ((container && container.getAttribute(HIGHLIGHT_ATTRIBUTE)) || '').split(' ').forEach(function (position) {
@@ -52,7 +52,7 @@
             var line = ownerDocument.createElement('span');
             line.className = LINE_CLASS;
             count++;
-            if (numbered) line.setAttribute('data-line-number', String(start + count - 1));
+            if (numbered) line.setAttribute('data-line-number', String(firstLineNumber + count - 1));
             if (highlighted[String(count)]) line.classList.add(HIGHLIGHTED_LINE_CLASS);
             fragment.appendChild(line);
             parents = [line];
@@ -88,7 +88,10 @@
         Array.from(code.childNodes).forEach(visit);
         code.replaceChildren(fragment);
         if (numbered) {
-            code.style.setProperty('--codeblock-line-number-digits', String(String(start + count - 1).length));
+            code.style.setProperty(
+                '--codeblock-line-number-digits',
+                String(String(firstLineNumber + count - 1).length)
+            );
         }
         code.setAttribute(NUMBERED_ATTRIBUTE, 'true');
     }

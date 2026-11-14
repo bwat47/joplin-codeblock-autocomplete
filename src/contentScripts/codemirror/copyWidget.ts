@@ -350,10 +350,8 @@ class CopyCodeBlockWidget extends WidgetType {
 
     private async copyCodeBlock(): Promise<void> {
         try {
-            await this.context.postMessage({
-                command: 'copyCodeBlock',
-                text: this.copyText,
-            });
+            // oxlint-disable-next-line unicorn/require-post-message-target-origin -- Joplin's content script API, not window.postMessage
+            await this.context.postMessage({ command: 'copyCodeBlock', text: this.copyText });
         } catch (error) {
             logger.error('Failed to copy code block:', error);
         }

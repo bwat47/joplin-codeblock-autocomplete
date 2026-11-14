@@ -438,46 +438,46 @@ describe('createFenceTriggerExtension', () => {
     });
 });
 
+function createMarkdownHarness(doc: string): ReturnType<typeof createEditorHarness> {
+    const harness = createEditorHarness(doc, {
+        extensions: [markdown(), createSettingsExtension(), createFenceTriggerExtension()],
+    });
+    applyPluginSettings(harness.view, {
+        enableLanguageAutocomplete: true,
+        enableCopyWidget: false,
+        enableLineNumbers: false,
+        languages: ['python', 'javascript'],
+    });
+    return harness;
+}
+
+function typeText(view: EditorView, text: string): void {
+    const pos = view.state.selection.main.head;
+    view.dispatch({
+        changes: { from: pos, insert: text },
+        selection: { anchor: pos + text.length },
+        userEvent: 'input.type',
+    });
+}
+
+function deleteBackward(view: EditorView, count: number): void {
+    const pos = view.state.selection.main.head;
+    view.dispatch({
+        changes: { from: pos - count, to: pos },
+        selection: { anchor: pos - count },
+        userEvent: 'delete.backward',
+    });
+}
+
+function complete(view: EditorView, label: string): void {
+    const result = createCodeBlockCompleter()(createCompletionContext(view));
+    if (!result) {
+        throw new Error('Expected completions for an opening fence.');
+    }
+    applyCompletion(view, result, label);
+}
+
 describe('closing fence on language completion', () => {
-    function createMarkdownHarness(doc: string): ReturnType<typeof createEditorHarness> {
-        const harness = createEditorHarness(doc, {
-            extensions: [markdown(), createSettingsExtension(), createFenceTriggerExtension()],
-        });
-        applyPluginSettings(harness.view, {
-            enableLanguageAutocomplete: true,
-            enableCopyWidget: false,
-            enableLineNumbers: false,
-            languages: ['python', 'javascript'],
-        });
-        return harness;
-    }
-
-    function typeText(view: EditorView, text: string): void {
-        const pos = view.state.selection.main.head;
-        view.dispatch({
-            changes: { from: pos, insert: text },
-            selection: { anchor: pos + text.length },
-            userEvent: 'input.type',
-        });
-    }
-
-    function deleteBackward(view: EditorView, count: number): void {
-        const pos = view.state.selection.main.head;
-        view.dispatch({
-            changes: { from: pos - count, to: pos },
-            selection: { anchor: pos - count },
-            userEvent: 'delete.backward',
-        });
-    }
-
-    function complete(view: EditorView, label: string): void {
-        const result = createCodeBlockCompleter()(createCompletionContext(view));
-        if (!result) {
-            throw new Error('Expected completions for an opening fence.');
-        }
-        applyCompletion(view, result, label);
-    }
-
     it('changes the language of an existing block without adding a closing fence', () => {
         const harness = createMarkdownHarness('```js|\ncode\n```\n');
 

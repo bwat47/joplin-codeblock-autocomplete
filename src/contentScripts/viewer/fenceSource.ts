@@ -5,7 +5,7 @@ import { escapeHtml } from './escapeHtml';
  * Matches the opening tag of Joplin's hidden source element, for example
  * `<pre class="joplin-source" hidden data-joplin-language="ts" ...>`.
  */
-const SOURCE_TAG_PATTERN = /<pre\b[^>]*\bclass=(['"])[^'"]*\bjoplin-source\b[^'"]*\1[^>]*>/;
+const SOURCE_TAG_PATTERN = /<pre\b[^>]+\bclass=(['"])[^'"]*\bjoplin-source\b[^'"]*\1[^>]*>/;
 /**
  * Matches Joplin's opening fence attribute and captures its value, which is the fence, the language
  * and an encoded newline (for example three backticks followed by `ts&#10;`).
