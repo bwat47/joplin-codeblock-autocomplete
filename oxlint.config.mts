@@ -32,8 +32,9 @@ export default defineConfig({
         'import/no-cycle': 'error',
         'import/no-self-import': 'error',
         'import/no-duplicates': ['error', { preferInline: true }],
-        // `Array#toSorted()` is ES2023; this plugin targets ES2020. Sorts operate on local copies.
+        // toSorted()/toReversed() are ES2023; the build targets ES2020.
         'unicorn/no-array-sort': 'off',
+        'unicorn/no-array-reverse': 'off',
         // Viewer assets namespace their window-scoped controllers with a `__` prefix.
         'no-underscore-dangle': 'off',
         ...regexpRecommendedRules,
