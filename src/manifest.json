@@ -7,8 +7,8 @@
     "name": "Codeblock Utils",
     "description": "Code block utilities for the Markdown editor and viewer: language autocomplete, copy buttons, line numbers, and a command to insert or toggle code blocks",
     "author": "bwat47",
-    "homepage_url": "https://github.com/bwat47/joplin-codeblock-autocomplete",
-    "repository_url": "https://github.com/bwat47/joplin-codeblock-autocomplete",
+    "homepage_url": "https://github.com/bwat47/joplin-codeblock-utils",
+    "repository_url": "https://github.com/bwat47/joplin-codeblock-utils",
     "keywords": [
         "autocomplete",
         "code",
