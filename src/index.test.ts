@@ -1,5 +1,6 @@
 import { ToastType } from 'api/types';
 import { UPDATE_SETTINGS_COMMAND, type PluginSettingsResponse } from './contentScripts/codemirror/types';
+import { SETTING_KEYS } from './settingsKeys';
 
 type MessageHandler = (message: unknown) => Promise<unknown>;
 type SettingsChangeHandler = (event: { keys: string[] }) => void;
@@ -23,6 +24,7 @@ const mocks = vi.hoisted(() => ({
         settings: { onChange: vi.fn<(handler: SettingsChangeHandler) => Promise<void>>() },
     },
     registerSettings: vi.fn(),
+    restoreClearedLanguageList: vi.fn<() => Promise<void>>(),
     areCodeMirrorSettingsChanged: vi.fn<(keys: string[]) => boolean>(),
     getContentScriptSettings: vi.fn<() => Promise<PluginSettingsResponse>>(),
     logger: { warn: vi.fn(), error: vi.fn() },
@@ -71,6 +73,7 @@ beforeEach(async () => {
     mocks.joplin.views.dialogs.showToast.mockResolvedValue(undefined);
     mocks.areCodeMirrorSettingsChanged.mockReturnValue(true);
     mocks.getContentScriptSettings.mockResolvedValue(SETTINGS);
+    mocks.restoreClearedLanguageList.mockResolvedValue(undefined);
     await startPlugin();
 });
 
@@ -83,6 +86,44 @@ describe('settings changes', () => {
                 args: [SETTINGS],
             });
         });
+    });
+
+    it('restores a cleared language list on startup', () => {
+        expect(mocks.restoreClearedLanguageList).toHaveBeenCalledOnce();
+    });
+
+    it('restores a cleared language list before pushing settings to the editor', async () => {
+        mocks.restoreClearedLanguageList.mockClear();
+        getSettingsChangeHandler()({ keys: [SETTING_KEYS.languages] });
+        await vi.waitFor(() => {
+            expect(mocks.joplin.commands.execute).toHaveBeenCalled();
+        });
+
+        expect(mocks.restoreClearedLanguageList).toHaveBeenCalledOnce();
+        expect(mocks.restoreClearedLanguageList.mock.invocationCallOrder[0]).toBeLessThan(
+            mocks.getContentScriptSettings.mock.invocationCallOrder[0]!
+        );
+    });
+
+    it('checks the language list only when it changed', async () => {
+        mocks.restoreClearedLanguageList.mockClear();
+        getSettingsChangeHandler()({ keys: ['editorSetting'] });
+        await vi.waitFor(() => {
+            expect(mocks.joplin.commands.execute).toHaveBeenCalled();
+        });
+
+        expect(mocks.restoreClearedLanguageList).not.toHaveBeenCalled();
+    });
+
+    it('still pushes settings when restoring the language list fails', async () => {
+        const error = new Error('settings unavailable');
+        mocks.restoreClearedLanguageList.mockRejectedValueOnce(error);
+
+        getSettingsChangeHandler()({ keys: [SETTING_KEYS.languages] });
+        await vi.waitFor(() => {
+            expect(mocks.joplin.commands.execute).toHaveBeenCalled();
+        });
+        expect(mocks.logger.warn).toHaveBeenCalledWith('Failed to restore the default autocomplete languages.', error);
     });
 
     it('ignores changes to unrelated settings', () => {

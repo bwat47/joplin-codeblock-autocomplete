@@ -1,7 +1,7 @@
 import { vi } from 'vitest';
 
 import { SettingItemType, type SettingItem } from 'api/types';
-import { areCodeMirrorSettingsChanged, registerSettings } from './settings';
+import { areCodeMirrorSettingsChanged, registerSettings, restoreClearedLanguageList } from './settings';
 import { SETTING_KEYS, SETTINGS_SECTION_ID } from './settingsKeys';
 
 const joplinMock = vi.hoisted(() => ({
@@ -9,6 +9,8 @@ const joplinMock = vi.hoisted(() => ({
         registerSection: vi.fn(async () => {}),
         registerSettings: vi.fn<(spec: Record<string, SettingItem>) => Promise<void>>(async () => {}),
         value: vi.fn<() => Promise<string>>().mockResolvedValue(''),
+        values: vi.fn<(keys: string[]) => Promise<Record<string, unknown>>>().mockResolvedValue({}),
+        setValue: vi.fn<(key: string, value: unknown) => Promise<void>>(async () => {}),
     },
 }));
 
@@ -92,5 +94,33 @@ describe('registerSettings', () => {
         const languageSetting = spec[SETTING_KEYS.languages];
         assert(languageSetting, 'Expected the language setting to be registered.');
         expect(languageSetting.value).toContain('typescript');
+    });
+});
+
+function storeLanguages(value: unknown): void {
+    joplinMock.settings.values.mockResolvedValueOnce({ [SETTING_KEYS.languages]: value });
+}
+
+describe('restoreClearedLanguageList', () => {
+    beforeEach(() => {
+        joplinMock.settings.setValue.mockClear();
+    });
+
+    it.each(['', '   ', ' , ,, '])('restores the default list when the stored list is %j', async (value) => {
+        storeLanguages(value);
+        await restoreClearedLanguageList();
+
+        const spec = await getRegisteredSettingsSpec();
+        expect(joplinMock.settings.setValue).toHaveBeenCalledExactlyOnceWith(
+            SETTING_KEYS.languages,
+            spec[SETTING_KEYS.languages]?.value
+        );
+    });
+
+    it('keeps a list that names at least one language', async () => {
+        storeLanguages(' , rust ,');
+        await restoreClearedLanguageList();
+
+        expect(joplinMock.settings.setValue).not.toHaveBeenCalled();
     });
 });

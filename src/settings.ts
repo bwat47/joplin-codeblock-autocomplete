@@ -6,7 +6,7 @@ import { SettingItemType, type SettingItem } from 'api/types';
 import { SETTING_KEYS, SETTINGS_SECTION_ID } from './settingsKeys';
 
 const DEFAULT_LANGUAGES =
-    'bash, c, clojure, cpp, csharp, css, dart, diff, dockerfile, elixir, elm, erlang, go, groovy, haskell, html, java, javascript, json, julia, kotlin, latex, lua, makefile, markdown, objective-c, ocaml, perl, php, powershell, python, r, ruby, rust, scala, shell, sql, swift, toml, txt, typescript, xml, yaml';
+    'abc, bash, c, c#, c++, clojure, cmake, coffeescript, cpp, crystal, csharp, css, d, dart, diff, dockerfile, elixir, elm, erlang, fortran, fsharp, gherkin, go, graphql, groovy, haskell, haxe, html, http, ini, java, javascript, json, jsx, julia, kotlin, latex, less, lisp, lua, makefile, markdown, mathematica, matlab, mermaid, nginx, nix, objective-c, objective-c++, ocaml, pascal, perl, php, postgresql, powershell, protobuf, python, r, ruby, rust, sass, scala, scheme, scss, shell, smalltalk, sql, swift, tcl, toml, tsx, txt, typescript, vb, vbscript, verilog, vue, xml, yaml';
 
 /**
  * Which content script consumes a setting. The editor is pushed new values
@@ -68,7 +68,7 @@ const SETTINGS_CONFIG = {
         defaultValue: DEFAULT_LANGUAGES,
         label: 'Autocomplete languages',
         description:
-            'Comma-separated list of language identifiers to show in the autocomplete menu. The "No language" option is always shown first.',
+            'Comma-separated list of language identifiers to show in the autocomplete menu. The "No language" option is always shown first. Clear the list to restore the defaults.',
         target: 'editor',
     },
 } as const satisfies Record<string, SettingDefinition>;
@@ -112,6 +112,19 @@ export async function getContentScriptSettings(): Promise<ContentScriptSettings>
         enableLineNumbers: values[SETTINGS_CONFIG.enableLineNumbers.key] as boolean,
         languages: parseLanguageList(values[SETTINGS_CONFIG.languages.key] as string),
     };
+}
+
+/**
+ * Restores the default language list when the stored list names no languages,
+ * for example after the user clears the field and saves. Without this, an
+ * empty list would leave autocomplete offering only "No language".
+ */
+export async function restoreClearedLanguageList(): Promise<void> {
+    const key = SETTINGS_CONFIG.languages.key;
+    const value: unknown = (await joplin.settings.values([key]))[key];
+    if (typeof value === 'string' && parseLanguageList(value).length > 0) return;
+
+    await joplin.settings.setValue(key, DEFAULT_LANGUAGES);
 }
 
 export function areCodeMirrorSettingsChanged(keys: string[]): boolean {

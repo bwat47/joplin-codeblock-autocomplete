@@ -69,14 +69,14 @@ Other Markdown apps usually ignore the extra words and use the first one as the 
 
 ## Settings
 
-| Setting                                                        | Controls                                                    |
-| -------------------------------------------------------------- | ----------------------------------------------------------- |
-| Enable language auto-complete                                  | Language dropdown for code fences.                          |
-| Show Markdown editor code block header (title and copy button) | Header in the Markdown editor.                              |
-| Show line numbers in Markdown editor code blocks               | Editor line numbers.                                        |
-| Show Markdown viewer code block header (title and copy button) | Header in the Markdown viewer and Rich Text editors.        |
-| Show line numbers in Markdown viewer code blocks               | Line numbers in the Markdown viewer and Rich Text editors.  |
-| Autocomplete languages                                         | Comma-separated language identifiers shown in the dropdown. |
+| Setting                                                        | Controls                                                                                            |
+| -------------------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
+| Enable language auto-complete                                  | Language dropdown for code fences.                                                                  |
+| Show Markdown editor code block header (title and copy button) | Header in the Markdown editor.                                                                      |
+| Show line numbers in Markdown editor code blocks               | Editor line numbers.                                                                                |
+| Show Markdown viewer code block header (title and copy button) | Header in the Markdown viewer and Rich Text editors.                                                |
+| Show line numbers in Markdown viewer code blocks               | Line numbers in the Markdown viewer and Rich Text editors.                                          |
+| Autocomplete languages                                         | Comma-separated language identifiers shown in the dropdown. Clear the list to restore the defaults. |
 
 ## Building from source
 

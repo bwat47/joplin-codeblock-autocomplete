@@ -6,7 +6,13 @@ import joplin from 'api';
 import { ContentScriptType, MenuItemLocation, ToastType, ToolbarButtonLocation } from 'api/types';
 import { INSERT_CODE_BLOCK_COMMAND, UPDATE_SETTINGS_COMMAND } from './contentScripts/codemirror/types';
 import { logger } from './logger';
-import { areCodeMirrorSettingsChanged, getContentScriptSettings, registerSettings } from './settings';
+import {
+    areCodeMirrorSettingsChanged,
+    getContentScriptSettings,
+    registerSettings,
+    restoreClearedLanguageList,
+} from './settings';
+import { SETTING_KEYS } from './settingsKeys';
 
 const CODE_MIRROR_CONTENT_SCRIPT_ID = 'codeBlockCompleter';
 const VIEWER_CONTENT_SCRIPT_ID = 'codeblockAutocompleteViewer';
@@ -101,9 +107,30 @@ async function pushUpdatedSettingsToEditor(): Promise<void> {
     }
 }
 
+async function restoreLanguageListIfCleared(): Promise<void> {
+    try {
+        await restoreClearedLanguageList();
+    } catch (error) {
+        logger.warn('Failed to restore the default autocomplete languages.', error);
+    }
+}
+
+async function handleSettingsChange(keys: string[]): Promise<void> {
+    // Restore before pushing, so the editor never receives the cleared list.
+    if (keys.includes(SETTING_KEYS.languages)) {
+        await restoreLanguageListIfCleared();
+    }
+
+    if (areCodeMirrorSettingsChanged(keys)) {
+        await pushUpdatedSettingsToEditor();
+    }
+}
+
 void joplin.plugins.register({
     onStart: async function () {
         await registerSettings();
+        // A list cleared before this check existed is still stored empty.
+        await restoreLanguageListIfCleared();
 
         await joplin.contentScripts.register(
             ContentScriptType.CodeMirrorPlugin,
@@ -142,11 +169,7 @@ void joplin.plugins.register({
         );
 
         await joplin.settings.onChange((event) => {
-            if (!areCodeMirrorSettingsChanged(event.keys)) {
-                return;
-            }
-
-            void pushUpdatedSettingsToEditor();
+            void handleSettingsChange(event.keys);
         });
     },
 });
