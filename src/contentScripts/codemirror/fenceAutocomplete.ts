@@ -476,6 +476,12 @@ export const fenceAutocompleteTheme = EditorView.baseTheme({
     [`${LANGUAGE_ROW_SELECTOR} > .cm-completionLabel`]: {
         padding: '0',
     },
+    // CodeMirror underlines matched characters by default, but browsers skip the underline
+    // around descenders, leaving a stray dot beside letters such as "g". Bold avoids that.
+    [`${LANGUAGE_ROW_SELECTOR} .cm-completionMatchedText`]: {
+        textDecoration: 'none',
+        fontWeight: 'bold',
+    },
 });
 
 export function createFenceTriggerExtension(): Extension {
