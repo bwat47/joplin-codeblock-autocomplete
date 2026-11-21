@@ -27,7 +27,7 @@
         "publish"
     ],
     "devDependencies": {
-        "@bwat47/joplin-plugin-scripts": "^1.6.3",
+        "@bwat47/joplin-plugin-scripts": "^1.8.0",
         "@codemirror/autocomplete": "6.20.1",
         "@codemirror/lang-markdown": "6.5.0",
         "@codemirror/language": "6.12.3",
@@ -36,12 +36,12 @@
         "@lezer/common": "1.5.0",
         "@types/node": "^24.19.2",
         "eslint-plugin-regexp": "^3.3.3",
-        "fallow": "^3.43.2",
+        "fallow": "^3.45.0",
         "jsdom": "^31.0.1",
         "oxfmt": "^0.79.0",
         "oxlint": "^1.94.0",
-        "oxlint-tsgolint": "^7.0.2007",
+        "oxlint-tsgolint": "^7.0.2008",
         "typescript": "^7.0.2",
-        "vitest": "^5.1.0"
+        "vitest": "^5.1.1"
     }
 }
