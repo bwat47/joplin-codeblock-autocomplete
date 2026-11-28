@@ -17,7 +17,9 @@
     "rules": {
         "complexity-crap": "off",
         "dev-dependencies-in-production": "off",
-        "private-type-leak": "off"
+        "private-type-leak": "off",
+        "test-only-exports": "warn",
+        "require-suppression-reason": "error"
     },
     "health": {
         "maxCognitive": 15,
