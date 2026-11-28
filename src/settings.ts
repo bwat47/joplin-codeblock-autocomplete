@@ -73,7 +73,7 @@ const SETTINGS_CONFIG = {
     },
 } as const satisfies Record<string, SettingDefinition>;
 
-export type ContentScriptSettings = {
+type ContentScriptSettings = {
     enableLanguageAutocomplete: boolean;
     enableCopyWidget: boolean;
     enableLineNumbers: boolean;

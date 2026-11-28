@@ -10,7 +10,7 @@ type FenceChildNodes = {
     openingFenceMark: SyntaxNode | null;
 };
 
-export type FencedCodeSyntaxTree = {
+type FencedCodeSyntaxTree = {
     /** Whether the tree covers the requested document range. */
     complete: boolean;
     tree: Tree;

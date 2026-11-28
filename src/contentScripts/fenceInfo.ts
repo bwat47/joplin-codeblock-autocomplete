@@ -41,7 +41,7 @@ export type FenceInfo = {
     highlightedLines: readonly LineRange[];
 };
 
-export type LineNumbering = {
+type LineNumbering = {
     enabled: boolean;
     /** The number shown on the block's first content line. */
     start: number;

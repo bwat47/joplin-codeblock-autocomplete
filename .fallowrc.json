@@ -11,9 +11,13 @@
     ],
     "supportEntry": ["src/**/*.test.ts", "src/testUtils/editorHarness.ts"],
     "ignorePatterns": ["**/*.d.ts", "api/**"],
+    "typeAware": {
+        "enabled": true
+    },
     "rules": {
         "complexity-crap": "off",
-        "dev-dependencies-in-production": "off"
+        "dev-dependencies-in-production": "off",
+        "private-type-leak": "off"
     },
     "health": {
         "maxCognitive": 15,

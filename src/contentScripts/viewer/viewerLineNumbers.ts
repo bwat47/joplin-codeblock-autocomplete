@@ -9,7 +9,7 @@ const LINE_NUMBER_START_ATTRIBUTE = 'data-codeblock-line-start';
 /** Space-separated positions (1 for the block's first line) of the lines to highlight. */
 const HIGHLIGHT_ATTRIBUTE = 'data-codeblock-highlight-lines';
 
-export type CodeLineMarks = {
+type CodeLineMarks = {
     numbered: boolean;
     start: number;
     /** Positions of highlighted lines, counting the block's first line as 1 whatever its number. */
