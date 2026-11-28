@@ -1,10 +1,10 @@
 import {
     autocompletion,
+    CompletionContext,
     completionStatus,
     currentCompletions,
     pickedCompletion,
     startCompletion,
-    type CompletionContext,
     type CompletionResult,
 } from '@codemirror/autocomplete';
 import { markdown } from '@codemirror/lang-markdown';
@@ -42,10 +42,7 @@ beforeAll(() => {
 });
 
 function createCompletionContext(view: ReturnType<typeof createEditorHarness>['view']): CompletionContext {
-    return {
-        state: view.state,
-        pos: view.state.selection.main.head,
-    } as CompletionContext;
+    return new CompletionContext(view.state, view.state.selection.main.head, true, view);
 }
 
 function getResultLabels(result: CompletionResult | null): string[] {
